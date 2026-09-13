@@ -1,0 +1,291 @@
+/* =====================================================================
+   XWise Blocker v1 — popup styles
+   Matches Twitter's design language: dark theme, clean typography,
+   native-feeling toggle switches, subtle interactions
+   ===================================================================== */
+
+* {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+body {
+  width: 320px;
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+  background: #000;
+  color: #e7e9ea;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+.xe-popup {
+  padding: 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+/* --- Header --- */
+.xe-header {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 4px 0 8px;
+}
+
+.xe-logo {
+  width: 36px;
+  height: 36px;
+  border-radius: 10px;
+  display: block;
+  flex-shrink: 0;
+}
+
+.xe-header-text {
+  flex: 1;
+  min-width: 0;
+}
+
+.xe-header h1 {
+  font-size: 17px;
+  font-weight: 800;
+  letter-spacing: -0.02em;
+  line-height: 1.2;
+  color: #e7e9ea;
+}
+
+.xe-sub {
+  font-size: 13px;
+  color: #71767b;
+  line-height: 1.3;
+  margin-top: 1px;
+}
+
+/* --- Card containers --- */
+.xe-card {
+  background: #16181c;
+  border: 1px solid #2f3336;
+  border-radius: 16px;
+  overflow: hidden;
+}
+
+.xe-section-title {
+  font-size: 13px;
+  font-weight: 700;
+  color: #71767b;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  padding: 14px 16px 0;
+}
+
+/* --- Setting rows --- */
+.xe-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 12px 16px;
+  border-bottom: 1px solid #2f3336;
+  transition: background 0.12s ease;
+}
+
+.xe-row:hover {
+  background: rgba(239, 243, 244, 0.03);
+}
+
+.xe-row-last,
+.xe-row:last-of-type {
+  border-bottom: none;
+}
+
+.xe-row-content {
+  flex: 1;
+  min-width: 0;
+}
+
+.xe-row-title {
+  font-size: 14px;
+  font-weight: 600;
+  color: #e7e9ea;
+  line-height: 1.3;
+}
+
+.xe-row-desc {
+  font-size: 12px;
+  color: #71767b;
+  line-height: 1.4;
+  margin-top: 2px;
+}
+
+/* --- Toggle switch (matches Twitter's settings UI) --- */
+.xe-switch {
+  position: relative;
+  width: 40px;
+  height: 24px;
+  flex-shrink: 0;
+  cursor: pointer;
+}
+
+.xe-switch input {
+  opacity: 0;
+  width: 0;
+  height: 0;
+  position: absolute;
+}
+
+.xe-switch span {
+  position: absolute;
+  inset: 0;
+  background: #71767b;
+  border-radius: 9999px;
+  transition: background 0.2s ease;
+  cursor: pointer;
+}
+
+.xe-switch span::before {
+  content: "";
+  position: absolute;
+  width: 18px;
+  height: 18px;
+  left: 3px;
+  top: 3px;
+  background: #e7e9ea;
+  border-radius: 50%;
+  transition: transform 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.3);
+}
+
+.xe-switch input:checked + span {
+  background: #1d9bf0;
+}
+
+.xe-switch input:checked + span::before {
+  transform: translateX(16px);
+}
+
+.xe-switch input:focus-visible + span {
+  outline: 2px solid #1d9bf0;
+  outline-offset: 2px;
+}
+
+/* --- Shortcut editor --- */
+.xe-shortcut-row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 16px 14px;
+  flex-wrap: wrap;
+}
+
+.xe-kbd {
+  font-family: ui-monospace, SFMono-Regular, "SF Mono", Menlo, monospace;
+  font-size: 12px;
+  padding: 5px 10px;
+  border-radius: 8px;
+  background: #2f3336;
+  color: #71767b;
+  cursor: pointer;
+  user-select: none;
+  border: 1px solid #3e4144;
+  transition: all 0.15s ease;
+  font-weight: 500;
+  line-height: 1;
+}
+
+.xe-kbd:hover {
+  background: #3a3d41;
+}
+
+.xe-kbd-active {
+  background: rgba(29, 155, 240, 0.15);
+  color: #1d9bf0;
+  border-color: rgba(29, 155, 240, 0.4);
+}
+
+.xe-kbd-active:hover {
+  background: rgba(29, 155, 240, 0.25);
+}
+
+.xe-plus {
+  color: #71767b;
+  font-size: 13px;
+  font-weight: 500;
+}
+
+.xe-key-input {
+  width: 32px;
+  height: 30px;
+  text-align: center;
+  font-family: ui-monospace, SFMono-Regular, "SF Mono", Menlo, monospace;
+  font-size: 13px;
+  font-weight: 600;
+  background: #2f3336;
+  border: 1px solid #3e4144;
+  border-radius: 8px;
+  color: #e7e9ea;
+  padding: 0;
+  transition: border-color 0.15s ease, box-shadow 0.15s ease;
+}
+
+.xe-key-input:focus {
+  outline: none;
+  border-color: #1d9bf0;
+  box-shadow: 0 0 0 3px rgba(29, 155, 240, 0.2);
+}
+
+/* --- Stats card --- */
+.xe-stats-card {
+  padding: 14px 16px;
+}
+
+.xe-stats-row {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.xe-stat {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+}
+
+.xe-stat-value {
+  font-size: 22px;
+  font-weight: 800;
+  color: #e7e9ea;
+  letter-spacing: -0.02em;
+  line-height: 1;
+  font-variant-numeric: tabular-nums;
+}
+
+.xe-stat-label {
+  font-size: 12px;
+  color: #71767b;
+  font-weight: 500;
+}
+
+/* --- Footer --- */
+.xe-footer {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 2px 4px 0;
+}
+
+.xe-status {
+  font-size: 12px;
+  color: #1d9bf0;
+  font-weight: 500;
+  min-height: 16px;
+  transition: opacity 0.2s ease;
+}
+
+.xe-version {
+  font-size: 11px;
+  color: #3a3d41;
+  font-weight: 500;
+  font-variant-numeric: tabular-nums;
+}

@@ -1,0 +1,102 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>XWise Blocker</title>
+<link rel="stylesheet" href="popup.css" />
+</head>
+<body>
+  <div class="xe-popup">
+    <header class="xe-header">
+      <img src="icons/icon48.png" alt="" class="xe-logo" />
+      <div class="xe-header-text">
+        <h1>XWise Blocker</h1>
+        <p class="xe-sub">Volume sliders · Block button · Shortcut</p>
+      </div>
+    </header>
+
+    <section class="xe-card">
+      <h2 class="xe-section-title">Features</h2>
+
+      <div class="xe-row">
+        <div class="xe-row-content">
+          <p class="xe-row-title">Volume sliders</p>
+          <p class="xe-row-desc">Per-video volume control on timeline videos</p>
+        </div>
+        <label class="xe-switch">
+          <input type="checkbox" id="volumeSliderEnabled" />
+          <span></span>
+        </label>
+      </div>
+
+      <div class="xe-row">
+        <div class="xe-row-content">
+          <p class="xe-row-title">Remember volume</p>
+          <p class="xe-row-desc">Last volume level carries across videos</p>
+        </div>
+        <label class="xe-switch">
+          <input type="checkbox" id="rememberVolume" />
+          <span></span>
+        </label>
+      </div>
+
+      <div class="xe-row">
+        <div class="xe-row-content">
+          <p class="xe-row-title">Inline block button</p>
+          <p class="xe-row-desc">Adds a Block button to every tweet's action bar</p>
+        </div>
+        <label class="xe-switch">
+          <input type="checkbox" id="blockButtonEnabled" />
+          <span></span>
+        </label>
+      </div>
+
+      <div class="xe-row">
+        <div class="xe-row-content">
+          <p class="xe-row-title">Keyboard shortcut</p>
+          <p class="xe-row-desc">Hover a tweet and press the shortcut to block</p>
+        </div>
+        <label class="xe-switch">
+          <input type="checkbox" id="shortcutEnabled" />
+          <span></span>
+        </label>
+      </div>
+
+      <div class="xe-shortcut-row" id="shortcutRow">
+        <span class="xe-kbd" id="kbdCtrl">Ctrl</span>
+        <span class="xe-kbd" id="kbdAlt">Alt</span>
+        <span class="xe-kbd" id="kbdShift">Shift</span>
+        <span class="xe-plus">+</span>
+        <input type="text" id="shortcutKey" maxlength="1" class="xe-key-input" spellcheck="false" autocomplete="off" />
+      </div>
+
+      <div class="xe-row xe-row-last">
+        <div class="xe-row-content">
+          <p class="xe-row-title">Confirm before blocking</p>
+          <p class="xe-row-desc">2s cancel window when using the shortcut</p>
+        </div>
+        <label class="xe-switch">
+          <input type="checkbox" id="confirmDelayOnShortcut" />
+          <span></span>
+        </label>
+      </div>
+    </section>
+
+    <section class="xe-card xe-stats-card">
+      <div class="xe-stats-row">
+        <div class="xe-stat">
+          <span class="xe-stat-value" id="blockCountDisplay">0</span>
+          <span class="xe-stat-label">Users blocked</span>
+        </div>
+      </div>
+    </section>
+
+    <footer class="xe-footer">
+      <span id="statusMsg" class="xe-status"></span>
+      <span class="xe-version">v1.0.0</span>
+    </footer>
+  </div>
+  <script src="popup.js"></script>
+</body>
+</html>

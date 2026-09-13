@@ -1,0 +1,399 @@
+/* =====================================================================
+   XWise Blocker v1 — injected UI styles
+
+   Design principles:
+   - Adapt to Twitter's light / dark / dim themes automatically
+   - Match Twitter's native UI elements (action buttons, toasts, sliders)
+   - Never clash with any Twitter page: timeline, profile, search,
+     lists, notifications, messages, tweet detail, spaces, communities
+   - Use Twitter's own spacing (4px grid), font stack, border-radius
+   - Respect Twitter's z-index layers
+   ===================================================================== */
+
+/* --- Theme tokens — auto-switch via data-xe-theme on <html> --- */
+
+/* Dark theme (default) */
+:root,
+[data-xe-theme="dark"] {
+  --xe-bg-primary: rgb(21, 32, 43);
+  --xe-bg-float: rgba(21, 32, 43, 0.95);
+  --xe-bg-glass: rgba(0, 0, 0, 0.75);
+  --xe-bg-hover: rgba(239, 243, 244, 0.1);
+  --xe-bg-active: rgba(239, 243, 244, 0.2);
+  --xe-text-primary: rgb(231, 233, 234);
+  --xe-text-secondary: rgb(113, 118, 123);
+  --xe-border: rgba(239, 243, 244, 0.1);
+  --xe-accent: rgb(29, 155, 240);
+  --xe-danger: rgb(244, 33, 46);
+  --xe-danger-hover: rgba(244, 33, 46, 0.1);
+  --xe-danger-active: rgba(244, 33, 46, 0.2);
+  --xe-toast-bg: rgb(29, 155, 240);
+  --xe-toast-text: rgb(255, 255, 255);
+  --xe-shadow: 0 0 15px rgba(255,255,255,0.05), 0 0 3px 1px rgba(255,255,255,0.05);
+}
+
+/* Light theme */
+[data-xe-theme="light"] {
+  --xe-bg-primary: rgb(255, 255, 255);
+  --xe-bg-float: rgba(255, 255, 255, 0.97);
+  --xe-bg-glass: rgba(255, 255, 255, 0.85);
+  --xe-bg-hover: rgba(15, 20, 25, 0.1);
+  --xe-bg-active: rgba(15, 20, 25, 0.15);
+  --xe-text-primary: rgb(15, 20, 25);
+  --xe-text-secondary: rgb(83, 100, 113);
+  --xe-border: rgba(15, 20, 25, 0.1);
+  --xe-accent: rgb(29, 155, 240);
+  --xe-danger: rgb(244, 33, 46);
+  --xe-danger-hover: rgba(244, 33, 46, 0.1);
+  --xe-danger-active: rgba(244, 33, 46, 0.2);
+  --xe-toast-bg: rgb(29, 155, 240);
+  --xe-toast-text: rgb(255, 255, 255);
+  --xe-shadow: rgba(101,119,134,0.2) 0px 0px 15px, rgba(101,119,134,0.15) 0px 0px 3px 1px;
+}
+
+/* Dim theme */
+[data-xe-theme="dim"] {
+  --xe-bg-primary: rgb(21, 32, 43);
+  --xe-bg-float: rgba(21, 32, 43, 0.96);
+  --xe-bg-glass: rgba(21, 32, 43, 0.8);
+  --xe-bg-hover: rgba(239, 243, 244, 0.08);
+  --xe-bg-active: rgba(239, 243, 244, 0.16);
+  --xe-text-primary: rgb(247, 249, 249);
+  --xe-text-secondary: rgb(139, 152, 165);
+  --xe-border: rgba(239, 243, 244, 0.08);
+  --xe-accent: rgb(29, 155, 240);
+  --xe-danger: rgb(244, 33, 46);
+  --xe-danger-hover: rgba(244, 33, 46, 0.1);
+  --xe-danger-active: rgba(244, 33, 46, 0.2);
+  --xe-toast-bg: rgb(29, 155, 240);
+  --xe-toast-text: rgb(255, 255, 255);
+  --xe-shadow: rgba(136,153,166,0.15) 0px 0px 15px, rgba(136,153,166,0.1) 0px 0px 3px 1px;
+}
+
+
+/* =================================================================
+   VOLUME SLIDER — floating overlay on videos
+   Compact pill, auto-fades, expands on hover
+   ================================================================= */
+.xe-volume-wrapper {
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  z-index: 10;
+  display: flex;
+  align-items: center;
+  gap: 0;
+  height: 32px;
+  padding: 0 4px;
+  border-radius: 9999px;
+  background: var(--xe-bg-glass);
+  backdrop-filter: blur(12px) saturate(180%);
+  -webkit-backdrop-filter: blur(12px) saturate(180%);
+  opacity: 0;
+  transform: scale(0.92);
+  transition: opacity 0.2s ease, transform 0.2s ease, width 0.25s ease, gap 0.2s ease;
+  pointer-events: auto;
+  overflow: hidden;
+  width: 36px;
+  will-change: opacity, transform, width;
+}
+
+/* Show on video hover (target the video player container) */
+[data-testid="videoPlayer"]:hover .xe-volume-wrapper,
+.xe-volume-wrapper:hover,
+.xe-volume-wrapper:focus-within,
+*:hover > .xe-volume-wrapper {
+  opacity: 1;
+  transform: scale(1);
+}
+
+.xe-volume-wrapper:hover,
+.xe-volume-wrapper:focus-within {
+  width: 120px;
+  gap: 2px;
+}
+
+.xe-volume-icon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  flex-shrink: 0;
+  border: none;
+  background: none;
+  color: var(--xe-text-primary);
+  cursor: pointer;
+  border-radius: 9999px;
+  transition: background 0.15s ease;
+  padding: 0;
+}
+
+.xe-volume-icon:hover {
+  background: var(--xe-bg-hover);
+}
+
+.xe-volume-icon svg {
+  display: block;
+}
+
+/* Custom track visualization (sits behind the native range) */
+.xe-volume-track {
+  position: relative;
+  flex: 1;
+  height: 4px;
+  border-radius: 2px;
+  background: rgba(255, 255, 255, 0.2);
+  overflow: visible;
+  pointer-events: none;
+  opacity: 0;
+  transition: opacity 0.2s ease;
+}
+
+.xe-volume-wrapper:hover .xe-volume-track,
+.xe-volume-wrapper:focus-within .xe-volume-track {
+  opacity: 1;
+}
+
+[data-xe-theme="light"] .xe-volume-track {
+  background: rgba(0, 0, 0, 0.15);
+}
+
+.xe-volume-fill {
+  position: absolute;
+  left: 0;
+  top: 0;
+  height: 100%;
+  border-radius: 2px;
+  background: var(--xe-text-primary);
+  transition: width 0.05s linear;
+}
+
+.xe-volume-thumb {
+  position: absolute;
+  top: 50%;
+  width: 12px;
+  height: 12px;
+  margin-left: -6px;
+  margin-top: -6px;
+  border-radius: 50%;
+  background: var(--xe-text-primary);
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.3);
+  transform: scale(0);
+  transition: transform 0.15s ease;
+  pointer-events: none;
+}
+
+.xe-volume-wrapper:hover .xe-volume-thumb {
+  transform: scale(1);
+}
+
+/* Native range input — sits on top, fully transparent */
+.xe-volume-range {
+  position: absolute;
+  right: 4px;
+  top: 0;
+  width: calc(100% - 36px);
+  height: 100%;
+  margin: 0;
+  opacity: 0;
+  cursor: pointer;
+  z-index: 2;
+}
+
+
+/* =================================================================
+   BLOCK BUTTON — matches Twitter's native action bar buttons
+   Same sizing, spacing, hover states as reply/retweet/like/share
+   ================================================================= */
+.xe-block-btn-wrapper {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  -webkit-user-select: none;
+  user-select: none;
+  /* Match Twitter action button container spacing */
+  min-width: 36px;
+  align-self: stretch;
+}
+
+.xe-block-btn-inner {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  transition: color 0.2s ease;
+  color: var(--xe-text-secondary);
+}
+
+.xe-block-btn-wrapper:hover .xe-block-btn-inner {
+  color: var(--xe-danger);
+}
+
+.xe-block-btn-icon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 34.75px;
+  height: 34.75px;
+  border-radius: 9999px;
+  transition: background-color 0.2s ease;
+}
+
+.xe-block-btn-wrapper:hover .xe-block-btn-icon {
+  background-color: var(--xe-danger-hover);
+}
+
+.xe-block-btn-wrapper:active .xe-block-btn-icon {
+  background-color: var(--xe-danger-active);
+}
+
+.xe-block-btn-icon svg {
+  width: 18.75px;
+  height: 18.75px;
+  fill: currentColor;
+}
+
+/* Focus visible for keyboard nav */
+.xe-block-btn-wrapper:focus-visible {
+  outline: 2px solid var(--xe-accent);
+  outline-offset: -2px;
+  border-radius: 9999px;
+}
+
+
+/* =================================================================
+   TOASTS — matches Twitter's native bottom snackbar
+   Twitter shows a blue bar at the bottom center
+   ================================================================= */
+.xe-toast-container {
+  position: fixed;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  z-index: 2147483000;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  pointer-events: none;
+  padding: 12px;
+}
+
+.xe-toast {
+  pointer-events: auto;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px 16px;
+  min-height: 44px;
+  border-radius: 4px;
+  background: var(--xe-toast-bg);
+  color: var(--xe-toast-text);
+  font-size: 15px;
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+  font-weight: 400;
+  line-height: 20px;
+  box-shadow: var(--xe-shadow);
+  opacity: 0;
+  transform: translateY(12px);
+  transition: opacity 0.22s cubic-bezier(0.4, 0, 0.2, 1),
+              transform 0.22s cubic-bezier(0.4, 0, 0.2, 1);
+  white-space: nowrap;
+  max-width: 600px;
+}
+
+.xe-toast-in {
+  opacity: 1;
+  transform: translateY(0);
+}
+
+.xe-toast-out {
+  opacity: 0;
+  transform: translateY(12px);
+}
+
+.xe-toast-text {
+  flex: 1;
+}
+
+.xe-toast-action {
+  border: none;
+  background: none;
+  color: var(--xe-toast-text);
+  font-weight: 700;
+  cursor: pointer;
+  font-size: 15px;
+  font-family: inherit;
+  padding: 0;
+  white-space: nowrap;
+  text-decoration: none;
+  opacity: 0.9;
+  transition: opacity 0.15s ease;
+}
+
+.xe-toast-action:hover {
+  opacity: 1;
+  text-decoration: underline;
+}
+
+
+/* =================================================================
+   RESPONSIVE — make sure nothing breaks on different Twitter views
+   Timeline, Profile, Search, Lists, Notifications, Messages,
+   Tweet Detail, Spaces, Communities, Explore
+   ================================================================= */
+
+/* Tweet detail page — videos can be larger */
+[data-testid="tweetDetail"] .xe-volume-wrapper {
+  top: 12px;
+  right: 12px;
+}
+
+/* Photo/video modal overlay */
+[aria-modal="true"] .xe-volume-wrapper {
+  top: 16px;
+  right: 16px;
+}
+
+/* Messages / DM — hide block button (you block from profile there) */
+[data-testid="DMDrawer"] .xe-block-btn-wrapper,
+[data-testid="DmActivityViewport"] .xe-block-btn-wrapper {
+  display: none;
+}
+
+/* Make sure our elements don't break tweet layout */
+article .xe-block-btn-wrapper {
+  flex-shrink: 0;
+}
+
+/* High contrast / reduced motion */
+@media (prefers-reduced-motion: reduce) {
+  .xe-volume-wrapper,
+  .xe-volume-thumb,
+  .xe-volume-fill,
+  .xe-toast,
+  .xe-block-btn-icon,
+  .xe-block-btn-inner {
+    transition: none !important;
+  }
+}
+
+@media (prefers-contrast: more) {
+  .xe-volume-wrapper {
+    border: 1px solid var(--xe-border);
+  }
+
+  .xe-block-btn-wrapper:focus-visible {
+    outline-width: 3px;
+  }
+}
+
+/* Ensure volume wrapper doesn't conflict with Twitter's video controls */
+[data-testid="videoPlayer"] {
+  /* Twitter already has position:relative, just ensure our z-index layer */
+}
+
+.xe-volume-wrapper {
+  /* Stay above Twitter's video controls but below modals */
+  z-index: 10;
+}
