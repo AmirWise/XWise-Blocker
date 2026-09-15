@@ -1,102 +1,253 @@
 <!doctype html>
-<html lang="en">
+<html lang="fa" dir="rtl">
 <head>
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1" />
-<title>XWise Blocker</title>
+<title>XWise Blocker v2.0</title>
 <link rel="stylesheet" href="popup.css" />
 </head>
 <body>
   <div class="xe-popup">
+    <!-- Header -->
     <header class="xe-header">
-      <img src="icons/icon48.png" alt="" class="xe-logo" />
-      <div class="xe-header-text">
-        <h1>XWise Blocker</h1>
-        <p class="xe-sub">Volume sliders · Block button · Shortcut</p>
+      <div class="xe-header-left">
+        <img src="icons/icon48.png" alt="" class="xe-logo" />
+        <div class="xe-header-text">
+          <div class="xe-title-row">
+            <h1 data-i18n="appTitle">XWise Blocker</h1>
+            <span class="xe-badge">v2.0</span>
+          </div>
+          <p class="xe-sub" data-i18n="appSubtitle">فیلتر هوشمند نام و بایو · اسلایدر صدا · بلاک سریع</p>
+        </div>
       </div>
+      <button type="button" id="langToggle" class="xe-lang-btn" title="تغییر زبان / Switch language">
+        <span id="langText">EN</span>
+      </button>
     </header>
 
-    <section class="xe-card">
-      <h2 class="xe-section-title">Features</h2>
+    <!-- Navigation Tabs -->
+    <nav class="xe-nav">
+      <button type="button" class="xe-tab active" data-tab="filters" data-i18n="tabFilters">
+        <svg viewBox="0 0 24 24" width="16" height="16" fill="currentColor">
+          <path d="M4 4h16v2.5L13.5 13v6l-3-1.5V13L4 6.5V4zm2 2.1l5.5 5.5v3.4l1 .5v-3.9L18 6.1V5H6v1.1z"/>
+        </svg>
+        <span data-i18n="navFilters">فیلترها</span>
+      </button>
+      <button type="button" class="xe-tab" data-tab="features" data-i18n="tabFeatures">
+        <svg viewBox="0 0 24 24" width="16" height="16" fill="currentColor">
+          <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm1 17.93c-3.95-.49-7-3.85-7-7.93 0-.62.08-1.21.21-1.79L9 15v1c0 1.1.9 2 2 2v1.93zm6.9-2.54c-.26-.81-1-1.39-1.9-1.39h-1v-3c0-.55-.45-1-1-1H8v-2h2c.55 0 1-.45 1-1V7h2c1.1 0 2-.9 2-2v-.41c2.93 1.19 5 4.06 5 7.41 0 2.08-.8 3.97-2.1 5.39z"/>
+        </svg>
+        <span data-i18n="navFeatures">امکانات</span>
+      </button>
+      <button type="button" class="xe-tab" data-tab="stats" data-i18n="tabStats">
+        <svg viewBox="0 0 24 24" width="16" height="16" fill="currentColor">
+          <path d="M19 3H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zM9 17H7v-7h2v7zm4 0h-2V7h2v10zm4 0h-2v-4h2v4z"/>
+        </svg>
+        <span data-i18n="navStats">آمار</span>
+      </button>
+    </nav>
 
-      <div class="xe-row">
-        <div class="xe-row-content">
-          <p class="xe-row-title">Volume sliders</p>
-          <p class="xe-row-desc">Per-video volume control on timeline videos</p>
+    <!-- Tab 1: Filters (NEW in v2) -->
+    <main id="tab-filters" class="xe-tab-pane active">
+      <!-- Master Switch & Mode -->
+      <section class="xe-card">
+        <div class="xe-row">
+          <div class="xe-row-content">
+            <p class="xe-row-title" data-i18n="filterEngineTitle">موتور فیلتر هوشمند</p>
+            <p class="xe-row-desc" data-i18n="filterEngineDesc">بررسی خودکار نام نمایشی و بایو کاربران</p>
+          </div>
+          <label class="xe-switch">
+            <input type="checkbox" id="filterEngineEnabled" />
+            <span></span>
+          </label>
         </div>
-        <label class="xe-switch">
-          <input type="checkbox" id="volumeSliderEnabled" />
-          <span></span>
-        </label>
-      </div>
 
-      <div class="xe-row">
-        <div class="xe-row-content">
-          <p class="xe-row-title">Remember volume</p>
-          <p class="xe-row-desc">Last volume level carries across videos</p>
+        <!-- Mode Segmented Control -->
+        <div class="xe-mode-row">
+          <span class="xe-mode-label" data-i18n="modeLabel">حالت عملکرد:</span>
+          <div class="xe-segmented">
+            <button type="button" class="xe-seg-btn active" data-mode="dry-run" id="btnDryRun">
+              <span class="xe-dot xe-dot-amber"></span>
+              <span data-i18n="modeDryRun">آزمایشی (بدون بلاک)</span>
+            </button>
+            <button type="button" class="xe-seg-btn" data-mode="auto-block" id="btnAutoBlock">
+              <span class="xe-dot xe-dot-red"></span>
+              <span data-i18n="modeAutoBlock">بلاک خودکار</span>
+            </button>
+          </div>
         </div>
-        <label class="xe-switch">
-          <input type="checkbox" id="rememberVolume" />
-          <span></span>
-        </label>
-      </div>
+      </section>
 
-      <div class="xe-row">
-        <div class="xe-row-content">
-          <p class="xe-row-title">Inline block button</p>
-          <p class="xe-row-desc">Adds a Block button to every tweet's action bar</p>
+      <!-- Add Filter Card -->
+      <section class="xe-card">
+        <h2 class="xe-section-title" data-i18n="addFilterHeading">افزودن فیلتر جدید</h2>
+        <div class="xe-add-box">
+          <div class="xe-input-wrapper">
+            <input type="text" id="filterInput" class="xe-text-input"
+                   placeholder="کلمه، ایموجی (🚩، 🇮🇷، 🤡) یا عبارت..."
+                   data-i18n-placeholder="filterInputPlaceholder" autocomplete="off" />
+            <button type="button" id="btnAddFilter" class="xe-btn-primary" data-i18n="btnAdd">افزودن</button>
+          </div>
+          <p class="xe-hint" data-i18n="addFilterHint">پشتیبانی کامل از تمام ایموجی‌ها، پرچم‌ها، علائم و حروف فارسی/انگلیسی</p>
         </div>
-        <label class="xe-switch">
-          <input type="checkbox" id="blockButtonEnabled" />
-          <span></span>
-        </label>
-      </div>
 
-      <div class="xe-row">
-        <div class="xe-row-content">
-          <p class="xe-row-title">Keyboard shortcut</p>
-          <p class="xe-row-desc">Hover a tweet and press the shortcut to block</p>
+        <!-- Filter Scopes -->
+        <div class="xe-scopes-row">
+          <span class="xe-scopes-label" data-i18n="scopesLabel">محدوده بررسی:</span>
+          <div class="xe-scope-checkboxes">
+            <label class="xe-checkbox-label">
+              <input type="checkbox" id="scopeDisplayName" checked />
+              <span data-i18n="scopeDisplayName">نام نمایشی</span>
+            </label>
+            <label class="xe-checkbox-label">
+              <input type="checkbox" id="scopeBio" checked />
+              <span data-i18n="scopeBio">بایو (بیوگرافی)</span>
+            </label>
+            <label class="xe-checkbox-label xe-checkbox-dim" title="برای جلوگیری از بلاک اشتباهی، توصیه می‌شود خاموش بماند">
+              <input type="checkbox" id="scopeTweetText" />
+              <span data-i18n="scopeTweetText">متن توییت (اختیاری)</span>
+            </label>
+          </div>
         </div>
-        <label class="xe-switch">
-          <input type="checkbox" id="shortcutEnabled" />
-          <span></span>
-        </label>
-      </div>
+      </section>
 
-      <div class="xe-shortcut-row" id="shortcutRow">
-        <span class="xe-kbd" id="kbdCtrl">Ctrl</span>
-        <span class="xe-kbd" id="kbdAlt">Alt</span>
-        <span class="xe-kbd" id="kbdShift">Shift</span>
-        <span class="xe-plus">+</span>
-        <input type="text" id="shortcutKey" maxlength="1" class="xe-key-input" spellcheck="false" autocomplete="off" />
-      </div>
-
-      <div class="xe-row xe-row-last">
-        <div class="xe-row-content">
-          <p class="xe-row-title">Confirm before blocking</p>
-          <p class="xe-row-desc">2s cancel window when using the shortcut</p>
+      <!-- Active Filters Card -->
+      <section class="xe-card">
+        <div class="xe-card-header">
+          <h2 class="xe-section-title" data-i18n="activeFiltersHeading">فیلترهای فعال</h2>
+          <span id="filterCountBadge" class="xe-count-pill">۰ فیلتر</span>
         </div>
-        <label class="xe-switch">
-          <input type="checkbox" id="confirmDelayOnShortcut" />
-          <span></span>
-        </label>
-      </div>
-    </section>
 
-    <section class="xe-card xe-stats-card">
-      <div class="xe-stats-row">
-        <div class="xe-stat">
-          <span class="xe-stat-value" id="blockCountDisplay">0</span>
-          <span class="xe-stat-label">Users blocked</span>
+        <div id="filterList" class="xe-chips-container">
+          <p class="xe-empty-msg" id="emptyFiltersMsg" data-i18n="emptyFilters">هیچ فیلتری افزوده نشده است. کلمه یا ایموجی مورد نظر خود را در بالا وارد کنید.</p>
         </div>
-      </div>
-    </section>
+      </section>
+    </main>
 
+    <!-- Tab 2: Features (Classic Controls) -->
+    <main id="tab-features" class="xe-tab-pane">
+      <section class="xe-card">
+        <h2 class="xe-section-title" data-i18n="videoAudioSection">ویدیو و صوت</h2>
+
+        <div class="xe-row">
+          <div class="xe-row-content">
+            <p class="xe-row-title" data-i18n="volumeSliderTitle">اسلایدر صدا روی ویدیوها</p>
+            <p class="xe-row-desc" data-i18n="volumeSliderDesc">نمایش کنترل صدا هنگام حرکت موس روی ویدیوهای تایم‌لاین</p>
+          </div>
+          <label class="xe-switch">
+            <input type="checkbox" id="volumeSliderEnabled" />
+            <span></span>
+          </label>
+        </div>
+
+        <div class="xe-row">
+          <div class="xe-row-content">
+            <p class="xe-row-title" data-i18n="rememberVolumeTitle">ذخیره میزان صدا</p>
+            <p class="xe-row-desc" data-i18n="rememberVolumeDesc">میزان صدای انتخابی برای همه ویدیوهای بعدی حفظ شود</p>
+          </div>
+          <label class="xe-switch">
+            <input type="checkbox" id="rememberVolume" />
+            <span></span>
+          </label>
+        </div>
+      </section>
+
+      <section class="xe-card">
+        <h2 class="xe-section-title" data-i18n="blockSection">ابزارهای بلاک دستی</h2>
+
+        <div class="xe-row">
+          <div class="xe-row-content">
+            <p class="xe-row-title" data-i18n="blockButtonTitle">دکمه بلاک سریع در توییت</p>
+            <p class="xe-row-desc" data-i18n="blockButtonDesc">افزودن دکمه مسدودسازی هماهنگ با طراحی خود توییتر</p>
+          </div>
+          <label class="xe-switch">
+            <input type="checkbox" id="blockButtonEnabled" />
+            <span></span>
+          </label>
+        </div>
+
+        <div class="xe-row">
+          <div class="xe-row-content">
+            <p class="xe-row-title" data-i18n="shortcutTitle">شورتکات کیبورد</p>
+            <p class="xe-row-desc" data-i18n="shortcutDesc">بلاک آنی کاربری که موس روی توییت آن قرار دارد</p>
+          </div>
+          <label class="xe-switch">
+            <input type="checkbox" id="shortcutEnabled" />
+            <span></span>
+          </label>
+        </div>
+
+        <div class="xe-shortcut-row" id="shortcutRow">
+          <span class="xe-kbd" id="kbdCtrl">Ctrl</span>
+          <span class="xe-kbd" id="kbdAlt">Alt</span>
+          <span class="xe-kbd" id="kbdShift">Shift</span>
+          <span class="xe-plus">+</span>
+          <input type="text" id="shortcutKey" maxlength="1" class="xe-key-input" spellcheck="false" autocomplete="off" />
+        </div>
+
+        <div class="xe-row">
+          <div class="xe-row-content">
+            <p class="xe-row-title" data-i18n="confirmDelayTitle">فرصت لغو بلاک (۲ ثانیه)</p>
+            <p class="xe-row-desc" data-i18n="confirmDelayDesc">نمایش پنجره تایید با دکمه لغو برای جلوگیری از بلاک تصادفی</p>
+          </div>
+          <label class="xe-switch">
+            <input type="checkbox" id="confirmDelayOnShortcut" />
+            <span></span>
+          </label>
+        </div>
+
+        <div class="xe-row xe-row-last">
+          <div class="xe-row-content">
+            <p class="xe-row-title" data-i18n="showBlockToastsTitle">نمایش اعلان پس از بلاک</p>
+            <p class="xe-row-desc" data-i18n="showBlockToastsDesc">نمایش پیام تایید کوتاه در پایین صفحه پس از مسدودسازی</p>
+          </div>
+          <label class="xe-switch">
+            <input type="checkbox" id="showBlockToasts" />
+            <span></span>
+          </label>
+        </div>
+      </section>
+    </main>
+
+    <!-- Tab 3: Stats -->
+    <main id="tab-stats" class="xe-tab-pane">
+      <section class="xe-card xe-stats-grid">
+        <div class="xe-stat-box">
+          <span class="xe-stat-number" id="statManualBlocks">0</span>
+          <span class="xe-stat-caption" data-i18n="statManual">بلاک‌های مستقیم</span>
+        </div>
+        <div class="xe-stat-box">
+          <span class="xe-stat-number xe-stat-amber" id="statDryMatches">0</span>
+          <span class="xe-stat-caption" data-i18n="statMatches">شناسایی‌شده (آزمایشی)</span>
+        </div>
+        <div class="xe-stat-box">
+          <span class="xe-stat-number xe-stat-red" id="statAutoBlocks">0</span>
+          <span class="xe-stat-caption" data-i18n="statAuto">بلاک خودکار فیلترها</span>
+        </div>
+        <div class="xe-stat-box">
+          <span class="xe-stat-number xe-stat-blue" id="statTotalBlocks">0</span>
+          <span class="xe-stat-caption" data-i18n="statTotal">مجموع حساب‌های مسدود</span>
+        </div>
+      </section>
+
+      <section class="xe-card">
+        <div class="xe-row xe-row-last">
+          <div class="xe-row-content">
+            <p class="xe-row-title" data-i18n="resetStatsTitle">صفر کردن آمار</p>
+            <p class="xe-row-desc" data-i18n="resetStatsDesc">شمارنده‌ها مجدداً از صفر شروع خواهند شد</p>
+          </div>
+          <button type="button" id="btnResetStats" class="xe-btn-secondary" data-i18n="btnReset">صفر کردن</button>
+        </div>
+      </section>
+    </main>
+
+    <!-- Footer -->
     <footer class="xe-footer">
       <span id="statusMsg" class="xe-status"></span>
-      <span class="xe-version">v1.0.0</span>
+      <span class="xe-version">XWise Blocker v2.0.0</span>
     </footer>
   </div>
+
   <script src="popup.js"></script>
 </body>
 </html>

@@ -1,16 +1,45 @@
 /* =====================================================================
-   XWise Blocker v1 — injected UI styles
+   XWise Blocker v2 — injected UI styles
 
    Design principles:
-   - Adapt to Twitter's light / dark / dim themes automatically
-   - Match Twitter's native UI elements (action buttons, toasts, sliders)
-   - Never clash with any Twitter page: timeline, profile, search,
+   - Adapt to X's light / dark / dim themes automatically
+   - Match X's native UI elements (action buttons, toasts, sliders)
+   - Never clash with any X page: timeline, profile, search,
      lists, notifications, messages, tweet detail, spaces, communities
-   - Use Twitter's own spacing (4px grid), font stack, border-radius
-   - Respect Twitter's z-index layers
+   - Use X's own spacing (4px grid), font stack, border-radius
+   - Respect X's z-index layers
+   - Vazirmatn font for Persian/Arabic support
    ===================================================================== */
 
-/* --- Theme tokens — auto-switch via data-xe-theme on <html> --- */
+/* --- Vazirmatn Font (local embed) --- */
+@font-face {
+  font-family: 'Vazirmatn';
+  font-style: normal;
+  font-weight: 100 900;
+  font-display: swap;
+  src: url('fonts/vazirmatn-arabic.woff2') format('woff2');
+  unicode-range: U+0600-06FF, U+0750-077F, U+0870-088E, U+0890-0891, U+0897-08E1, U+08E3-08FF, U+200C-200E, U+2010-2011, U+204F, U+2E41, U+FB50-FDFF, U+FE70-FE74, U+FE76-FEFC, U+102E0-102FB, U+10E60-10E7E, U+10EC2-10EC4, U+10EFC-10EFF, U+1EE00-1EE03, U+1EE05-1EE1F, U+1EE21-1EE22, U+1EE24, U+1EE27, U+1EE29-1EE32, U+1EE34-1EE37, U+1EE39, U+1EE3B, U+1EE42, U+1EE47, U+1EE49, U+1EE4B, U+1EE4D-1EE4F, U+1EE51-1EE52, U+1EE54, U+1EE57, U+1EE59, U+1EE5B, U+1EE5D, U+1EE5F, U+1EE61-1EE62, U+1EE64, U+1EE67-1EE6A, U+1EE6C-1EE72, U+1EE74-1EE77, U+1EE79-1EE7C, U+1EE7E, U+1EE80-1EE89, U+1EE8B-1EE9B, U+1EEA1-1EEA3, U+1EEA5-1EEA9, U+1EEAB-1EEBB, U+1EEF0-1EEF1;
+}
+@font-face {
+  font-family: 'Vazirmatn';
+  font-style: normal;
+  font-weight: 100 900;
+  font-display: swap;
+  src: url('fonts/vazirmatn-latin-ext.woff2') format('woff2');
+  unicode-range: U+0100-02BA, U+02BD-02C5, U+02C7-02CC, U+02CE-02D7, U+02DD-02FF, U+0304, U+0308, U+0329, U+1D00-1DBF, U+1E00-1E9F, U+1EF2-1EFF, U+2020, U+20A0-20AB, U+20AD-20C0, U+2113, U+2C60-2C7F, U+A720-A7FF;
+}
+@font-face {
+  font-family: 'Vazirmatn';
+  font-style: normal;
+  font-weight: 100 900;
+  font-display: swap;
+  src: url('fonts/vazirmatn-latin.woff2') format('woff2');
+  unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD;
+}
+
+/* =====================================================================
+   Theme tokens — auto-switch via data-xe-theme on <html>
+   ===================================================================== */
 
 /* Dark theme (default) */
 :root,
@@ -24,12 +53,22 @@
   --xe-text-secondary: rgb(113, 118, 123);
   --xe-border: rgba(239, 243, 244, 0.1);
   --xe-accent: rgb(29, 155, 240);
+  --xe-accent-hover: rgba(29, 155, 240, 0.15);
   --xe-danger: rgb(244, 33, 46);
   --xe-danger-hover: rgba(244, 33, 46, 0.1);
   --xe-danger-active: rgba(244, 33, 46, 0.2);
+  --xe-warning: rgb(255, 184, 0);
+  --xe-warning-hover: rgba(255, 184, 0, 0.15);
+  --xe-success: rgb(0, 186, 124);
+  --xe-success-hover: rgba(0, 186, 124, 0.15);
   --xe-toast-bg: rgb(29, 155, 240);
   --xe-toast-text: rgb(255, 255, 255);
+  --xe-toast-error-bg: rgb(244, 33, 46);
+  --xe-toast-warning-bg: rgb(255, 184, 0);
+  --xe-toast-success-bg: rgb(0, 186, 124);
   --xe-shadow: 0 0 15px rgba(255,255,255,0.05), 0 0 3px 1px rgba(255,255,255,0.05);
+  --xe-font-primary: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+  --xe-font-arabic: 'Vazirmatn', var(--xe-font-primary);
 }
 
 /* Light theme */
@@ -43,11 +82,19 @@
   --xe-text-secondary: rgb(83, 100, 113);
   --xe-border: rgba(15, 20, 25, 0.1);
   --xe-accent: rgb(29, 155, 240);
+  --xe-accent-hover: rgba(29, 155, 240, 0.12);
   --xe-danger: rgb(244, 33, 46);
   --xe-danger-hover: rgba(244, 33, 46, 0.1);
   --xe-danger-active: rgba(244, 33, 46, 0.2);
+  --xe-warning: rgb(200, 140, 0);
+  --xe-warning-hover: rgba(200, 140, 0, 0.12);
+  --xe-success: rgb(0, 150, 100);
+  --xe-success-hover: rgba(0, 150, 100, 0.12);
   --xe-toast-bg: rgb(29, 155, 240);
   --xe-toast-text: rgb(255, 255, 255);
+  --xe-toast-error-bg: rgb(244, 33, 46);
+  --xe-toast-warning-bg: rgb(200, 140, 0);
+  --xe-toast-success-bg: rgb(0, 150, 100);
   --xe-shadow: rgba(101,119,134,0.2) 0px 0px 15px, rgba(101,119,134,0.15) 0px 0px 3px 1px;
 }
 
@@ -62,19 +109,27 @@
   --xe-text-secondary: rgb(139, 152, 165);
   --xe-border: rgba(239, 243, 244, 0.08);
   --xe-accent: rgb(29, 155, 240);
+  --xe-accent-hover: rgba(29, 155, 240, 0.12);
   --xe-danger: rgb(244, 33, 46);
   --xe-danger-hover: rgba(244, 33, 46, 0.1);
   --xe-danger-active: rgba(244, 33, 46, 0.2);
+  --xe-warning: rgb(255, 184, 0);
+  --xe-warning-hover: rgba(255, 184, 0, 0.12);
+  --xe-success: rgb(0, 186, 124);
+  --xe-success-hover: rgba(0, 186, 124, 0.12);
   --xe-toast-bg: rgb(29, 155, 240);
   --xe-toast-text: rgb(255, 255, 255);
+  --xe-toast-error-bg: rgb(244, 33, 46);
+  --xe-toast-warning-bg: rgb(255, 184, 0);
+  --xe-toast-success-bg: rgb(0, 186, 124);
   --xe-shadow: rgba(136,153,166,0.15) 0px 0px 15px, rgba(136,153,166,0.1) 0px 0px 3px 1px;
 }
 
-
-/* =================================================================
+/* =====================================================================
    VOLUME SLIDER — floating overlay on videos
    Compact pill, auto-fades, expands on hover
-   ================================================================= */
+   ===================================================================== */
+
 .xe-volume-wrapper {
   position: absolute;
   top: 8px;
@@ -201,11 +256,11 @@
   z-index: 2;
 }
 
-
-/* =================================================================
-   BLOCK BUTTON — matches Twitter's native action bar buttons
+/* =====================================================================
+   BLOCK BUTTON — matches X's native action bar buttons
    Same sizing, spacing, hover states as reply/retweet/like/share
-   ================================================================= */
+   ===================================================================== */
+
 .xe-block-btn-wrapper {
   display: inline-flex;
   align-items: center;
@@ -213,7 +268,7 @@
   cursor: pointer;
   -webkit-user-select: none;
   user-select: none;
-  /* Match Twitter action button container spacing */
+  /* Match X action button container spacing */
   min-width: 36px;
   align-self: stretch;
 }
@@ -261,11 +316,60 @@
   border-radius: 9999px;
 }
 
+/* =====================================================================
+   FILTER BADGES — v2 dry-run mode visual indicator
+   Subtle badge on matched tweets, non-intrusive
+   ===================================================================== */
 
-/* =================================================================
-   TOASTS — matches Twitter's native bottom snackbar
-   Twitter shows a blue bar at the bottom center
-   ================================================================= */
+.xe-filter-badge {
+  display: inline-flex;
+  align-items: center;
+  padding: 2px 8px;
+  font-size: 11px;
+  font-weight: 600;
+  line-height: 1.2;
+  border-radius: 9999px;
+  white-space: nowrap;
+  max-width: 200px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  font-family: var(--xe-font-arabic);
+  margin-left: 8px;
+  flex-shrink: 0;
+}
+
+/* Subtle style (default) — barely noticeable, blends with UI */
+.xe-filter-badge-subtle {
+  background: var(--xe-bg-hover);
+  color: var(--xe-text-secondary);
+  border: 1px solid var(--xe-border);
+}
+
+/* Prominent style — more visible for accessibility */
+.xe-filter-badge-prominent {
+  background: var(--xe-accent-hover);
+  color: var(--xe-accent);
+  border: 1px solid var(--xe-accent);
+}
+
+/* Hover state */
+.xe-filter-badge:hover {
+  opacity: 0.85;
+}
+
+/* RTL support for Persian/Arabic */
+[dir="rtl"] .xe-filter-badge,
+.xe-filter-badge:lang(fa),
+.xe-filter-badge:lang(ar) {
+  margin-left: 0;
+  margin-right: 8px;
+}
+
+/* =====================================================================
+   TOASTS — matches X's native bottom snackbar
+   X shows a colored bar at the bottom center
+   ===================================================================== */
+
 .xe-toast-container {
   position: fixed;
   bottom: 0;
@@ -290,7 +394,7 @@
   background: var(--xe-toast-bg);
   color: var(--xe-toast-text);
   font-size: 15px;
-  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+  font-family: var(--xe-font-primary);
   font-weight: 400;
   line-height: 20px;
   box-shadow: var(--xe-shadow);
@@ -310,6 +414,17 @@
 .xe-toast-out {
   opacity: 0;
   transform: translateY(12px);
+}
+
+/* Toast type variants */
+.xe-toast-error {
+  background: var(--xe-toast-error-bg);
+}
+.xe-toast-warning {
+  background: var(--xe-toast-warning-bg);
+}
+.xe-toast-success {
+  background: var(--xe-toast-success-bg);
 }
 
 .xe-toast-text {
@@ -336,12 +451,11 @@
   text-decoration: underline;
 }
 
-
-/* =================================================================
-   RESPONSIVE — make sure nothing breaks on different Twitter views
+/* =====================================================================
+   RESPONSIVE — make sure nothing breaks on different X views
    Timeline, Profile, Search, Lists, Notifications, Messages,
    Tweet Detail, Spaces, Communities, Explore
-   ================================================================= */
+   ===================================================================== */
 
 /* Tweet detail page — videos can be larger */
 [data-testid="tweetDetail"] .xe-volume-wrapper {
@@ -366,6 +480,11 @@ article .xe-block-btn-wrapper {
   flex-shrink: 0;
 }
 
+/* Filter badge positioning in various contexts */
+article .xe-filter-badge {
+  vertical-align: middle;
+}
+
 /* High contrast / reduced motion */
 @media (prefers-reduced-motion: reduce) {
   .xe-volume-wrapper,
@@ -373,7 +492,8 @@ article .xe-block-btn-wrapper {
   .xe-volume-fill,
   .xe-toast,
   .xe-block-btn-icon,
-  .xe-block-btn-inner {
+  .xe-block-btn-inner,
+  .xe-filter-badge {
     transition: none !important;
   }
 }
@@ -386,14 +506,36 @@ article .xe-block-btn-wrapper {
   .xe-block-btn-wrapper:focus-visible {
     outline-width: 3px;
   }
+
+  .xe-filter-badge {
+    border-width: 2px;
+  }
 }
 
-/* Ensure volume wrapper doesn't conflict with Twitter's video controls */
+/* Ensure volume wrapper doesn't conflict with X's video controls */
 [data-testid="videoPlayer"] {
-  /* Twitter already has position:relative, just ensure our z-index layer */
+  /* X already has position:relative, just ensure our z-index layer */
 }
 
 .xe-volume-wrapper {
-  /* Stay above Twitter's video controls but below modals */
+  /* Stay above X's video controls but below modals */
   z-index: 10;
+}
+
+/* =====================================================================
+   POPUP-SPECIFIC OVERRIDES (when injected via content script)
+   These ensure popups opened on X pages also look right
+   ===================================================================== */
+
+/* Extension popup if opened on X domain */
+#xwise-popup-root {
+  all: initial;
+  font-family: var(--xe-font-primary);
+}
+
+/* Filter input in content context (if needed) */
+.xe-filter-input {
+  font-family: var(--xe-font-arabic);
+  direction: ltr;
+  unicode-bidi: plaintext;
 }

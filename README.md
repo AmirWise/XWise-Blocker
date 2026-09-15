@@ -1,21 +1,31 @@
-# XWise Blocker v1.0.0
+# XWise Blocker v2.0.0
 
-A Chrome extension for X (Twitter) that adds per-video volume sliders, an inline Block button on every tweet, and a customizable keyboard shortcut to block hovered tweets — all controlled from a clean settings panel.
+A Chrome extension for X (Twitter) that adds **smart content filtering** (keywords, emojis, symbols), **per-video volume sliders**, **native inline Block buttons**, and a **customizable keyboard shortcut** — all from a clean, Persian/English bilingual settings panel with Vazirmatn font.
 
 ---
 
-## ✨ Features
+## ✨ What's New in v2.0.0
 
 | Feature | Description |
 |---------|-------------|
-| **Volume Sliders** | Per-video volume control that appears on hover over timeline videos |
-| **Remember Volume** | Last volume level persists across videos |
-| **Inline Block Button** | Adds a native-looking Block button to every tweet's action bar |
-| **Keyboard Shortcut** | Hover a tweet and press a customizable shortcut (default: `Ctrl+Alt+B`) to block instantly |
-| **Confirm Before Block** | Optional 2-second cancel window when using the shortcut (prevents accidental blocks) |
-| **Theme Adaptive** | Automatically detects and matches X's light / dark / dim themes |
-| **Multi-language Block Detection** | Recognizes "Block" in English, Persian, Spanish, French, German, Italian, Russian, Chinese, Japanese, Arabic, Vietnamese, Indonesian, Dutch, Polish, Turkish, Korean, and more |
-| **Settings Panel** | Toggle features, remap shortcut, view block count — all from the extension popup |
+| **Smart Filter Engine** | Unicode-aware matching for keywords, *any emoji* (flags, skin tones, ZWJ sequences, compound emojis), and symbols |
+| **Dry-Run Mode** | Preview matches with subtle inline badges — **zero accidental blocks** |
+| **Auto-Block Mode** | Automatically blocks accounts matching your filters via X's native menu |
+| **Targeted Scopes** | Scan **Display Name** and **Bio** by default (tweet text optional) |
+| **Vazirmatn Font** | Built-in Persian/Arabic font — beautiful RTL & LTR support without external CDN |
+| **Bilingual UI** | Full Persian/English interface with one-click language switch |
+| **Preserved v1 Features** | Volume sliders, inline Block button, keyboard shortcut — all refined |
+
+---
+
+## 🧠 Filter Engine Details
+
+The filter engine uses **NFKC Unicode normalization** with Arabic/Persian letter canonicalization (`ي`→`ی`, `ك`→`ک`) and variation-selector stripping. This ensures:
+
+- ✅ **Emojis work perfectly**: `🇮🇷`, `👨‍👩‍👧‍👦`, `🏳️‍🌈`, `🤲🏽`, `😀`, `❤️`, `⚡`, all skin-tone & ZWJ sequences
+- ✅ **Keywords match correctly**: case-insensitive, whole-word option, Arabic/Persian diacritic-insensitive
+- ✅ **No false positives**: scope limited to display name + bio (tweet text opt-in)
+- ✅ **Dry-Run first**: subtle badge shows *what* matched *where* before any action
 
 ---
 
@@ -29,22 +39,37 @@ A Chrome extension for X (Twitter) that adds per-video volume sliders, an inline
 
 ---
 
-## ⚙️ Settings
+## ⚙️ Settings — Three Tabs
 
+### 1️⃣ Filters (New in v2)
+- **Master toggle** — enable/disable filter engine
+- **Mode selector** — **Dry-Run** (amber badge preview) or **Auto-Block** (red, executes native block)
+- **Add filters** — type any word, phrase, emoji, symbol, flag (max 100)
+- **Scope checkboxes** — Display Name ✓, Bio ✓, Tweet Text (off by default)
+- **Active chips** — live list with one-click delete
+
+### 2️⃣ Features (Classic v1)
 | Setting | Default | Description |
 |---------|---------|-------------|
-| Volume sliders | ✅ On | Show volume control on video hover |
-| Remember volume | ✅ On | Persist last volume across videos |
-| Inline block button | ✅ On | Add Block button to tweet action bars |
-| Keyboard shortcut | ✅ On | Enable shortcut to block hovered tweet |
-| Shortcut keys | `Ctrl` + `Alt` + `B` | Click `Ctrl`/`Alt`/`Shift` to toggle, type a letter to change |
-| Confirm before blocking | ✅ On | 2-second toast with Cancel when using shortcut |
+| Volume sliders | ✅ On | Floating pill over timeline videos |
+| Remember volume | ✅ On | Last volume persists across videos |
+| Inline Block button | ✅ On | Native-styled button in every tweet action bar |
+| Keyboard shortcut | ✅ On | Hover tweet + `Ctrl+Alt+B` (customizable) |
+| Shortcut modifiers | `Ctrl` + `Alt` | Click to toggle, type letter to remap |
+| Confirm before block | ✅ On | 2-second cancel toast on shortcut |
+
+### 3️⃣ Statistics
+- **Direct Blocks** — manual blocks via button/shortcut
+- **Dry-Run Matches** — tweets flagged in test mode
+- **Filter Auto-Blocks** — blocks executed by auto mode
+- **Total Blocked** — cumulative counter
+- **Reset** — one-click counter wipe
 
 ---
 
 ## 📦 Packaging with Same Extension ID
 
-If you have the private key (`.pem` file) from a previous release:
+If you have the private key (`.pem`) from a previous release:
 
 1. Go to `chrome://extensions`
 2. Click **Pack extension**
@@ -58,18 +83,23 @@ If you have the private key (`.pem` file) from a previous release:
 
 ## 🐛 Known Limitations
 
-- Block menu detection relies on text matching (X doesn't provide a stable `data-testid` for the Block menu item). If X adds a new language not in `BLOCK_KEYWORDS` (in `content.js`), you may need to add the keyword.
-- Works on `x.com` and `twitter.com` only.
+- Filter matching relies on DOM text + `img[alt]` for emojis (X renders Twemoji as images)
+- Bio caching is session-scoped; hovercards enrich cache dynamically
+- Works on `x.com` and `twitter.com` only
+- Auto-block uses X's native "More → Block → Confirm" flow — no private APIs
 
 ---
 
 ## 🛠 Technical Highlights
 
-- **Performance**: Scoped DOM scanning via `MutationObserver` + `requestIdleCallback` — no full-page rescans
+- **Unicode Engine**: NFKC normalization + Arabic/Persian canonicalization + variation-selector stripping
+- **Emoji Handling**: Full support for flags, skin tones, ZWJ sequences, compound emojis
+- **Performance**: Scoped `MutationObserver` + `requestIdleCallback` — no full-page rescans
 - **Reliability**: `waitFor()` helper replaces fragile `setTimeout` chains; waits for actual menu/confirmation elements
 - **Memory**: `WeakSet` tracking lets GC reclaim removed DOM nodes
-- **Theme detection**: Reads computed `background-color` on `<body>` to infer light/dark/dim
-- **Manifest V3**: Service worker background, `storage` permission only
+- **Theme Detection**: Reads computed `background-color` on `<body>` to infer light/dark/dim
+- **Font Loading**: Local `woff2` via `chrome.runtime.getURL()` — zero network requests, works offline
+- **Manifest V3**: Service worker background, `storage` + `scripting` permissions only
 
 ---
 
@@ -79,29 +109,45 @@ MIT License — free to use, modify, and distribute.
 
 ---
 
-# XWise Blocker v1.0.0 (فارسی)
+## XWise Blocker v2.0.0 (فارسی)
 
 اکستنشن کروم برای X (توییتر) که امکانات زیر رو اضافه می‌کنه:
+- **موتور فیلتر هوشمند**: کلمات، *هر نوع ایموجی*، پرچم‌ها و علائم با پشتیبانی کامل یونیکد
+- **حالت آزمایشی (Dry-Run)**: نشان ظریف روی توییت‌های تطبیق‌یافته، بدون هیچ بلاکی
+- **حالت بلاک خودکار**: مسدودسازی اتوماتیک حساب‌های مطابق با فیلترها
+- **اسپت‌های هدفمند**: بررسی نام نمایشی و بایو (متن توییت اختیاری)
+- **فونت وزیرمتن**: فونت فارسی/عربی داخلی، پشتیبانی کامل RTL و LTR بدون CDN
+- **رابط دو زبانه**: فارسی/انگلیسی با یک کلیک
 - **اسلایدر صدا** روی هر ویدیو در تایم‌لاین
 - **دکمه Block آنی** در نوار اکشن هر توییت
-- **شورتکات صفحه‌کلید** قابل تنظیم برای بلاک کردن توییتِ هاورشده
+- **شورتکات کیبورد** قابل تنظیم برای بلاک کردن توییتِ هاورشده
 
-همه از یک پنل تنظیمات تمیز و ساده کنترل میشن.
+همه از یک پنل تنظیمات تمیز، دو زبانه و حرفه‌ای کنترل میشن.
 
 ---
 
-## ✨ امکانات
+## ✨ امکانات جدید در v2.0.0
 
 | قابلیت | توضیح |
 |---------|---------|
-| **اسلایدر صدا** | کنترل صدا برای هر ویدیو که با هاور روی ویدیو ظاهر می‌شه |
-| **یادآوری صدا** | آخرین سطح صدا روی ویدیوهای بعدی هم اعمال می‌شه |
-| **دکمه Block در توییت** | دکمه‌ی Block به نوار اکشن (Reply/Retweet/Like) هر توییت اضافه می‌شه |
-| **شورتکات کیبورد** | با هاور روی توییت و فشردن ترکیب کلید (پیش‌فرض `Ctrl+Alt+B`) بلاک فوری |
-| **تأیید قبل از بلاک** | پنجره ۲ ثانیه‌ای با دکمه Cancel برای جلوگیری از بلاک تصادفی (فقط در مسیر شورتکات) |
-| **سازگاری با تم** | تشخیص و تطبیق خودکار با تم‌های Light / Dark / Dim توییتر |
-| **تشخیص چندزبانه Block** | کلمه Block در انگلیسی، فارسی، اسپانیایی، فرانسوی، آلمانی، ایتالیایی، روسی، چینی، ژاپنی، عربی، ویتنامی، اندونزیایی، هلندی، لهستانی، ترکی، کره‌ای و غیره شناسایی می‌شه |
-| **پنل تنظیمات** | فعال/غیرفعال کردن هر فیچر، تغییر شورتکات، مشاهده تعداد بلاک‌ها — همه از پاپ‌اپ اکستنشن |
+| **موتور فیلتر هوشمند** | تطبیق یونیکد برای کلمات، *هر ایموجی* (پرچم، تن پوست، ZWJ، ایموجی ترکیبی)، و علائم |
+| **حالت آزمایشی** | پیش‌نمایش تطابق‌ها با نشان ظریف درون‌خطی — **صفر بلاک تصادفی** |
+| **حالت بلاک خودکار** | مسدودسازی اتوماتیک حساب‌های مطابق با فیلترها از طریق منوی رسمی X |
+| **اسپت‌های هدفمند** | بررسی **نام نمایشی** و **بایو** به‌صورت پیش‌فرض (متن توییت اختیاری) |
+| **فونت وزیرمتن** | فونت فارسی/عربی داخلی — پشتیبانی زیبا RTL و LTR بدون CDN خارجی |
+| **رابط دو زبانه** | رابط کاربری کامل فارسی/انگلیسی با تغییر زبان فوری |
+| **حفظ امکانات v1** | اسلایدر صدا، دکمه Block در توییت، شرتکات کیبورد — همه بازنویسی و بهینه‌شده |
+
+---
+
+## 🧠 جزئیات موتور فیلتر
+
+موتور فیلتر از **نرمال‌سازی یونیکد NFKC** با قانون‌سازی حروف فارسی/عربی (`ي`→`ی`, `ك`→`ک`) و حذف سلکتورهای نمایش (VS15/VS16) استفاده می‌کند. این باعث می‌شود:
+
+- ✅ **ایموجی‌ها بی‌نقص کار می‌کنند**: `🇮🇷`، `👨‍👩‍👧‍👦`، `🏳️‍🌈`، `🤲🏽`، `😀`، `❤️`، `⚡`، تمام توالی‌های تن پوست و ZWJ
+- ✅ **کلمات به‌درستی تطبیق می‌یابند**: حروف بزرگ/کوچک، گزینه کلمه کامل، نادیده گرفتن حرکات عربی/فارسی
+- ✅ **بدون مثبت‌کاذب**: محدوده محدود به نام نمایشی + بایو (متن توییت فقط با فعال‌سازی)
+- ✅ **آزمایشی اول**: نشان ظریف می‌گوید *چه* فیلتری در *کجا* تطبیق داده — قبل از هر اقدامی
 
 ---
 
@@ -115,16 +161,31 @@ MIT License — free to use, modify, and distribute.
 
 ---
 
-## ⚙️ تنظیمات
+## ⚙️ تنظیمات — سه زبانه
 
+### ۱️⃣ فیلترها (جدید در v2)
+- **مستر سوئیچ** — فعال/غیرفعال کردن موتور فیلتر
+- **انتخاب حالت** — **آزمایشی** (نشان زرد پیش‌نمایش) یا **بلاک خودکار** (قرمز، اجرا از منوی رسمی)
+- **افزودن فیلتر** — هر کلمه، عبارت، ایموجی، نماد، پرچم تایپ کنید (حداکثر ۱۰۰)
+- **چک‌باکس‌های محدوده** — نام نمایشی ✓، بایو ✓، متن توییت (پیش‌فرض خاموش)
+- **چیپ‌های فعال** — لیست زنده با حذف تک‌کلیک
+
+### ۲️⃣ امکانات (کلاسیک v1)
 | گزینه | پیش‌فرض | توضیح |
 |---------|---------|---------|
-| اسلایدر صدا | ✅ روشن | نمایش کنترل صدا هنگام هاور روی ویدیو |
+| اسلایدر صدا | ✅ روشن | قرص شناور روی ویدیوهای تایم‌لاین |
 | یادتان باشد صدا | ✅ روشن | آخرین سطح صدا در ویدیوهای بعد حفظ شود |
-| دکمه Block در توییت | ✅ روشن | دکمه Block به نوار اکشن توییت‌ها اضافه شود |
-| شورتکات کیبورد | ✅ روشن | فعال‌سازی شورتکات برای بلاک توییت هاورشده |
-| ترکیب کلید | `Ctrl` + `Alt` + `B` | روی Ctrl/Alt/Shift کلیک کنید تا فعال/غیرفعال شوند، حرف دلخواه تایپ کنید |
-| تأیید قبل از بلاک | ✅ روشن | تاست ۲ ثانیه‌ای با امکان Cancel هنگام استفاده از شورتکات |
+| دکمه Block در توییت | ✅ روشن | دکمه Block بومی در نوار اکشن هر توییت |
+| شرتکات کیبورد | ✅ روشن | هاور روی توییت + `Ctrl+Alt+B` (قابل تغییر) |
+| модиفایرهای شرتکات | `Ctrl` + `Alt` | کلیک برای فعال/غیرفعال، تایپ حرف برای تغییر |
+| تأیید قبل از بلاک | ✅ روشن | تاست ۲ ثانیه‌ای با دکمه Cancel برای جلوگیری از بلاک تصادفی |
+
+### ۳️⃣ آمار
+- **بلاک‌های مستقیم** — بلاک دستی از طریق دکمه/شورتکات
+- **تطابق‌های آزمایشی** — توییت‌های پرچم‌گذاری‌شده در حالت Dry-Run
+- **بلاک‌های خودکار فیلتر** — بلاک‌های اجرا شده توسط حالت Auto
+- **مجموع مسدودها** — شمارنده تجمعی
+- **صفر کردن** — حذف تمام شمارنده‌ها با یک کلیک
 
 ---
 
@@ -144,18 +205,23 @@ MIT License — free to use, modify, and distribute.
 
 ## 🐛 محدودیت‌های شناخته‌شده
 
-- شناسایی آیتم «Block» در منوی X بر پایه متن انجام می‌شود (چون X برای این آیتم `data-testid` پایدار ارائه نمی‌دهد). اگر X زبانی جدید اضافه کند که در آرایه `BLOCK_KEYWORDS` (در `content.js`) نیست، ممکن است نیاز باشد کلمه‌ی جدید اضافه شود.
-- تنها روی `x.com` و `twitter.com` کار می‌کند.
+- تطبیق فیلتر بر پایه متن DOM + `img[alt]` برای ایموجی‌ها است (X ایموجی‌ها را به‌صورت تصویر Twemoji رندر می‌کند)
+- کش بایو در طول سشن معتبر است؛ هاورکارت‌ها به‌صورت پویا کش را غنی می‌کنند
+- تنها روی `x.com` و `twitter.com` کار می‌کند
+- بلاک خودکار از جریان بومی «بیشتر → مسدود → تایید» استفاده می‌کند — هیچ API خصوصی نیست
 
 ---
 
 ## 🛠 نکات فنی
 
-- **پرفورمنس**: اسکن محدود دام با `MutationObserver` + `requestIdleCallback` — هیچ اسکن مجدد کل صفحه‌ای
-- **قابلیت اطمینان**: تابع `waitFor()` جایگزین زنجیرهای شکننده `setTimeout`؛ منتظر ظاهر شدن واقعی منو/دکمه تأیید می‌ماند
+- **موتور یونیکد**: نرمال‌سازی NFKC + قانون‌سازی حروف فارسی/عربی + حذف سلکتورهای نمایش
+- **مدیریت ایموجی**: پشتیبانی کامل پرچم‌ها، تن‌های پوست، توالی‌های ZWJ، ایموجی‌های ترکیبی
+- **پرفورمنس**: `MutationObserver` محدود + `requestIdleCallback` — هیچ اسکن مجدد کل صفحه
+- **قابلیت اطمینان**: تابع `waitFor()` جایگزین زنجیرهای شکننده `setTimeout`؛ منتظر ظاهر شدن واقعی منو/دکمه تایید می‌ماند
 - **حافظه**: ردیابی با `WeakSet` به GC اجازه می‌دهد گره‌های DOM حذف‌شده را بازیابی کند
 - **تشخیص تم**: خواندن `background-color` محاسبه‌شده روی `<body>` برای استنتاج light/dark/dim
-- **Manifest V3**: Service Worker در پس‌زمینه، فقط مجوز `storage`
+- **بارگذاری فونت**: `woff2` محلی عبر `chrome.runtime.getURL()` — هیچ درخواست شبکه‌ای، آفلاین کار می‌کند
+- **Manifest V3**: Service Worker در پس‌زمینه، فقط مجوز `storage` و `scripting`
 
 ---
 

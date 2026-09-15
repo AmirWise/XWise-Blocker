@@ -1,8 +1,36 @@
 /* =====================================================================
-   XWise Blocker v1 — popup styles
-   Matches Twitter's design language: dark theme, clean typography,
-   native-feeling toggle switches, subtle interactions
+   XWise Blocker v2.0.0 — Popup Styles
+   Built with Vazirmatn font as default, matching X/Twitter's dark UI.
+   Full RTL and LTR support.
    ===================================================================== */
+
+/* --- Embed Vazirmatn Variable Font --- */
+@font-face {
+  font-family: 'Vazirmatn';
+  font-style: normal;
+  font-weight: 100 900;
+  font-display: swap;
+  src: url('fonts/vazirmatn-arabic.woff2') format('woff2');
+  unicode-range: U+0600-06FF, U+0750-077F, U+0870-088E, U+0890-0891, U+0897-08E1, U+08E3-08FF, U+200C-200E, U+2010-2011, U+204F, U+2E41, U+FB50-FDFF, U+FE70-FE74, U+FE76-FEFC, U+102E0-102FB, U+10E60-10E7E, U+10EC2-10EC4, U+10EFC-10EFF, U+1EE00-1EE03, U+1EE05-1EE1F, U+1EE21-1EE22, U+1EE24, U+1EE27, U+1EE29-1EE32, U+1EE34-1EE37, U+1EE39, U+1EE3B, U+1EE42, U+1EE47, U+1EE49, U+1EE4B, U+1EE4D-1EE4F, U+1EE51-1EE52, U+1EE54, U+1EE57, U+1EE59, U+1EE5B, U+1EE5D, U+1EE5F, U+1EE61-1EE62, U+1EE64, U+1EE67-1EE6A, U+1EE6C-1EE72, U+1EE74-1EE77, U+1EE79-1EE7C, U+1EE7E, U+1EE80-1EE89, U+1EE8B-1EE9B, U+1EEA1-1EEA3, U+1EEA5-1EEA9, U+1EEAB-1EEBB, U+1EEF0-1EEF1;
+}
+
+@font-face {
+  font-family: 'Vazirmatn';
+  font-style: normal;
+  font-weight: 100 900;
+  font-display: swap;
+  src: url('fonts/vazirmatn-latin-ext.woff2') format('woff2');
+  unicode-range: U+0100-02BA, U+02BD-02C5, U+02C7-02CC, U+02CE-02D7, U+02DD-02FF, U+0304, U+0308, U+0329, U+1D00-1DBF, U+1E00-1E9F, U+1EF2-1EFF, U+2020, U+20A0-20AB, U+20AD-20C0, U+2113, U+2C60-2C7F, U+A720-A7FF;
+}
+
+@font-face {
+  font-family: 'Vazirmatn';
+  font-style: normal;
+  font-weight: 100 900;
+  font-display: swap;
+  src: url('fonts/vazirmatn-latin.woff2') format('woff2');
+  unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD;
+}
 
 * {
   box-sizing: border-box;
@@ -11,16 +39,19 @@
 }
 
 body {
-  width: 320px;
-  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
-  background: #000;
+  width: 360px;
+  min-height: 520px;
+  font-family: 'Vazirmatn', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+  background: #000000;
   color: #e7e9ea;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
+  line-height: 1.4;
+  user-select: none;
 }
 
 .xe-popup {
-  padding: 16px;
+  padding: 14px;
   display: flex;
   flex-direction: column;
   gap: 12px;
@@ -30,68 +61,178 @@ body {
 .xe-header {
   display: flex;
   align-items: center;
-  gap: 12px;
-  padding: 4px 0 8px;
+  justify-content: space-between;
+  padding: 2px 2px 8px;
+  border-bottom: 1px solid #2f3336;
+}
+
+.xe-header-left {
+  display: flex;
+  align-items: center;
+  gap: 10px;
 }
 
 .xe-logo {
-  width: 36px;
-  height: 36px;
-  border-radius: 10px;
+  width: 34px;
+  height: 34px;
+  border-radius: 9px;
   display: block;
   flex-shrink: 0;
 }
 
 .xe-header-text {
-  flex: 1;
-  min-width: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+.xe-title-row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
 }
 
 .xe-header h1 {
-  font-size: 17px;
+  font-size: 16px;
   font-weight: 800;
-  letter-spacing: -0.02em;
-  line-height: 1.2;
+  letter-spacing: -0.01em;
   color: #e7e9ea;
 }
 
+.xe-badge {
+  font-size: 10px;
+  font-weight: 700;
+  padding: 1px 6px;
+  background: rgba(29, 155, 240, 0.15);
+  color: #1d9bf0;
+  border-radius: 9999px;
+  border: 1px solid rgba(29, 155, 240, 0.3);
+}
+
 .xe-sub {
-  font-size: 13px;
+  font-size: 11.5px;
   color: #71767b;
-  line-height: 1.3;
   margin-top: 1px;
 }
 
-/* --- Card containers --- */
+.xe-lang-btn {
+  background: #16181c;
+  border: 1px solid #2f3336;
+  color: #e7e9ea;
+  border-radius: 8px;
+  padding: 4px 9px;
+  font-size: 11.5px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: all 0.15s ease;
+  font-family: inherit;
+}
+
+.xe-lang-btn:hover {
+  background: #202327;
+  border-color: #536471;
+}
+
+/* --- Navigation Tabs --- */
+.xe-nav {
+  display: flex;
+  background: #16181c;
+  border: 1px solid #2f3336;
+  border-radius: 12px;
+  padding: 3px;
+  gap: 3px;
+}
+
+.xe-tab {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  padding: 7px 4px;
+  background: transparent;
+  border: none;
+  border-radius: 9px;
+  color: #71767b;
+  font-size: 12.5px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.18s ease;
+  font-family: inherit;
+}
+
+.xe-tab:hover {
+  color: #e7e9ea;
+  background: rgba(239, 243, 244, 0.04);
+}
+
+.xe-tab.active {
+  background: #202327;
+  color: #1d9bf0;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.3);
+}
+
+/* --- Tab Panes --- */
+.xe-tab-pane {
+  display: none;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.xe-tab-pane.active {
+  display: flex;
+}
+
+/* --- Card Containers --- */
 .xe-card {
   background: #16181c;
   border: 1px solid #2f3336;
-  border-radius: 16px;
+  border-radius: 14px;
   overflow: hidden;
 }
 
+.xe-card-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 12px 14px 4px;
+}
+
 .xe-section-title {
-  font-size: 13px;
+  font-size: 12px;
   font-weight: 700;
   color: #71767b;
   text-transform: uppercase;
-  letter-spacing: 0.05em;
-  padding: 14px 16px 0;
+  letter-spacing: 0.04em;
+  padding: 12px 14px 2px;
 }
 
-/* --- Setting rows --- */
+.xe-card-header .xe-section-title {
+  padding: 0;
+}
+
+.xe-count-pill {
+  font-size: 11px;
+  font-weight: 600;
+  padding: 2px 7px;
+  background: #202327;
+  color: #71767b;
+  border-radius: 9999px;
+  border: 1px solid #2f3336;
+}
+
+/* --- Row Settings --- */
 .xe-row {
   display: flex;
   align-items: center;
   justify-content: space-between;
   gap: 12px;
-  padding: 12px 16px;
-  border-bottom: 1px solid #2f3336;
+  padding: 11px 14px;
+  border-bottom: 1px solid #272a2e;
   transition: background 0.12s ease;
 }
 
 .xe-row:hover {
-  background: rgba(239, 243, 244, 0.03);
+  background: rgba(239, 243, 244, 0.02);
 }
 
 .xe-row-last,
@@ -105,24 +246,24 @@ body {
 }
 
 .xe-row-title {
-  font-size: 14px;
+  font-size: 13.5px;
   font-weight: 600;
   color: #e7e9ea;
   line-height: 1.3;
 }
 
 .xe-row-desc {
-  font-size: 12px;
+  font-size: 11.5px;
   color: #71767b;
   line-height: 1.4;
   margin-top: 2px;
 }
 
-/* --- Toggle switch (matches Twitter's settings UI) --- */
+/* --- Toggle Switch --- */
 .xe-switch {
   position: relative;
-  width: 40px;
-  height: 24px;
+  width: 38px;
+  height: 22px;
   flex-shrink: 0;
   cursor: pointer;
 }
@@ -137,7 +278,7 @@ body {
 .xe-switch span {
   position: absolute;
   inset: 0;
-  background: #71767b;
+  background: #536471;
   border-radius: 9999px;
   transition: background 0.2s ease;
   cursor: pointer;
@@ -146,14 +287,19 @@ body {
 .xe-switch span::before {
   content: "";
   position: absolute;
-  width: 18px;
-  height: 18px;
+  width: 16px;
+  height: 16px;
   left: 3px;
   top: 3px;
-  background: #e7e9ea;
+  background: #ffffff;
   border-radius: 50%;
   transition: transform 0.2s cubic-bezier(0.4, 0, 0.2, 1);
-  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.3);
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.4);
+}
+
+[dir="rtl"] .xe-switch span::before {
+  left: auto;
+  right: 3px;
 }
 
 .xe-switch input:checked + span {
@@ -164,37 +310,287 @@ body {
   transform: translateX(16px);
 }
 
-.xe-switch input:focus-visible + span {
-  outline: 2px solid #1d9bf0;
-  outline-offset: 2px;
+[dir="rtl"] .xe-switch input:checked + span::before {
+  transform: translateX(-16px);
 }
 
-/* --- Shortcut editor --- */
+/* --- Mode Segmented Control (Dry-Run vs Auto-Block) --- */
+.xe-mode-row {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 10px 14px 12px;
+  background: rgba(0, 0, 0, 0.25);
+  border-top: 1px solid #272a2e;
+}
+
+.xe-mode-label {
+  font-size: 11.5px;
+  font-weight: 600;
+  color: #71767b;
+}
+
+.xe-segmented {
+  display: flex;
+  background: #0d0e10;
+  border: 1px solid #2f3336;
+  border-radius: 10px;
+  padding: 3px;
+  gap: 3px;
+}
+
+.xe-seg-btn {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  padding: 6px 8px;
+  background: transparent;
+  border: none;
+  border-radius: 7px;
+  color: #71767b;
+  font-size: 11.5px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.15s ease;
+  font-family: inherit;
+}
+
+.xe-seg-btn:hover {
+  color: #e7e9ea;
+}
+
+.xe-seg-btn.active {
+  background: #202327;
+  color: #e7e9ea;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.4);
+}
+
+.xe-dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  display: inline-block;
+}
+
+.xe-dot-amber {
+  background: #f59e0b;
+  box-shadow: 0 0 6px rgba(245, 158, 11, 0.4);
+}
+
+.xe-dot-red {
+  background: #f4212e;
+  box-shadow: 0 0 6px rgba(244, 33, 46, 0.4);
+}
+
+/* --- Add Filter Input Box --- */
+.xe-add-box {
+  padding: 10px 14px 12px;
+}
+
+.xe-input-wrapper {
+  display: flex;
+  gap: 6px;
+}
+
+.xe-text-input {
+  flex: 1;
+  height: 36px;
+  padding: 0 12px;
+  font-size: 13px;
+  font-family: inherit;
+  background: #0d0e10;
+  border: 1px solid #2f3336;
+  border-radius: 9px;
+  color: #e7e9ea;
+  transition: border-color 0.15s ease, box-shadow 0.15s ease;
+  outline: none;
+}
+
+.xe-text-input:focus {
+  border-color: #1d9bf0;
+  box-shadow: 0 0 0 2px rgba(29, 155, 240, 0.2);
+}
+
+.xe-btn-primary {
+  padding: 0 14px;
+  height: 36px;
+  background: #1d9bf0;
+  color: #ffffff;
+  border: none;
+  border-radius: 9px;
+  font-size: 12.5px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: background 0.15s ease;
+  font-family: inherit;
+  white-space: nowrap;
+}
+
+.xe-btn-primary:hover {
+  background: #1a8cd8;
+}
+
+.xe-btn-secondary {
+  padding: 5px 12px;
+  background: #202327;
+  color: #f4212e;
+  border: 1px solid rgba(244, 33, 46, 0.3);
+  border-radius: 8px;
+  font-size: 11.5px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.15s ease;
+  font-family: inherit;
+}
+
+.xe-btn-secondary:hover {
+  background: rgba(244, 33, 46, 0.1);
+  border-color: #f4212e;
+}
+
+.xe-hint {
+  font-size: 11px;
+  color: #536471;
+  margin-top: 6px;
+  line-height: 1.35;
+}
+
+/* --- Scope Selection --- */
+.xe-scopes-row {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 8px 14px 12px;
+  border-top: 1px solid #272a2e;
+  background: rgba(0, 0, 0, 0.15);
+}
+
+.xe-scopes-label {
+  font-size: 11px;
+  font-weight: 600;
+  color: #71767b;
+}
+
+.xe-scope-checkboxes {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
+.xe-checkbox-label {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 12px;
+  color: #e7e9ea;
+  cursor: pointer;
+}
+
+.xe-checkbox-label input[type="checkbox"] {
+  accent-color: #1d9bf0;
+  width: 14px;
+  height: 14px;
+  cursor: pointer;
+}
+
+.xe-checkbox-dim {
+  color: #71767b;
+}
+
+/* --- Filter Chips List --- */
+.xe-chips-container {
+  padding: 8px 14px 14px;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  max-height: 180px;
+  overflow-y: auto;
+}
+
+.xe-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 8px;
+  background: #202327;
+  border: 1px solid #333639;
+  border-radius: 8px;
+  font-size: 12.5px;
+  color: #e7e9ea;
+  line-height: 1.2;
+  transition: all 0.15s ease;
+}
+
+.xe-chip:hover {
+  border-color: #536471;
+  background: #272a2f;
+}
+
+.xe-chip-text {
+  max-width: 170px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.xe-chip-del {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  border: none;
+  background: rgba(239, 243, 244, 0.1);
+  color: #71767b;
+  cursor: pointer;
+  padding: 0;
+  font-size: 12px;
+  line-height: 1;
+  transition: all 0.15s ease;
+}
+
+.xe-chip-del:hover {
+  background: #f4212e;
+  color: #ffffff;
+}
+
+.xe-empty-msg {
+  font-size: 11.5px;
+  color: #536471;
+  padding: 10px 0;
+  text-align: center;
+  width: 100%;
+  line-height: 1.4;
+}
+
+/* --- Shortcut Editor --- */
 .xe-shortcut-row {
   display: flex;
   align-items: center;
   gap: 6px;
-  padding: 8px 16px 14px;
+  padding: 8px 14px 12px;
   flex-wrap: wrap;
 }
 
 .xe-kbd {
-  font-family: ui-monospace, SFMono-Regular, "SF Mono", Menlo, monospace;
-  font-size: 12px;
-  padding: 5px 10px;
-  border-radius: 8px;
-  background: #2f3336;
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 11.5px;
+  padding: 5px 9px;
+  border-radius: 7px;
+  background: #202327;
   color: #71767b;
   cursor: pointer;
   user-select: none;
-  border: 1px solid #3e4144;
+  border: 1px solid #333639;
   transition: all 0.15s ease;
-  font-weight: 500;
-  line-height: 1;
+  font-weight: 600;
 }
 
 .xe-kbd:hover {
-  background: #3a3d41;
+  background: #272a2f;
 }
 
 .xe-kbd-active {
@@ -203,68 +599,75 @@ body {
   border-color: rgba(29, 155, 240, 0.4);
 }
 
-.xe-kbd-active:hover {
-  background: rgba(29, 155, 240, 0.25);
-}
-
 .xe-plus {
-  color: #71767b;
-  font-size: 13px;
-  font-weight: 500;
+  color: #536471;
+  font-size: 12px;
+  font-weight: 600;
 }
 
 .xe-key-input {
   width: 32px;
-  height: 30px;
+  height: 28px;
   text-align: center;
-  font-family: ui-monospace, SFMono-Regular, "SF Mono", Menlo, monospace;
-  font-size: 13px;
-  font-weight: 600;
-  background: #2f3336;
-  border: 1px solid #3e4144;
-  border-radius: 8px;
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 12.5px;
+  font-weight: 700;
+  background: #202327;
+  border: 1px solid #333639;
+  border-radius: 7px;
   color: #e7e9ea;
   padding: 0;
-  transition: border-color 0.15s ease, box-shadow 0.15s ease;
+  outline: none;
+  transition: border-color 0.15s ease;
 }
 
 .xe-key-input:focus {
-  outline: none;
   border-color: #1d9bf0;
-  box-shadow: 0 0 0 3px rgba(29, 155, 240, 0.2);
+  box-shadow: 0 0 0 2px rgba(29, 155, 240, 0.2);
 }
 
-/* --- Stats card --- */
-.xe-stats-card {
-  padding: 14px 16px;
+/* --- Stats Grid --- */
+.xe-stats-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 1px;
+  background: #272a2e;
 }
 
-.xe-stats-row {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-}
-
-.xe-stat {
+.xe-stat-box {
+  background: #16181c;
+  padding: 14px 12px;
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 2px;
+  gap: 4px;
+  text-align: center;
 }
 
-.xe-stat-value {
-  font-size: 22px;
+.xe-stat-number {
+  font-size: 20px;
   font-weight: 800;
   color: #e7e9ea;
-  letter-spacing: -0.02em;
-  line-height: 1;
   font-variant-numeric: tabular-nums;
+  line-height: 1;
 }
 
-.xe-stat-label {
-  font-size: 12px;
+.xe-stat-caption {
+  font-size: 11px;
   color: #71767b;
   font-weight: 500;
+}
+
+.xe-stat-amber {
+  color: #f59e0b;
+}
+
+.xe-stat-red {
+  color: #f4212e;
+}
+
+.xe-stat-blue {
+  color: #1d9bf0;
 }
 
 /* --- Footer --- */
@@ -276,16 +679,15 @@ body {
 }
 
 .xe-status {
-  font-size: 12px;
+  font-size: 11.5px;
   color: #1d9bf0;
-  font-weight: 500;
+  font-weight: 600;
   min-height: 16px;
   transition: opacity 0.2s ease;
 }
 
 .xe-version {
   font-size: 11px;
-  color: #3a3d41;
-  font-weight: 500;
+  color: #536471;
   font-variant-numeric: tabular-nums;
 }

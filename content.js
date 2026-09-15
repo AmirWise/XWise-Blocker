@@ -1,27 +1,28 @@
 'use strict';
 
 /**
- * XWise Blocker v1 — content script
+ * XWise Blocker v2.0.0 — Content Script
  *
- * Features:
- *  - Per-video volume sliders (remembers across videos)
- *  - Inline "Block" button on every tweet (matches Twitter's native UI)
- *  - Configurable keyboard shortcut to block hovered tweets
- *
- * Performance:
- *  - Scoped scanning (only scan added nodes, not the whole document)
- *  - WeakSet tracking to avoid reprocessing
- *  - requestIdleCallback for non-urgent work
- *  - Batched DOM mutations
- *  - Single passive mouseover listener
- *
- * Design:
- *  - Detects Twitter's light / dark / dim theme and adapts
- *  - Block button matches native Twitter action-bar buttons exactly
- *  - Toast matches Twitter's native snackbar
+ * Core Capabilities:
+ *  1. Per-video volume sliders with memory across timeline videos
+ *  2. Native-matching inline Block button on every tweet
+ *  3. Configurable keyboard shortcut to block hovered tweets
+ *  4. NEW v2: Advanced Unicode-aware Filter Engine
+ *     - Comprehensive emoji handling (sequences, flags, skin-tones, ZWJ)
+ *     - Clean case-insensitive and whole-word keyword matching
+ *     - Dry-Run preview mode (subtle inline pill badge, zero UI breakage)
+ *     - Auto-Block mode (multi-language automated native block sequence)
+ *     - Targeted Scopes: Display Name and Bio by default (tweet text optional)
+ *  5. Local Vazirmatn font injection & adaptive theme matching (Light / Dark / Dim)
+ *  6. High-performance scoped DOM scanning (MutationObserver + requestIdleCallback)
  */
 
+// ============================================================================
+// Defaults & State
+// ============================================================================
+
 const DEFAULT_SETTINGS = {
+  // v1 Features
   volumeSliderEnabled: true,
   blockButtonEnabled: true,
   shortcutEnabled: true,
@@ -31,22 +32,402 @@ const DEFAULT_SETTINGS = {
   shortcutKey: 'b',
   confirmDelayOnShortcut: true,
   rememberVolume: true,
+
+  // v2 Filter Engine
+  filterEngineEnabled: true,
+  filterMode: 'dry-run', // 'dry-run' | 'auto-block'
+  filterScopes: {
+    displayName: true,
+    bio: true,
+    tweetText: false, // Default false to prevent accidental false positives
+  },
+  filters: [], // Array of { id, pattern, enabled, createdAt }
+  filterCaseSensitive: false,
+  filterWholeWord: false,
+  showMatchBadges: true,
+  badgeStyle: 'subtle',
+  language: 'fa',
+  showBlockToasts: true,
 };
 
 let settings = { ...DEFAULT_SETTINGS };
 let lastVolume = 1;
-let blockCount = 0;
+let currentTheme = 'dark';
 
-// Track processed elements — WeakSets let GC reclaim removed DOM nodes
+// Element tracking to avoid reprocessing (WeakSet allows garbage collection)
 const processedVideos = new WeakSet();
 const processedTweets = new WeakSet();
+const scannedTweetNodes = new WeakSet();
 
-// ---------------------------------------------------------------------
-// Theme detection — Twitter uses a data-* attribute on <html> or
-// background-color on <body> to distinguish light / dark / dim.
-// We detect once and observe for changes.
-// ---------------------------------------------------------------------
-let currentTheme = 'dark'; // 'light' | 'dark' | 'dim'
+// Cache user bios discovered from DOM / hovercards / profile headers
+const userBioCache = new Map();
+
+// ============================================================================
+// Anti-Spam: Single Toast Controller + Handle Tracking + Block Queue
+// ============================================================================
+
+// Single active toast reference (replaces instead of stacking)
+let toastContainer = null;
+let currentToast = null;
+
+// Track blocked handles to prevent duplicate blocks/toasts per session
+const blockedHandles = new Set();
+
+// Track in-progress blocks to prevent race conditions
+const inProgressHandles = new Set();
+
+// Sequential block queue to prevent DOM race conditions on X's menus
+const blockQueue = [];
+let isProcessingQueue = false;
+
+/**
+ * Enqueue a block operation to run sequentially
+ */
+async function enqueueBlock(tweetNode, options = {}) {
+  return new Promise((resolve) => {
+    blockQueue.push({ tweetNode, options, resolve });
+    processBlockQueue();
+  });
+}
+
+/**
+ * Process the block queue one at a time
+ */
+async function processBlockQueue() {
+  if (isProcessingQueue || blockQueue.length === 0) return;
+  isProcessingQueue = true;
+
+  while (blockQueue.length > 0) {
+    const { tweetNode, options, resolve } = blockQueue.shift();
+    try {
+      const result = await performBlockInternal(tweetNode, options);
+      resolve(result);
+    } catch (err) {
+      console.error('[XWise] Block queue error:', err);
+      resolve(false);
+    }
+    // Small delay between blocks to let X's UI settle
+    await new Promise(r => setTimeout(r, 300));
+  }
+
+  isProcessingQueue = false;
+}
+
+/**
+ * Internal block logic without queue wrapping
+ */
+async function performBlockInternal(tweetNode, { requireConfirmDelay = false, source = 'manual' } = {}) {
+  const handle = getHandleFromTweet(tweetNode);
+
+  // Prevent duplicate blocks for same handle
+  if (blockedHandles.has(handle) || inProgressHandles.has(handle)) {
+    return false;
+  }
+  inProgressHandles.add(handle);
+
+  const moreBtn = tweetNode.querySelector('[data-testid="caret"], [aria-label="More" i]');
+  if (!moreBtn) {
+    if (source === 'manual') showToast(`منوی کاربر @${handle} پیدا نشد`);
+    inProgressHandles.delete(handle);
+    return false;
+  }
+  moreBtn.click();
+
+  const menuItem = await waitFor(document, isBlockMenuItem, 2000);
+  if (!menuItem) {
+    if (source === 'manual') showToast(`گزینه مسدودسازی برای @${handle} یافت نشد`);
+    document.body.click();
+    inProgressHandles.delete(handle);
+    return false;
+  }
+  menuItem.click();
+
+  const confirmBtn = await waitFor(document, '[data-testid="confirmationSheetConfirm"]', 2000);
+  if (!confirmBtn) {
+    if (source === 'manual') showToast(`پنجره تایید مسدودسازی نمایش داده نشد`);
+    inProgressHandles.delete(handle);
+    return false;
+  }
+
+  if (requireConfirmDelay && settings.confirmDelayOnShortcut) {
+    let cancelled = false;
+    showToast(`در حال مسدودسازی @${handle}...`, {
+      duration: 2200,
+      action: 'لغو',
+      onAction: () => { cancelled = true; },
+      isWarning: true,
+    });
+    await new Promise((r) => setTimeout(r, 2200));
+    if (cancelled) {
+      document.querySelector('[data-testid="confirmationSheetCancel"]')?.click();
+      inProgressHandles.delete(handle);
+      return false;
+    }
+  }
+
+  confirmBtn.click();
+
+  // Mark as successfully blocked
+  blockedHandles.add(handle);
+  inProgressHandles.delete(handle);
+
+  if (source === 'filter') {
+    incrementBlockMetric('filterBlockCount');
+    if (settings.showBlockToasts !== false) {
+      showToast(`حساب @${handle} بر اساس فیلترها مسدود شد`);
+    }
+  } else {
+    incrementBlockMetric('blockCount');
+    if (settings.showBlockToasts !== false) {
+      showToast(`حساب @${handle} مسدود شد`);
+    }
+  }
+
+  return true;
+}
+
+/**
+ * Public wrapper - now uses queue
+ */
+async function performBlock(tweetNode, options = {}) {
+  return enqueueBlock(tweetNode, options);
+}
+
+/**
+ * Single Toast Controller - Only ONE toast visible at a time
+ * New toast replaces existing one with smooth transition
+ */
+function ensureToastContainer() {
+  if (toastContainer && document.body.contains(toastContainer)) return toastContainer;
+  toastContainer = document.createElement('div');
+  toastContainer.className = 'xe-toast-container';
+  document.body.appendChild(toastContainer);
+  return toastContainer;
+}
+
+function showToast(message, { duration = 2500, action, onAction, isWarning = false } = {}) {
+  // Check if toasts are globally disabled
+  if (settings.showBlockToasts === false) return { cancel: () => {} };
+
+  const container = ensureToastContainer();
+
+  // If a toast is already showing, replace it instead of stacking
+  if (currentToast && container.contains(currentToast)) {
+    // Cancel the old toast's timer and replace content
+    currentToast._cancelTimer?.();
+    replaceToastContent(currentToast, message, { isWarning, action, onAction, duration });
+    return currentToast;
+  }
+
+  // Create new toast
+  const toast = document.createElement('div');
+  toast.className = 'xe-toast' + (isWarning ? ' xe-toast-warning' : '');
+  currentToast = toast;
+
+  const text = document.createElement('span');
+  text.className = 'xe-toast-text';
+  text.textContent = message;
+  toast.appendChild(text);
+
+  let removed = false;
+  const remove = () => {
+    if (removed) return;
+    removed = true;
+    if (currentToast === toast) currentToast = null;
+    toast.classList.remove('xe-toast-in');
+    toast.classList.add('xe-toast-out');
+    toast.addEventListener('transitionend', () => {
+      toast.remove();
+      if (currentToast === null && blockQueue.length === 0) {
+        // Clean up container if no more toasts
+        container.remove();
+        toastContainer = null;
+      }
+    }, { once: true });
+    setTimeout(() => {
+      toast.remove();
+      if (currentToast === null) {
+        container.remove();
+        toastContainer = null;
+      }
+    }, 300);
+  };
+
+  if (action) {
+    const btn = document.createElement('button');
+    btn.type = 'button';
+    btn.textContent = action;
+    btn.className = 'xe-toast-action';
+    btn.addEventListener('click', () => {
+      onAction?.();
+      remove();
+    });
+    toast.appendChild(btn);
+  }
+
+  container.appendChild(toast);
+  toast.offsetHeight;
+  requestAnimationFrame(() => toast.classList.add('xe-toast-in'));
+
+  const timer = setTimeout(remove, duration);
+  toast._cancelTimer = () => clearTimeout(timer);
+
+  return { cancel: () => { clearTimeout(timer); remove(); } };
+}
+
+/**
+ * Replace toast content without removing/creating new element
+ */
+function replaceToastContent(toast, message, { isWarning, action, onAction, duration }) {
+  // Update warning class
+  toast.classList.toggle('xe-toast-warning', isWarning);
+
+  // Update text
+  const textEl = toast.querySelector('.xe-toast-text');
+  if (textEl) textEl.textContent = message;
+
+  // Update action button
+  const existingBtn = toast.querySelector('.xe-toast-action');
+  if (existingBtn) existingBtn.remove();
+
+  if (action) {
+    const btn = document.createElement('button');
+    btn.type = 'button';
+    btn.textContent = action;
+    btn.className = 'xe-toast-action';
+    btn.addEventListener('click', () => {
+      onAction?.();
+      // Find and call remove
+      const container = toast.parentElement;
+      if (container) {
+        toast.classList.remove('xe-toast-in');
+        toast.classList.add('xe-toast-out');
+        toast.addEventListener('transitionend', () => {
+          toast.remove();
+          if (currentToast === toast) currentToast = null;
+          container.remove();
+          toastContainer = null;
+        }, { once: true });
+      }
+    });
+    toast.appendChild(btn);
+  }
+
+  // Reset animation
+  toast.classList.remove('xe-toast-in');
+  toast.offsetHeight;
+  requestAnimationFrame(() => toast.classList.add('xe-toast-in'));
+
+  // Reset timer
+  if (toast._cancelTimer) toast._cancelTimer();
+  toast._cancelTimer = setTimeout(() => {
+    if (currentToast === toast) currentToast = null;
+    toast.classList.remove('xe-toast-in');
+    toast.classList.add('xe-toast-out');
+    toast.addEventListener('transitionend', () => toast.remove(), { once: true });
+    setTimeout(() => toast.remove(), 300);
+  }, duration);
+}
+
+// ============================================================================
+// Dynamic Font Injection (Guarantees Vazirmatn works in content script)
+// ============================================================================
+
+function injectVazirmatnFont() {
+  if (document.getElementById('xwise-font-vazirmatn')) return;
+
+  const arabicUrl = chrome.runtime.getURL('fonts/vazirmatn-arabic.woff2');
+  const latinExtUrl = chrome.runtime.getURL('fonts/vazirmatn-latin-ext.woff2');
+  const latinUrl = chrome.runtime.getURL('fonts/vazirmatn-latin.woff2');
+
+  const style = document.createElement('style');
+  style.id = 'xwise-font-vazirmatn';
+  style.textContent = `
+    @font-face {
+      font-family: 'Vazirmatn';
+      font-style: normal;
+      font-weight: 100 900;
+      font-display: swap;
+      src: url('${arabicUrl}') format('woff2');
+      unicode-range: U+0600-06FF, U+0750-077F, U+0870-088E, U+0890-0891, U+0897-08E1, U+08E3-08FF, U+200C-200E, U+2010-2011, U+204F, U+2E41, U+FB50-FDFF, U+FE70-FE74, U+FE76-FEFC;
+    }
+    @font-face {
+      font-family: 'Vazirmatn';
+      font-style: normal;
+      font-weight: 100 900;
+      font-display: swap;
+      src: url('${latinExtUrl}') format('woff2');
+      unicode-range: U+0100-02BA, U+02BD-02C5, U+02C7-02CC, U+02CE-02D7, U+02DD-02FF, U+0304, U+0308, U+0329, U+1D00-1DBF, U+1E00-1E9F, U+1EF2-1EFF;
+    }
+    @font-face {
+      font-family: 'Vazirmatn';
+      font-style: normal;
+      font-weight: 100 900;
+      font-display: swap;
+      src: url('${latinUrl}') format('woff2');
+      unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD;
+    }
+  `;
+  document.head.appendChild(style);
+}
+
+// ============================================================================
+// Unicode Normalization & Emoji Handling Engine
+// ============================================================================
+
+/**
+ * Strips zero-width characters and presentation selectors that cause
+ * emojis or Arabic/Persian letters to fail matching.
+ */
+function normalizeUnicodeString(str, { caseSensitive = false } = {}) {
+  if (!str) return '';
+
+  let normalized = String(str)
+    // NFKC decomposes presentation forms into canonical characters
+    .normalize('NFKC')
+    // Remove variation selector 15 (text) and 16 (emoji)
+    .replace(/[︀-️]/gu, '')
+    // Standardize Arabic/Persian letter variants (ی/ي and ک/ك)
+    .replace(/ي/g, 'ی') // Arabic Yeh -> Persian Yeh
+    .replace(/ك/g, 'ک') // Arabic Kaf -> Persian Kaf
+    // Remove Arabic/Persian vowel diacritics (harakat / tashkeel)
+    .replace(/[ً-ٰٟۖ-ۭ]/g, '');
+
+  if (!caseSensitive) {
+    normalized = normalized.toLocaleLowerCase();
+  }
+
+  return normalized;
+}
+
+function escapeRegExp(str) {
+  return str.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+}
+
+/**
+ * Checks if target string contains the filter pattern
+ * Works seamlessly with words, phrases, compound emojis, flags, symbols.
+ */
+function testPatternMatch(targetText, pattern, { caseSensitive = false, wholeWord = false } = {}) {
+  if (!targetText || !pattern) return false;
+
+  const cleanTarget = normalizeUnicodeString(targetText, { caseSensitive });
+  const cleanPattern = normalizeUnicodeString(pattern, { caseSensitive });
+
+  if (!cleanPattern) return false;
+
+  if (wholeWord) {
+    const escaped = escapeRegExp(cleanPattern);
+    const regex = new RegExp(`(^|[\\s\\p{P}\\p{S}]+)${escaped}($|[\\s\\p{P}\\p{S}]+)`, caseSensitive ? 'u' : 'iu');
+    return regex.test(cleanTarget);
+  }
+
+  return cleanTarget.includes(cleanPattern);
+}
+
+// ============================================================================
+// Theme Detection
+// ============================================================================
 
 function detectTheme() {
   const bg = getComputedStyle(document.body).backgroundColor;
@@ -55,7 +436,7 @@ function detectTheme() {
   const [, r, g, b] = match.map(Number);
   const luminance = (0.299 * r + 0.587 * g + 0.114 * b);
   if (luminance > 200) return 'light';
-  if (luminance > 40)  return 'dim';
+  if (luminance > 40) return 'dim';
   return 'dark';
 }
 
@@ -67,15 +448,15 @@ function applyTheme() {
   }
 }
 
-// ---------------------------------------------------------------------
-// Settings: load once, then stay in sync live.
-// ---------------------------------------------------------------------
+// ============================================================================
+// Settings Management
+// ============================================================================
+
 function loadSettings() {
   return new Promise((resolve) => {
     if (!chrome?.storage?.sync) { resolve(settings); return; }
-    chrome.storage.sync.get({ ...DEFAULT_SETTINGS, blockCount: 0 }, (stored) => {
+    chrome.storage.sync.get(DEFAULT_SETTINGS, (stored) => {
       settings = { ...DEFAULT_SETTINGS, ...stored };
-      blockCount = stored.blockCount || 0;
       if (stored.lastVolume !== undefined) lastVolume = stored.lastVolume;
       resolve(settings);
     });
@@ -96,71 +477,18 @@ function saveVolume(v) {
   }
 }
 
-function incrementBlockCount() {
-  blockCount++;
-  if (chrome?.storage?.sync) {
-    chrome.storage.sync.set({ blockCount });
-  }
+function incrementBlockMetric(key = 'blockCount') {
+  if (!chrome?.storage?.sync) return;
+  chrome.storage.sync.get([key], (stored) => {
+    const count = (stored[key] || 0) + 1;
+    chrome.storage.sync.set({ [key]: count });
+  });
 }
 
-// ---------------------------------------------------------------------
-// Toast feedback — styled to match Twitter's native snackbar
-// ---------------------------------------------------------------------
-let toastContainer = null;
+// ============================================================================
+// Reliable Element Waiter
+// ============================================================================
 
-function ensureToastContainer() {
-  if (toastContainer && document.body.contains(toastContainer)) return toastContainer;
-  toastContainer = document.createElement('div');
-  toastContainer.className = 'xe-toast-container';
-  document.body.appendChild(toastContainer);
-  return toastContainer;
-}
-
-function showToast(message, { duration = 2500, action, onAction } = {}) {
-  const container = ensureToastContainer();
-  const toast = document.createElement('div');
-  toast.className = 'xe-toast';
-
-  const text = document.createElement('span');
-  text.className = 'xe-toast-text';
-  text.textContent = message;
-  toast.appendChild(text);
-
-  let removed = false;
-  const remove = () => {
-    if (removed) return;
-    removed = true;
-    toast.classList.remove('xe-toast-in');
-    toast.classList.add('xe-toast-out');
-    toast.addEventListener('transitionend', () => toast.remove(), { once: true });
-    // Fallback for missed transitionend
-    setTimeout(() => toast.remove(), 300);
-  };
-
-  if (action) {
-    const btn = document.createElement('button');
-    btn.type = 'button';
-    btn.textContent = action;
-    btn.className = 'xe-toast-action';
-    btn.addEventListener('click', () => {
-      onAction?.();
-      remove();
-    });
-    toast.appendChild(btn);
-  }
-
-  container.appendChild(toast);
-  // Force reflow then animate in
-  toast.offsetHeight;
-  requestAnimationFrame(() => toast.classList.add('xe-toast-in'));
-  const timer = setTimeout(remove, duration);
-  return { cancel: () => { clearTimeout(timer); remove(); } };
-}
-
-// ---------------------------------------------------------------------
-// "Wait for element" helper — MutationObserver-based, replaces fragile
-// setTimeout chains.
-// ---------------------------------------------------------------------
 function waitFor(root, matcher, timeoutMs = 2500) {
   return new Promise((resolve) => {
     const test = () => {
@@ -191,9 +519,10 @@ function waitFor(root, matcher, timeoutMs = 2500) {
   });
 }
 
-// ---------------------------------------------------------------------
-// Multi-language block detection
-// ---------------------------------------------------------------------
+// ============================================================================
+// Multi-language Block Detection
+// ============================================================================
+
 const BLOCK_KEYWORDS = [
   'block', 'مسدود', 'bloquear', 'bloquer', 'blockieren', 'blocca',
   'блокировать', '屏蔽', 'ブロック', 'حظر', 'chặn', 'blokir', 'blokkeren',
@@ -202,7 +531,7 @@ const BLOCK_KEYWORDS = [
 const UNBLOCK_KEYWORDS = [
   'unblock', 'رفع مسدودی', 'لغو مسدود', 'desbloquear', 'débloquer',
   'entsperren', 'sblocca', 'разблокировать', '取消屏蔽', 'ブロック解除',
-  'إلغاء الحظر', 'buka blokir', 'odblokuj', 'engeli kaldır', '차단 해제',
+  'إلغاء الحظر', 'buka blokir', 'odblokuj', 'engeli kaldır', '차단 해制',
 ];
 
 function isBlockMenuItem(node) {
@@ -212,61 +541,20 @@ function isBlockMenuItem(node) {
   return BLOCK_KEYWORDS.some((k) => text.includes(k));
 }
 
-// ---------------------------------------------------------------------
-// Core blocking flow
-// ---------------------------------------------------------------------
+// ============================================================================
+// Core Native Blocking Flow
+// ============================================================================
+
 function getHandleFromTweet(tweetNode) {
   const link = tweetNode.querySelector('[data-testid="User-Name"] a[role="link"]');
   const href = link?.getAttribute('href') || '';
   return href.startsWith('/') ? href.slice(1).split('/')[0] : (href || 'user');
 }
 
-async function performBlock(tweetNode, { requireConfirmDelay = false } = {}) {
-  const handle = getHandleFromTweet(tweetNode);
+// ============================================================================
+// Feature 1: Volume Sliders (Floating Pill over Videos)
+// ============================================================================
 
-  const moreBtn = tweetNode.querySelector('[data-testid="caret"], [aria-label="More" i]');
-  if (!moreBtn) {
-    showToast(`Couldn't find the menu for @${handle}`);
-    return;
-  }
-  moreBtn.click();
-
-  const menuItem = await waitFor(document, isBlockMenuItem, 2000);
-  if (!menuItem) {
-    showToast(`Couldn't find a block option for @${handle}`);
-    document.body.click();
-    return;
-  }
-  menuItem.click();
-
-  const confirmBtn = await waitFor(document, '[data-testid="confirmationSheetConfirm"]', 2000);
-  if (!confirmBtn) {
-    showToast(`Block confirmation didn't appear for @${handle}`);
-    return;
-  }
-
-  if (requireConfirmDelay && settings.confirmDelayOnShortcut) {
-    let cancelled = false;
-    showToast(`Blocking @${handle}...`, {
-      duration: 2200,
-      action: 'Cancel',
-      onAction: () => { cancelled = true; },
-    });
-    await new Promise((r) => setTimeout(r, 2200));
-    if (cancelled) {
-      document.querySelector('[data-testid="confirmationSheetCancel"]')?.click();
-      return;
-    }
-  }
-
-  confirmBtn.click();
-  incrementBlockCount();
-  showToast(`Blocked @${handle}`);
-}
-
-// ---------------------------------------------------------------------
-// Feature 1: Volume sliders — minimal, auto-hiding, on each video
-// ---------------------------------------------------------------------
 function createVolumeSlider(video) {
   if (processedVideos.has(video)) return;
   processedVideos.add(video);
@@ -330,13 +618,11 @@ function createVolumeSlider(video) {
     updateVisuals(v);
   });
 
-  // Prevent video interactions when using slider
   const stopProp = (e) => e.stopPropagation();
   slider.addEventListener('mousedown', stopProp);
   slider.addEventListener('pointerdown', stopProp);
   slider.addEventListener('click', stopProp);
 
-  // Toggle mute on icon click
   icon.addEventListener('click', (e) => {
     e.stopPropagation();
     if (video.volume > 0 && !video.muted) {
@@ -368,10 +654,10 @@ function addVolumeSliders(root = document) {
   }
 }
 
-// ---------------------------------------------------------------------
-// Feature 2: Inline block button — matches Twitter's native action bar
-// Uses the same icon size, color, hover behavior as reply/retweet/like
-// ---------------------------------------------------------------------
+// ============================================================================
+// Feature 2: Inline Action-Bar Block Button
+// ============================================================================
+
 function createBlockButton(tweet) {
   if (processedTweets.has(tweet)) return;
   processedTweets.add(tweet);
@@ -379,12 +665,11 @@ function createBlockButton(tweet) {
   const actionBar = tweet.querySelector('[role="group"]');
   if (!actionBar) return;
 
-  // Don't add if tweet is by the logged-in user (optional)
   const btn = document.createElement('div');
   btn.className = 'xe-block-btn-wrapper';
   btn.setAttribute('role', 'button');
   btn.setAttribute('tabindex', '0');
-  btn.setAttribute('aria-label', 'Block this user');
+  btn.setAttribute('aria-label', 'Block user');
 
   btn.innerHTML = `
     <div class="xe-block-btn-inner">
@@ -399,14 +684,14 @@ function createBlockButton(tweet) {
   btn.addEventListener('click', (e) => {
     e.preventDefault();
     e.stopPropagation();
-    performBlock(tweet, { requireConfirmDelay: false });
+    performBlock(tweet, { requireConfirmDelay: false, source: 'manual' });
   });
 
   btn.addEventListener('keydown', (e) => {
     if (e.key === 'Enter' || e.key === ' ') {
       e.preventDefault();
       e.stopPropagation();
-      performBlock(tweet, { requireConfirmDelay: false });
+      performBlock(tweet, { requireConfirmDelay: false, source: 'manual' });
     }
   });
 
@@ -421,88 +706,26 @@ function addBlockButtons(root = document) {
   }
 }
 
-// ---------------------------------------------------------------------
-// Scoped scanning — only process newly added subtrees, not the full DOM
-// Uses requestIdleCallback when available for non-blocking work
-// ---------------------------------------------------------------------
-const pendingRoots = new Set();
-let scanScheduled = false;
+// ============================================================================
+// Feature 3: Keyboard Shortcut (Ctrl+Alt+B default)
+// ============================================================================
 
-function flushScan() {
-  scanScheduled = false;
-  const roots = [...pendingRoots];
-  pendingRoots.clear();
-
-  for (const root of roots) {
-    if (!root.isConnected) continue;
-    addVolumeSliders(root);
-    addBlockButtons(root);
-  }
-}
-
-function scheduleScan(root) {
-  pendingRoots.add(root || document);
-  if (scanScheduled) return;
-  scanScheduled = true;
-
-  if (typeof requestIdleCallback !== 'undefined') {
-    requestIdleCallback(() => flushScan(), { timeout: 200 });
-  } else {
-    setTimeout(flushScan, 100);
-  }
-}
-
-const domObserver = new MutationObserver((mutations) => {
-  let shouldScan = false;
-  for (let i = 0; i < mutations.length; i++) {
-    const m = mutations[i];
-    if (m.addedNodes.length > 0) {
-      for (let j = 0; j < m.addedNodes.length; j++) {
-        const node = m.addedNodes[j];
-        if (node.nodeType === Node.ELEMENT_NODE) {
-          // Only scan subtrees that could contain tweets or videos
-          if (node.querySelector?.('article, video') ||
-              node.matches?.('article') ||
-              node.tagName === 'VIDEO') {
-            pendingRoots.add(node);
-            shouldScan = true;
-          }
-        }
-      }
-    }
-  }
-  if (shouldScan) {
-    if (!scanScheduled) {
-      scanScheduled = true;
-      if (typeof requestIdleCallback !== 'undefined') {
-        requestIdleCallback(() => flushScan(), { timeout: 200 });
-      } else {
-        setTimeout(flushScan, 100);
-      }
-    }
-  }
-});
-
-// ---------------------------------------------------------------------
-// Feature 3: Keyboard shortcut — block hovered tweet
-// Default: Ctrl+Alt+B. Fully remappable from popup.
-// Cancel toast guards against accidental triggers.
-// ---------------------------------------------------------------------
 let hoveredElement = null;
 document.addEventListener('mouseover', (e) => { hoveredElement = e.target; }, { passive: true });
 
 document.addEventListener('keydown', (e) => {
   if (!settings.shortcutEnabled) return;
 
-  // Don't fire in text inputs
+  // Prevent repeat triggers when holding keys
+  if (e.repeat) return;
+
   const tag = e.target.tagName;
   if (tag === 'INPUT' || tag === 'TEXTAREA' || e.target.isContentEditable) return;
-  // Also skip [role="textbox"] (Twitter's compose area)
   if (e.target.getAttribute('role') === 'textbox') return;
 
   const key = e.key.toLowerCase();
   const matches =
-    key === settings.shortcutKey &&
+    key === (settings.shortcutKey || 'b').toLowerCase() &&
     e.ctrlKey === !!settings.shortcutCtrl &&
     e.altKey === !!settings.shortcutAlt &&
     e.shiftKey === !!settings.shortcutShift;
@@ -514,31 +737,282 @@ document.addEventListener('keydown', (e) => {
 
   e.preventDefault();
   e.stopPropagation();
-  performBlock(tweet, { requireConfirmDelay: true });
+  performBlock(tweet, { requireConfirmDelay: true, source: 'manual' });
 });
 
-// ---------------------------------------------------------------------
-// Theme observer — watches for Twitter theme changes
-// ---------------------------------------------------------------------
+// ============================================================================
+// Feature 4: NEW v2 Unicode-aware Filter Engine
+// ============================================================================
+
+/**
+ * Extracts complete text from DOM elements, including <img> with alt attributes
+ * (X renders Twemoji images with alt="emoji")
+ */
+function extractFullTextWithAlt(element) {
+  if (!element) return '';
+
+  let text = '';
+  for (const node of element.childNodes) {
+    if (node.nodeType === Node.TEXT_NODE) {
+      text += node.textContent;
+    } else if (node.nodeType === Node.ELEMENT_NODE) {
+      if (node.tagName === 'IMG' && node.hasAttribute('alt')) {
+        text += node.getAttribute('alt');
+      } else {
+        text += extractFullTextWithAlt(node);
+      }
+    }
+  }
+  return text.trim();
+}
+
+/**
+ * Extracts user's display name from tweet header (excluding @handle)
+ */
+function extractDisplayNameFromTweet(tweet) {
+  const userNameContainer = tweet.querySelector('[data-testid="User-Name"]');
+  if (!userNameContainer) return '';
+
+  // The first direct anchor or first text element usually holds the display name
+  const nameAnchor = userNameContainer.querySelector('a[role="link"]');
+  if (nameAnchor) {
+    return extractFullTextWithAlt(nameAnchor);
+  }
+  return extractFullTextWithAlt(userNameContainer);
+}
+
+/**
+ * Extracts bio if present on the page (profile view, hovercards, or cached)
+ */
+function extractBioForUser(handle, tweet) {
+  // 1. Check local cache
+  if (userBioCache.has(handle)) {
+    return userBioCache.get(handle);
+  }
+
+  // 2. Check if we're on user profile page
+  const profileBio = document.querySelector('[data-testid="UserDescription"]');
+  if (profileBio) {
+    const bioText = extractFullTextWithAlt(profileBio);
+    if (bioText) {
+      userBioCache.set(handle, bioText);
+      return bioText;
+    }
+  }
+
+  // 3. Check inside tweet context if rendered (e.g. in search user cards)
+  const cellBio = tweet?.querySelector?.('[data-testid="UserDescription"]');
+  if (cellBio) {
+    const bioText = extractFullTextWithAlt(cellBio);
+    userBioCache.set(handle, bioText);
+    return bioText;
+  }
+
+  return '';
+}
+
+/**
+ * Inspect a tweet against all enabled filter rules
+ */
+function inspectTweetAgainstFilters(tweet) {
+  if (!settings.filterEngineEnabled) return null;
+  const filters = settings.filters || [];
+  if (!filters.length) return null;
+
+  const handle = getHandleFromTweet(tweet);
+  const displayName = extractDisplayNameFromTweet(tweet);
+  const bio = extractBioForUser(handle, tweet);
+  const tweetText = settings.filterScopes?.tweetText ?
+    extractFullTextWithAlt(tweet.querySelector('[data-testid="tweetText"]')) : '';
+
+  const scopes = settings.filterScopes || { displayName: true, bio: true, tweetText: false };
+
+  for (const filter of filters) {
+    if (!filter.enabled) continue;
+    const pattern = filter.pattern;
+
+    // Check Display Name
+    if (scopes.displayName && displayName) {
+      if (testPatternMatch(displayName, pattern, { caseSensitive: settings.filterCaseSensitive, wholeWord: settings.filterWholeWord })) {
+        return { matchedFilter: filter, matchedScope: 'displayName', handle };
+      }
+    }
+
+    // Check Bio
+    if (scopes.bio && bio) {
+      if (testPatternMatch(bio, pattern, { caseSensitive: settings.filterCaseSensitive, wholeWord: settings.filterWholeWord })) {
+        return { matchedFilter: filter, matchedScope: 'bio', handle };
+      }
+    }
+
+    // Check Tweet Text (only if explicitly enabled)
+    if (scopes.tweetText && tweetText) {
+      if (testPatternMatch(tweetText, pattern, { caseSensitive: settings.filterCaseSensitive, wholeWord: settings.filterWholeWord })) {
+        return { matchedFilter: filter, matchedScope: 'tweetText', handle };
+      }
+    }
+  }
+
+  return null;
+}
+
+/**
+ * Apply dry-run badge without modifying tweet flow or colliding with X UI
+ */
+function applyDryRunBadge(tweet, match) {
+  if (tweet.querySelector('.xe-filter-badge')) return;
+
+  const badge = document.createElement('span');
+  badge.className = 'xe-filter-badge xe-filter-badge-subtle';
+  badge.textContent = `فیلتر: ${match.matchedFilter.pattern}`;
+  badge.title = `شناسایی‌شده توسط XWise Blocker در ${match.matchedScope === 'displayName' ? 'نام نمایشی' : (match.matchedScope === 'bio' ? 'بایو' : 'متن')}`;
+
+  // Insert seamlessly right after User-Name container
+  const userNameEl = tweet.querySelector('[data-testid="User-Name"]');
+  if (userNameEl) {
+    userNameEl.appendChild(badge);
+  } else {
+    tweet.prepend(badge);
+  }
+
+  incrementBlockMetric('dryRunMatchCount');
+}
+
+/**
+ * Process single tweet for filter engine
+ */
+async function processTweetFilter(tweet) {
+  if (scannedTweetNodes.has(tweet)) return;
+  scannedTweetNodes.add(tweet);
+
+  const match = inspectTweetAgainstFilters(tweet);
+  if (!match) return;
+
+  if (settings.filterMode === 'dry-run') {
+    applyDryRunBadge(tweet, match);
+  } else if (settings.filterMode === 'auto-block') {
+    const handle = match.handle;
+    // Skip if already blocked or in progress
+    if (!blockedHandles.has(handle) && !inProgressHandles.has(handle)) {
+      await performBlock(tweet, { requireConfirmDelay: false, source: 'filter' });
+    }
+  }
+}
+
+// Observe hovercard bio pops to enrich bio cache dynamically
+const hoverObserver = new MutationObserver((mutations) => {
+  for (const m of mutations) {
+    for (const node of m.addedNodes) {
+      if (node.nodeType === Node.ELEMENT_NODE) {
+        const bioEl = node.querySelector?.('[data-testid="UserDescription"]') ||
+                      (node.matches?.('[data-testid="UserDescription"]') ? node : null);
+        if (bioEl) {
+          const text = extractFullTextWithAlt(bioEl);
+          // Find closest handle in the hover card
+          const handleEl = node.querySelector?.('a[href^="/"]');
+          const href = handleEl?.getAttribute('href');
+          if (href && href.length > 1) {
+            const handle = href.slice(1).split('/')[0];
+            if (handle && text) userBioCache.set(handle, text);
+          }
+        }
+      }
+    }
+  }
+});
+
+// ============================================================================
+// Scoped Scanning & MutationObserver
+// ============================================================================
+
+const pendingRoots = new Set();
+let scanScheduled = false;
+
+function flushScan() {
+  scanScheduled = false;
+  const roots = [...pendingRoots];
+  pendingRoots.clear();
+
+  for (const root of roots) {
+    if (!root.isConnected) continue;
+
+    addVolumeSliders(root);
+    addBlockButtons(root);
+
+    if (settings.filterEngineEnabled) {
+      const articles = root.matches?.('article') ? [root] : root.querySelectorAll('article');
+      for (let i = 0; i < articles.length; i++) {
+        processTweetFilter(articles[i]);
+      }
+    }
+  }
+}
+
+function scheduleScan(root) {
+  pendingRoots.add(root || document);
+  if (scanScheduled) return;
+  scanScheduled = true;
+
+  if (typeof requestIdleCallback !== 'undefined') {
+    requestIdleCallback(() => flushScan(), { timeout: 180 });
+  } else {
+    setTimeout(flushScan, 80);
+  }
+}
+
+const domObserver = new MutationObserver((mutations) => {
+  let shouldScan = false;
+  for (let i = 0; i < mutations.length; i++) {
+    const m = mutations[i];
+    if (m.addedNodes.length > 0) {
+      for (let j = 0; j < m.addedNodes.length; j++) {
+        const node = m.addedNodes[j];
+        if (node.nodeType === Node.ELEMENT_NODE) {
+          if (node.querySelector?.('article, video') ||
+              node.matches?.('article') ||
+              node.tagName === 'VIDEO') {
+            pendingRoots.add(node);
+            shouldScan = true;
+          }
+        }
+      }
+    }
+  }
+  if (shouldScan && !scanScheduled) {
+    scanScheduled = true;
+    if (typeof requestIdleCallback !== 'undefined') {
+      requestIdleCallback(() => flushScan(), { timeout: 180 });
+    } else {
+      setTimeout(flushScan, 80);
+    }
+  }
+});
+
 const themeObserver = new MutationObserver(() => {
   requestAnimationFrame(applyTheme);
 });
 
-// ---------------------------------------------------------------------
-// Init
-// ---------------------------------------------------------------------
+// ============================================================================
+// Initialization
+// ============================================================================
+
 (async function init() {
   await loadSettings();
+  injectVazirmatnFont();
   applyTheme();
 
-  // Initial full scan
+  // Initial scan
   addVolumeSliders();
   addBlockButtons();
 
-  // Observe for new content
-  domObserver.observe(document.body, { childList: true, subtree: true });
+  const existingTweets = document.querySelectorAll('article');
+  for (let i = 0; i < existingTweets.length; i++) {
+    processTweetFilter(existingTweets[i]);
+  }
 
-  // Observe theme changes (Twitter changes body bg or html attributes)
+  // Observers
+  domObserver.observe(document.body, { childList: true, subtree: true });
+  hoverObserver.observe(document.body, { childList: true, subtree: true });
   themeObserver.observe(document.documentElement, { attributes: true, attributeFilter: ['class', 'style'] });
   themeObserver.observe(document.body, { attributes: true, attributeFilter: ['style'] });
 })();
