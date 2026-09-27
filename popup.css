@@ -1,5 +1,5 @@
 /* =====================================================================
-   XWise Blocker v3.0.0 Masterpiece — 10/10 Modern Dark Theme Styles
+   XWise Blocker v3.1.1 Masterpiece — 10/10 Modern Dark Theme Styles
    Matches X (Twitter) official design language with sleek modern touches.
    ===================================================================== */
 
@@ -875,6 +875,27 @@ body {
   justify-content: flex-end;
 }
 
+.xe-zen-options {
+  display: flex;
+  align-items: center;
+  padding: 6px 10px;
+  background: rgba(29, 155, 240, 0.05);
+  border: 1px solid rgba(29, 155, 240, 0.2);
+  border-radius: 8px;
+  margin-top: 2px;
+}
+
+.xe-zen-options .xe-checkbox-label {
+  font-size: 11.5px;
+  color: var(--xe-text-dim);
+  cursor: pointer;
+}
+
+.xe-zen-options .xe-checkbox-label input:checked + span {
+  color: var(--xe-text);
+  font-weight: 600;
+}
+
 /* =====================================================================
    FORM CONTROLS, SWITCHES, BUTTONS
    ===================================================================== */
@@ -1356,3 +1377,65 @@ body {
   from { opacity: 0; transform: translate(-50%, 10px); }
   to { opacity: 1; transform: translate(-50%, 0); }
 }
+
+/* =====================================================================
+   FUN & SPECIAL FILTERS (v3.0.1)
+   ===================================================================== */
+.xe-fun-card {
+  background: linear-gradient(145deg, #18141f, #141720);
+  border: 1px solid rgba(249, 24, 128, 0.25);
+  position: relative;
+  overflow: hidden;
+}
+
+.xe-fun-card:hover {
+  border-color: rgba(249, 24, 128, 0.45);
+}
+
+.xe-card-badge-row {
+  display: flex;
+  align-items: center;
+  justify-content: flex-start;
+  margin-bottom: 2px;
+}
+
+.xe-badge-fun {
+  font-size: 9.5px;
+  font-weight: 800;
+  background: linear-gradient(135deg, #f91880, #7856ff);
+  color: #ffffff;
+  padding: 2px 7px;
+  border-radius: 9999px;
+  letter-spacing: 0.3px;
+  text-transform: uppercase;
+}
+
+.xe-fun-title-row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.xe-fun-icon {
+  font-size: 14px;
+  line-height: 1;
+}
+
+.xe-fun-whitelist {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding-top: 8px;
+  border-top: 1px solid rgba(249, 24, 128, 0.15);
+}
+
+.xe-fun-chips .xe-chip {
+  background: rgba(249, 24, 128, 0.08);
+  border-color: rgba(249, 24, 128, 0.25);
+  color: var(--xe-text);
+}
+
+.xe-fun-chips .xe-chip:hover {
+  border-color: rgba(249, 24, 128, 0.45);
+}
+

@@ -1,7 +1,7 @@
 'use strict';
 
 /**
- * XWise Blocker v3.0.0 — Native Twitter/X Client API
+ * XWise Blocker v3.0.1 — Native Twitter/X Client API
  * High-reliability REST/GraphQL client with automatic CSRF management,
  * multi-tier fallbacks, and rate-limit safety checks.
  */

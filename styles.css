@@ -1,5 +1,5 @@
 /* =====================================================================
-   XWise Blocker v3.0.0 — Native Injected Styles
+   XWise Blocker v3.1.1 — Native Injected Styles
    Seamlessly integrates with X (Twitter) matching native Twitter design 100%.
    ===================================================================== */
 
@@ -122,15 +122,9 @@
 .xe-clean-who-to-follow aside[aria-label*="Suggested" i],
 .xe-clean-who-to-follow aside[aria-label*="پیشنهاد" i],
 .xe-clean-who-to-follow [data-testid="sidebarColumn"] aside:has([data-testid="UserCell"]),
-.xe-clean-who-to-follow [data-testid="sidebarColumn"] section:has([data-testid="UserCell"]),
+.xe-clean-who-to-follow [data-testid="sidebarColumn"] section:has([data-testid="UserCell"]):not(:has([data-testid="trend"])),
 .xe-clean-who-to-follow [data-testid="sidebarColumn"] aside:has(a[href*="/connect_people"]),
 .xe-clean-who-to-follow [data-testid="sidebarColumn"] aside:has(a[href*="/i/connect_people"]),
-.xe-clean-who-to-follow [data-testid="sidebarColumn"] section:has(a[href*="/connect_people"]),
-.xe-clean-who-to-follow [data-testid="sidebarColumn"] section:has(a[href*="/i/connect_people"]),
-.xe-clean-who-to-follow [data-testid="sidebarColumn"] div:has(> aside[aria-label*="Who to follow" i]),
-.xe-clean-who-to-follow [data-testid="sidebarColumn"] div:has(> aside[aria-label*="You might like" i]),
-.xe-clean-who-to-follow [data-testid="sidebarColumn"] div:has(> aside[aria-label*="Relevant people" i]),
-.xe-clean-who-to-follow [data-testid="sidebarColumn"] div:has(> aside[aria-label*="چه کسانی را دنبال کنید" i]),
 .xe-clean-who-to-follow [data-testid="cellInnerDiv"]:has(a[href*="/connect_people"]),
 .xe-clean-who-to-follow [data-testid="cellInnerDiv"]:has(a[href*="/i/connect_people"]),
 .xe-clean-who-to-follow [data-testid="cellInnerDiv"]:has([aria-label*="Suggested" i]),
@@ -153,7 +147,7 @@
 .xe-clean-profile-who-to-follow aside[aria-label*="افرادی برای دنبال کردن" i],
 .xe-clean-profile-who-to-follow aside[aria-label*="شاید بپسندید" i],
 .xe-clean-profile-who-to-follow [data-testid="sidebarColumn"] aside:has([data-testid="UserCell"]),
-.xe-clean-profile-who-to-follow [data-testid="sidebarColumn"] section:has([data-testid="UserCell"]),
+.xe-clean-profile-who-to-follow [data-testid="sidebarColumn"] section:has([data-testid="UserCell"]):not(:has([data-testid="trend"])),
 .xe-clean-profile-who-to-follow [data-testid="cellInnerDiv"]:has(a[href*="/connect_people"]),
 .xe-clean-profile-who-to-follow [data-testid="cellInnerDiv"]:has(a[href*="/i/connect_people"]),
 .xe-clean-profile-who-to-follow [data-testid="cellInnerDiv"]:has([aria-label*="Suggested" i]),
@@ -192,9 +186,10 @@
 }
 
 /* =====================================================================
-   ZEN MODE: Natural & Balanced Reading View
+   ZEN MODE: Natural & Balanced Reading View (Configurable)
    ===================================================================== */
-.xe-zen-mode [data-testid="sidebarColumn"] {
+/* When zenKeepSearch is false: completely hide entire sidebar */
+.xe-zen-mode:not(.xe-zen-keep-search) [data-testid="sidebarColumn"] {
   display: none !important;
   visibility: hidden !important;
   width: 0 !important;
@@ -203,49 +198,102 @@
   overflow: hidden !important;
 }
 
-.xe-zen-mode [data-testid="primaryColumn"] {
+.xe-zen-mode:not(.xe-zen-keep-search) [data-testid="primaryColumn"] {
   width: 620px !important;
   max-width: 620px !important;
 }
 
+/* When zenKeepSearch is true: STRICTLY AND ONLY SHOW SEARCH & RECENT SEARCHES! Hide EVERYTHING else */
+.xe-zen-mode.xe-zen-keep-search [data-testid="sidebarColumn"] section:not(:has([data-testid*="typeahead" i])):not([aria-label*="Recent" i]):not([aria-label*="Search" i]):not([aria-label*="جستجو" i]):not([aria-label*="اخیر" i]),
+.xe-zen-mode.xe-zen-keep-search [data-testid="sidebarColumn"] aside:not(:has([data-testid*="typeahead" i])):not([aria-label*="Recent" i]):not([aria-label*="Search" i]):not([aria-label*="جستجو" i]):not([aria-label*="اخیر" i]),
+.xe-zen-mode.xe-zen-keep-search [data-testid="sidebarColumn"] nav,
+.xe-zen-mode.xe-zen-keep-search [data-testid="sidebarColumn"] [data-testid="placementTracking"],
+.xe-zen-mode.xe-zen-keep-search [data-testid="sidebarColumn"] [data-testid="UserCell"]:not([data-testid*="typeahead" i] *),
+.xe-zen-mode.xe-zen-keep-search [data-testid="sidebarColumn"] [data-testid="trend"],
+.xe-zen-mode.xe-zen-keep-search [data-testid="sidebarColumn"] [data-testid="superFollowsUpsell"],
+.xe-zen-mode.xe-zen-keep-search [data-testid="sidebarColumn"] a[href*="/premium"],
+.xe-zen-mode.xe-zen-keep-search [data-testid="sidebarColumn"] div:has(> aside:not([aria-label*="Recent" i])):not(:has(form[role="search"], [data-testid*="typeahead" i], [role="listbox"])),
+.xe-zen-mode.xe-zen-keep-search [data-testid="sidebarColumn"] div:has(> section:not([aria-label*="Recent" i])):not(:has(form[role="search"], [data-testid*="typeahead" i], [role="listbox"])),
+.xe-zen-mode.xe-zen-keep-search [data-testid="sidebarColumn"] div:has(> nav),
+.xe-zen-mode.xe-zen-keep-search [data-testid="sidebarColumn"] > div > div > div:not(:has(form[role="search"], [data-testid="SearchBox_Search_Input"], [data-testid*="typeahead" i], [role="listbox"], input[type="text"])) {
+  display: none !important;
+  visibility: hidden !important;
+  height: 0 !important;
+  min-height: 0 !important;
+  max-height: 0 !important;
+  margin: 0 !important;
+  padding: 0 !important;
+  overflow: hidden !important;
+  border: none !important;
+  opacity: 0 !important;
+}
+
+/* Explicitly guarantee Recent Searches / Typeahead dropdown is ALWAYS visible & interactive */
+.xe-zen-mode.xe-zen-keep-search [data-testid="sidebarColumn"] [data-testid*="typeahead" i],
+.xe-zen-mode.xe-zen-keep-search [data-testid="sidebarColumn"] [data-testid="typeaheadRecentSearches"],
+.xe-zen-mode.xe-zen-keep-search [data-testid="sidebarColumn"] div[role="listbox"],
+.xe-zen-mode.xe-zen-keep-search [data-testid="sidebarColumn"] div[role="listbox"] * {
+  display: flex !important;
+  visibility: visible !important;
+  opacity: 1 !important;
+  height: auto !important;
+  max-height: none !important;
+}
+
 /* =====================================================================
-   NATIVE-FEELING TWEET HIDING
+   NATIVE-FEELING TWEET HIDING & REVEAL CONTROLS
    ===================================================================== */
 
+/* When tweet has an unrevealed bar, completely hide tweet content (immune to hover / React re-renders) */
+article:has(> .xe-filtered-bar:not(.xe-hidden-bar)) > *:not(.xe-filtered-bar),
+article[data-xe-hidden="true"]:not([data-xe-revealed="true"]) > *:not(.xe-filtered-bar),
 article.xe-tweet-hidden:not(.xe-tweet-revealed) > *:not(.xe-filtered-bar) {
   display: none !important;
 }
 
+article:has(> .xe-filtered-bar:not(.xe-hidden-bar)),
+article[data-xe-hidden="true"]:not([data-xe-revealed="true"]),
 article.xe-tweet-hidden:not(.xe-tweet-revealed) {
   min-height: 0 !important;
-  padding: 4px 16px !important;
+  padding: 3px 0 !important;
+}
+
+/* When revealed, the collapsed bar disappears so the tweet looks completely normal */
+.xe-filtered-bar.xe-hidden-bar {
+  display: none !important;
 }
 
 .xe-filtered-bar {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 8px 14px;
-  border-radius: 8px;
+  width: calc(100% - 24px);
+  margin: 3px auto;
+  padding: 5px 16px;
+  border-radius: 9999px;
   background: var(--xe-bg-hover);
   border: 1px solid var(--xe-border);
   font-family: var(--xe-font);
   user-select: none;
+  box-sizing: border-box;
 }
 
 .xe-filtered-label {
-  font-size: 13px;
+  font-size: 12px;
   color: var(--xe-text-secondary);
   font-weight: 500;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
 }
 
 .xe-filtered-show-btn {
   background: transparent;
   border: 1px solid var(--xe-border);
-  color: var(--xe-accent);
-  padding: 3px 12px;
+  color: var(--xe-text-primary);
+  padding: 2px 12px;
   border-radius: 9999px;
-  font-size: 12px;
+  font-size: 11px;
   font-weight: 700;
   cursor: pointer;
   transition: all 0.15s ease;
@@ -253,13 +301,74 @@ article.xe-tweet-hidden:not(.xe-tweet-revealed) {
 }
 
 .xe-filtered-show-btn:hover {
-  background: rgba(29, 155, 240, 0.1);
-  border-color: var(--xe-accent);
+  background: var(--xe-bg-hover);
+  border-color: var(--xe-text-secondary);
 }
 
-article.xe-tweet-hidden.xe-tweet-revealed .xe-filtered-bar {
-  margin-bottom: 8px;
-  opacity: 0.6;
+.xe-filtered-bar[data-xe-gender="true"] {
+  border-color: rgba(249, 24, 128, 0.22);
+  background: rgba(249, 24, 128, 0.035);
+}
+
+.xe-filtered-bar[data-xe-gender="true"] .xe-filtered-show-btn {
+  color: #f91880;
+  border-color: rgba(249, 24, 128, 0.35);
+}
+
+.xe-filtered-bar[data-xe-gender="true"] .xe-filtered-show-btn:hover {
+  background: rgba(249, 24, 128, 0.12);
+  border-color: #f91880;
+}
+
+.xe-filtered-bar[data-xe-gender="true"] .xe-filtered-show-btn:hover {
+  background: rgba(249, 24, 128, 0.12);
+  border-color: #f91880;
+}
+
+/* Re-hide Native Action Button inside Tweet Action Bar */
+.xe-rehide-btn-wrapper {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  user-select: none;
+  min-width: 34.75px;
+  align-self: stretch;
+}
+
+.xe-rehide-btn-inner {
+  display: flex;
+  align-items: center;
+  transition: color 0.2s ease;
+  color: var(--xe-text-secondary);
+}
+
+.xe-rehide-btn-wrapper:hover .xe-rehide-btn-inner {
+  color: #f91880;
+}
+
+.xe-rehide-btn-icon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 34.75px;
+  height: 34.75px;
+  border-radius: 9999px;
+  transition: background-color 0.2s ease;
+}
+
+.xe-rehide-btn-wrapper:hover .xe-rehide-btn-icon {
+  background-color: rgba(249, 24, 128, 0.12);
+}
+
+.xe-rehide-btn-wrapper:active .xe-rehide-btn-icon {
+  background-color: rgba(249, 24, 128, 0.24);
+}
+
+.xe-rehide-btn-icon svg {
+  width: 18.75px;
+  height: 18.75px;
+  fill: currentColor;
 }
 
 /* =====================================================================

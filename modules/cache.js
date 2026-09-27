@@ -1,7 +1,7 @@
 'use strict';
 
 /**
- * XWise Blocker v3.0.0 — High-Performance Two-Tier Caching Engine
+ * XWise Blocker v3.0.1 — High-Performance Two-Tier Caching Engine
  * L1: Ultra-fast in-memory LRU Map ($O(1)$) with strict memory bounds (<5MB RAM).
  * L2: Persistent chrome.storage.local with TTL-based eviction.
  */
@@ -14,12 +14,14 @@ class XWiseCacheEngine {
       verdicts: 1000,
       relationships: 100,
       general: 200,
+      gender: 1000,
     };
     this.defaultTTLs = {
       bios: 7 * 24 * 60 * 60 * 1000,        // 7 days
       verdicts: 24 * 60 * 60 * 1000,        // 24 hours
       relationships: 30 * 24 * 60 * 60 * 1000, // 30 days
       general: 12 * 60 * 60 * 1000,         // 12 hours
+      gender: 7 * 24 * 60 * 60 * 1000,      // 7 days
     };
 
     // Pending writes buffer to avoid hammering chrome.storage.local

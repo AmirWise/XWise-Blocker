@@ -1,6 +1,6 @@
-# XWise Blocker v3.0.0 Pro 🛡️⚡
+# XWise Blocker v3.1.1 Pro 🛡️⚡
 
-A powerful, ultra-fast, and native-feeling Chrome extension for X (Twitter). XWise Blocker purifies your timeline, protects your attention, and manages your social graph: **Follow/Unfollow Tracker**, **Relationship Manager (Non-followers, Fans, Mutuals, Lost followers)**, **Anti-Limit Safety Queue**, **Two-Tier LRU & TTL Caching**, **Instant CSS-First Ad Blocker**, **Pro Video Suite with MP4 Downloader & Loop**, and **10/10 Modern Bilingual UI (FA/EN)** with embedded Vazirmatn font.
+A powerful, ultra-fast, and native-feeling Chrome extension for X (Twitter). XWise Blocker purifies your timeline, protects your attention, and manages your social graph: **Follow/Unfollow Tracker**, **Relationship Manager (Non-followers, Fans, Mutuals, Lost followers)**, **Anti-Limit Safety Queue**, **Two-Tier LRU & TTL Caching**, **Instant CSS-First Ad Blocker**, **Pro Video Suite with MP4 Downloader & Loop**, **No-Boys Mode (Timeline Gender Filter)**, and **10/10 Modern Bilingual UI (FA/EN)** with embedded Vazirmatn font.
 
 ---
 
@@ -56,6 +56,18 @@ A powerful, ultra-fast, and native-feeling Chrome extension for X (Twitter). XWi
 - Dual view: Works as standard browser toolbar popup AND as an integrated in-page drawer inside X.com.
 - Full RTL (Persian) and LTR (English) localization with embedded Vazirmatn variable font.
 
+### 7️⃣ Fun & Special: No-Boys Mode 🚹🚫 (New in v3.1.1)
+- **Automatic Timeline Hide for Guys**: Intelligently identifies male accounts and hides their tweets strictly on the "For you" timeline tab (hide only — no blocking, no muting; does not affect Following tab or Profile pages).
+- **Dedicated Friends Whitelist (استثناها)**: Exempt specific male friends or accounts by handle so their tweets always appear on your timeline.
+- **Colossal 3,590+ Super-Dictionary & Concatenation Engine**:
+  - Detects glued/concatenated names with family names or nicknames without spaces (e.g. `علیرضایی`, `محمدحسینی`, `بابکراد`, `حسینپور`, `@amirrezaei`, `@rezamoradi`, `@sinadev`, `@kavehdesigner`).
+  - Automatically handles Persian diacritics (erab/tashkeel), stretched letters (tatweel/kashida: عـــلـــی -> علی), ZWNJ, and repeated typo characters (علییی -> علی, reeeza -> reza).
+  - Handles leetspeak in usernames (`m0hammad`, `r3za`, `s1na`, `4mir`) and common prefixes/suffixes (`mr_`, `_boy`, `_pv`, `_dev`, `_official`).
+  - Recognizes street slang, colloquial nicknames (`ممد`, `حسی`, `مجی`, `اصی`, `اکبی`, `mamad`, `hosi`), regional Kurdish/Azeri/Balochi/Lori names, and compound names.
+- **Female Guard (Zero False Positives)**: Absolute immunity for women accounts based on female names, pronouns (`she/her`), keywords, and emojis.
+- **Native Inline Re-hide Action Button**: Clicking "Show" reveals the tweet completely normally, placing a sleek native action button in the bottom action bar (`[role="group"]`) to instantly re-collapse it without breaking tweet balance.
+- **Disabled by Default**: Safe, optional, and easily toggled in the "Media & Zen" tab under "Fun & Special Filters".
+
 ---
 
 ## 🚀 Installation (Developer Mode)
@@ -83,7 +95,7 @@ A powerful, ultra-fast, and native-feeling Chrome extension for X (Twitter). XWi
 
 <div dir="rtl">
 
-# راهنمای فارسی افزونه XWise Blocker نسخه 3.0.0 Pro 🛡️⚡
+# راهنمای فارسی افزونه XWise Blocker نسخه 3.1.1 Pro 🛡️⚡
 
 افزونه اختصاصی و فوق‌العاده سریع برای مرورگرهای کرومیوم (Chrome, Brave, Edge, Arc, Opera) جهت پاک‌سازی تایم‌لاین، مدیریت شبکه ارتباطات و ارتقای امنیت در شبکه اجتماعی X (توییتر).
 
@@ -138,6 +150,18 @@ A powerful, ultra-fast, and native-feeling Chrome extension for X (Twitter). XWi
 - کامپوننت‌های مدرن و هماهنگ با دیزاین سیستم اصلی X در تم‌های دارک، لایت و Dim.
 - امکان باز شدن به صورت پاپ‌آپ نوار ابزار و همچنین دراور شناور اختصاصی درون خود صفحه X.com.
 - مجهز به فونت متغیر وزیرمتن (Vazirmatn) بدون نیاز به اینترنت و بدون افت سرعت.
+
+### ۷️⃣ فیلتر اختصاصی و سرگرمی: حالت بدون پسر (No-Boys Mode) 🚹🚫 (جدید در نسخه 3.1.1)
+- **مخفی‌سازی خودکار اکانت‌های پسران صرفاً در تب For you**: شناسایی دقیق توییت‌های آقایان و جمع کردن آن‌ها از دید کاربر (فقط هاید — بدون هرگونه بلاک یا میوت؛ در تب Following یا صفحات پروفایل هیچ اثری ندارد).
+- **وایت‌لیست اختصاصی دوستان (استثناها)**: امکان افزودن آیدی دوستان برای مصون ماندن از فیلتر و باقی ماندن در تایم‌لاین.
+- **ابر دیکشنری عظیم با بیش از ۳,۵۹۰ نام و موتور شناسایی اسامی چسبیده**:
+  - شناسایی نام‌های چسبیده به فامیلی یا لقب بدون فاصله (مانند `علیرضایی`, `محمدحسینی`, `بابکراد`, `حسینپور`, `@amirrezaei`, `@rezamoradi`, `@sinadev`, `@kavehdesigner`).
+  - پشتیبانی کامل از انواع رسم‌الخط، حروف کشیده (تطویل: عـــلـــی -> علی)، اعراب و تنوین، نیم‌فاصله و تکرار کاراکترها (علییی -> علی، reeeza -> reza).
+  - رمزگشایی هوشمند لیت‌اسپیک در آیدی‌ها (`m0hammad`, `r3za`, `s1na`, `4mir`) و حذف پیشوند/پسوندهای رایج (`mr_`, `_boy`, `_pv`, `_dev`, `_official`).
+  - پشتیبانی از القاب، مخفف‌های عامیانه و کوچه بازاری توییتر فارسی (`ممد`, `ممدی`, `حسی`, `مجی`, `اصی`, `اکبی`, `mamad`, `hosi`)، اسامی قومیتی (کردی، ترکی/آذری، لری، بلوچی، گیلکی) و ترکیبات مختلف.
+- **شیلد ایمنی بانوان (Female Guard)**: مصونیت ۱۰۰٪ برای خانم‌ها بر اساس نام‌ها، ضمایر (`she/her`)، کلمات کلیدی و ایموجی‌ها جهت جلوگیری قطعی از خطای مثبت.
+- **دکمه بومی هاید مجدد زیر توییت**: با زدن «نمایش»، توییت کاملاً طبیعی لود می‌شود و دکمه بومی هاید مجدد در نوار ابزار پایین توییت قرار می‌گیرد تا توازن صفحه حفظ شود.
+- **غیرفعال به صورت پیش‌فرض**: کاملاً اختیاری و قابل فعال‌سازی در تب «رسانه و تمیز» بخش فیلترهای اختصاصی.
 
 ---
 

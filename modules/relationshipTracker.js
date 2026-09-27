@@ -1,7 +1,7 @@
 'use strict';
 
 /**
- * XWise Blocker v3.0.0 — Relationship Tracker & Safety Action Queue
+ * XWise Blocker v3.0.1 — Relationship Tracker & Safety Action Queue
  * Computes follower/following diffs (Non-followers, Fans, Mutuals, Unfollowers, New followers)
  * and executes account actions with strict jittered rate-limiting to prevent Twitter bans.
  */

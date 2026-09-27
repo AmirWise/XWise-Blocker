@@ -1,7 +1,7 @@
 'use strict';
 
 /**
- * XWise Blocker v3.0.0 — Content Script
+ * XWise Blocker v3.1.1 — Content Script
  * Seamless in-page native Twitter integration, flawless ad cleaner, and smart filter suite.
  */
 
@@ -22,6 +22,7 @@ const DEFAULT_SETTINGS = {
   hidePremiumUpsell: true,
   hideViewCounts: false,
   zenModeEnabled: false,
+  zenKeepSearch: true,
 
   // Manual Block & Shortcut
   blockButtonEnabled: true,
@@ -47,6 +48,10 @@ const DEFAULT_SETTINGS = {
   // Anti-Spam
   filterDefaultAvatars: false,
   filterEngagementBait: false,
+
+  // Fun & Special Filters (v3.0.1)
+  hideBoysMode: false,
+  boysWhitelist: [],
 
   // Ad Cleaner
   adBlockerEnabled: true,
@@ -97,8 +102,10 @@ const blockedHandles = new Set();
 const mutedHandles = new Set();
 const inProgressHandles = new Set();
 let whitelistSet = new Set();
+let boysWhitelistSet = new Set();
 const userBioCache = new Map();
 const compiledRegexCache = new Map();
+const genderDetectionCache = new Map();
 
 // In-Page Elements
 let inPageLauncher = null;
@@ -113,10 +120,21 @@ function updateWhitelistSet() {
   whitelistSet = new Set(list.map((h) => String(h).toLowerCase().replace(/^@/, '').trim()));
 }
 
+function updateBoysWhitelistSet() {
+  const list = settings.boysWhitelist || [];
+  boysWhitelistSet = new Set(list.map((h) => String(h).toLowerCase().replace(/^@/, '').trim()));
+}
+
 function isHandleWhitelisted(handle) {
   if (!handle) return false;
   const clean = String(handle).toLowerCase().replace(/^@/, '').trim();
   return whitelistSet.has(clean);
+}
+
+function isHandleBoysWhitelisted(handle) {
+  if (!handle) return false;
+  const clean = String(handle).toLowerCase().replace(/^@/, '').trim();
+  return whitelistSet.has(clean) || boysWhitelistSet.has(clean);
 }
 
 // ============================================================================
@@ -339,21 +357,50 @@ async function processActionQueue() {
   isProcessingActionQueue = false;
 }
 
+function isInsideQuoteTweet(element, rootTweet) {
+  if (!element || element === rootTweet) return false;
+  const quoteContainer = element.closest('[data-testid="quoteTweet"], [role="link"] [data-testid="User-Name"]');
+  if (quoteContainer && quoteContainer !== rootTweet) return true;
+
+  // Check if ancestor is a nested card/border link within rootTweet
+  let curr = element.parentElement;
+  while (curr && curr !== rootTweet) {
+    if (curr.getAttribute('role') === 'link' || curr.getAttribute('data-testid') === 'quoteTweet') {
+      return true;
+    }
+    curr = curr.parentElement;
+  }
+  return false;
+}
+
 function getHandleFromTweet(tweetNode) {
   if (!tweetNode) return 'user';
-  const link = tweetNode.querySelector('[data-testid="User-Name"] a[role="link"]');
-  const href = link?.getAttribute('href') || '';
-  if (href.startsWith('/')) {
-    const part = href.slice(1).split('/')[0];
-    if (part && !['home', 'explore', 'notifications', 'messages'].includes(part)) {
-      return part;
+
+  // 1. Prioritize User-Name elements of the PRIMARY tweet author (strictly excluding quote tweets)
+  const userNames = tweetNode.querySelectorAll('[data-testid="User-Name"]');
+  for (let i = 0; i < userNames.length; i++) {
+    const un = userNames[i];
+    if (isInsideQuoteTweet(un, tweetNode)) continue;
+
+    const link = un.querySelector('a[role="link"]');
+    const href = link?.getAttribute('href') || '';
+    if (href.startsWith('/')) {
+      const part = href.slice(1).split('/')[0];
+      if (part && !['home', 'explore', 'notifications', 'messages'].includes(part)) {
+        return part;
+      }
     }
   }
-  const anyUserLink = tweetNode.querySelector('a[href^="/"][role="link"]:not([href*="/status/"])');
-  if (anyUserLink) {
-    const h = anyUserLink.getAttribute('href').slice(1).split('/')[0];
-    if (h) return h;
+
+  // Fallback to first non-quote author link
+  const allUserLinks = tweetNode.querySelectorAll('a[href^="/"][role="link"]:not([href*="/status/"])');
+  for (let i = 0; i < allUserLinks.length; i++) {
+    const l = allUserLinks[i];
+    if (isInsideQuoteTweet(l, tweetNode)) continue;
+    const h = l.getAttribute('href').slice(1).split('/')[0];
+    if (h && !['home', 'explore', 'notifications', 'messages'].includes(h)) return h;
   }
+
   return 'user';
 }
 
@@ -483,30 +530,91 @@ function applyHideTweet(tweetNode, { rule = '', scope = '', handle = '' } = {}) 
   hiddenTweetNodes.add(tweetNode);
 
   tweetNode.classList.add('xe-tweet-hidden');
+  tweetNode.setAttribute('data-xe-hidden', 'true');
+  if (scope === 'gender') {
+    tweetNode.setAttribute('data-xe-reason', 'gender');
+  }
 
   const bar = document.createElement('div');
   bar.className = 'xe-filtered-bar';
   bar.setAttribute('role', 'region');
+  if (scope === 'gender') {
+    bar.setAttribute('data-xe-gender', 'true');
+  }
 
   const label = document.createElement('span');
   label.className = 'xe-filtered-label';
   const cleanRule = rule || 'Filter';
-  label.textContent = settings.language === 'fa'
-    ? `این توییت فیلتر شده است (${cleanRule})`
-    : `Tweet filtered (${cleanRule})`;
+  if (scope === 'gender') {
+    label.textContent = settings.language === 'fa' ? 'پست پنهان شد (اکانت پسر)' : 'Post hidden (Boy account)';
+  } else {
+    label.textContent = settings.language === 'fa' ? `پست پنهان شد (${cleanRule})` : `Post hidden (${cleanRule})`;
+  }
 
   const showBtn = document.createElement('button');
   showBtn.type = 'button';
   showBtn.className = 'xe-filtered-show-btn';
-  showBtn.textContent = settings.language === 'fa' ? 'نمایش' : 'Show';
+  showBtn.textContent = settings.language === 'fa' ? 'مشاهده' : 'View';
 
   showBtn.addEventListener('click', (e) => {
     e.preventDefault();
     e.stopPropagation();
-    const isRevealed = tweetNode.classList.toggle('xe-tweet-revealed');
-    showBtn.textContent = isRevealed
-      ? (settings.language === 'fa' ? 'بستن' : 'Hide')
-      : (settings.language === 'fa' ? 'نمایش' : 'Show');
+
+    // Reveal tweet as a 100% normal tweet
+    bar.classList.add('xe-hidden-bar');
+    tweetNode.classList.remove('xe-tweet-hidden');
+    tweetNode.removeAttribute('data-xe-hidden');
+    tweetNode.classList.add('xe-tweet-revealed');
+    tweetNode.setAttribute('data-xe-revealed', 'true');
+
+    // Attach native re-hide button under tweet in bottom action bar
+    function attachRehideButton() {
+      if (tweetNode.querySelector('.xe-rehide-btn-wrapper')) return;
+
+      const actionBar = tweetNode.querySelector('[role="group"]');
+      if (!actionBar) return;
+
+      const rehideBtn = document.createElement('div');
+      rehideBtn.className = 'xe-rehide-btn-wrapper';
+      rehideBtn.setAttribute('role', 'button');
+      rehideBtn.setAttribute('tabindex', '0');
+      const tooltip = settings.language === 'fa' ? 'پنهان‌سازی مجدد توییت' : 'Hide tweet again';
+      rehideBtn.setAttribute('aria-label', tooltip);
+      rehideBtn.title = tooltip;
+
+      rehideBtn.innerHTML = `
+        <div class="xe-rehide-btn-inner">
+          <div class="xe-rehide-btn-icon">
+            <svg viewBox="0 0 24 24" aria-hidden="true">
+              <path d="M3.27 2L2 3.27l3.78 3.78C4.1 8.35 2.78 10.02 2 12c1.73 4.39 6 7.5 11 7.5 2.16 0 4.17-.6 5.86-1.64L20.73 22 22 20.73 3.27 2zM12 17c-2.76 0-5-2.24-5-5 0-.77.18-1.5.49-2.16l6.67 6.67c-.66.31-1.39.49-2.16.49zm-.5-10c.17 0 .33.02.5.03 2.74.19 4.95 2.4 5.14 5.14.01.17.03.33.03.5 0 .76-.17 1.48-.46 2.13l1.52 1.52C19.38 15.14 20.24 13.67 21 12c-1.73-4.39-6-7.5-11-7.5-1.07 0-2.1.16-3.08.43l1.7 1.7c.43-.09.89-.13 1.38-.13z"/>
+            </svg>
+          </div>
+        </div>
+      `;
+
+      const onRehide = (ev) => {
+        ev.preventDefault();
+        ev.stopPropagation();
+
+        // Re-collapse back into the bar
+        bar.classList.remove('xe-hidden-bar');
+        tweetNode.classList.add('xe-tweet-hidden');
+        tweetNode.setAttribute('data-xe-hidden', 'true');
+        tweetNode.classList.remove('xe-tweet-revealed');
+        tweetNode.removeAttribute('data-xe-revealed');
+        rehideBtn.remove();
+      };
+
+      rehideBtn.addEventListener('click', onRehide);
+      rehideBtn.addEventListener('keydown', (ev) => {
+        if (ev.key === 'Enter' || ev.key === ' ') onRehide(ev);
+      });
+
+      actionBar.appendChild(rehideBtn);
+    }
+
+    attachRehideButton();
+    setTimeout(attachRehideButton, 120);
   });
 
   bar.addEventListener('click', (e) => e.stopPropagation());
@@ -533,6 +641,8 @@ function applyTimelineCleaners() {
   root.classList.toggle('xe-clean-premium', isTimelineClean && !!settings.hidePremiumUpsell);
   root.classList.toggle('xe-clean-view-counts', isTimelineClean && !!settings.hideViewCounts);
   root.classList.toggle('xe-zen-mode', !!settings.zenModeEnabled);
+  root.classList.toggle('xe-zen-keep-search', !!settings.zenModeEnabled && settings.zenKeepSearch !== false);
+  cleanZenSidebar();
 }
 
 const RECOMMENDATION_PHRASES = [
@@ -586,6 +696,58 @@ function hideRecommendationElement(el) {
   el.style.setProperty('overflow', 'hidden', 'important');
 }
 
+function cleanZenSidebar() {
+  const sidebar = document.querySelector?.('[data-testid="sidebarColumn"]');
+  if (!sidebar) return;
+
+  if (!settings.zenModeEnabled) {
+    // If Zen mode is off, restore any element previously hidden by Zen
+    sidebar.querySelectorAll('.xe-zen-hidden').forEach((el) => {
+      el.classList.remove('xe-zen-hidden');
+      el.style.removeProperty('display');
+      el.style.removeProperty('visibility');
+      el.style.removeProperty('height');
+    });
+    return;
+  }
+
+  // When Zen Mode is ON and zenKeepSearch is true: EXCLUSIVELY KEEP SEARCH & RECENT SEARCHES!
+  if (settings.zenKeepSearch !== false) {
+    const isSearchRelated = (el) => {
+      if (!el) return false;
+      if (el.querySelector('form[role="search"], [data-testid="SearchBox_Search_Input"], [data-testid*="typeahead" i], [role="listbox"]')) return true;
+      if (el.matches?.('form[role="search"], [data-testid="SearchBox_Search_Input"], [data-testid*="typeahead" i], [role="listbox"]')) return true;
+      const aria = (el.getAttribute('aria-label') || '').toLowerCase();
+      if (aria.includes('search') || aria.includes('recent') || aria.includes('جستجو') || aria.includes('اخیر')) return true;
+      return false;
+    };
+
+    const allWidgets = sidebar.querySelectorAll('section, aside, nav, [data-testid="placementTracking"], div[data-testid*="timeline" i]');
+
+    for (let i = 0; i < allWidgets.length; i++) {
+      const w = allWidgets[i];
+      if (isSearchRelated(w)) continue;
+      w.classList.add('xe-zen-hidden');
+      w.style.setProperty('display', 'none', 'important');
+      w.style.setProperty('visibility', 'hidden', 'important');
+      w.style.setProperty('height', '0px', 'important');
+    }
+
+    // Also check direct children of sidebar container to hide trends and who-to-follow containers
+    const innerContainer = sidebar.querySelector('div > div > div');
+    if (innerContainer && innerContainer.parentElement) {
+      const siblings = innerContainer.parentElement.children;
+      for (let i = 0; i < siblings.length; i++) {
+        const sib = siblings[i];
+        if (isSearchRelated(sib)) continue;
+        sib.classList.add('xe-zen-hidden');
+        sib.style.setProperty('display', 'none', 'important');
+        sib.style.setProperty('visibility', 'hidden', 'important');
+      }
+    }
+  }
+}
+
 function cleanWhoToFollowRecommendations(root = document) {
   if (!settings.hideWhoToFollow && !settings.hideProfileWhoToFollow) return;
 
@@ -615,10 +777,6 @@ function cleanWhoToFollowRecommendations(root = document) {
 
       if (hasConnectLink || isRecText || (hasUserCell && !w.querySelector('[data-testid="trend"]'))) {
         hideRecommendationElement(w);
-        const parentWrapper = w.closest('[data-testid="sidebarColumn"] > div > div, [data-testid="sidebarColumn"] > div');
-        if (parentWrapper && parentWrapper !== sidebar) {
-          hideRecommendationElement(parentWrapper);
-        }
       }
     }
   }
@@ -877,6 +1035,669 @@ function detectBotOrBait(tweetNode) {
 }
 
 // ============================================================================
+// No-Boys Mode: Smart Guy / Male Account Detection Engine (v3.0.1 Extended)
+// Multi-layer detection:
+// 1. Female Guard: Absolute immunity for female accounts (names, pronouns, bio keywords, emojis)
+// 2. Male Pronouns (he/him, he/his) in bio, name, or handle
+// 3. Male Emojis (👨, 👦, 🧔, ♂️, etc.) in bio or name
+// 4. Male Identity Keywords (پسر, مرد, آقا, پدر, داداش, boy, guy, etc.)
+// 5. Massive Persian & International Male First Names in Display Name & Handle
+// 6. Typo & Orthographic resilience: Tatweel stripping, tashkeel removal, ZWNJ,
+//    repetition collapsing (علیییی -> علی, reeeza -> reza), leetspeak decoding (m0hammad, r3za),
+//    handle affix stripping (mr_, its_, _boy, _pv, _dev).
+// ============================================================================
+
+const MALE_PERSIAN_NAMES = [
+  'آبتین', 'آتبین', 'آترین', 'آذرخش', 'آذرفر', 'آذرباد', 'آرتام', 'آرتان', 'آرتین', 'آرش',
+  'آرشام', 'آرمان', 'آرمند', 'آرمین', 'آریا', 'آریابرزن', 'آریاراد', 'آریامهر', 'آریان', 'آریو',
+  'آریوبرزن', 'آزاد', 'آروین', 'آوید', 'آیدین', 'آراد', 'آرسین', 'آریابد', 'آرسن', 'آرمیا',
+  'آران', 'آیریک', 'آروان', 'آیین', 'آراز', 'آیهان', 'آسید', 'آصف', 'آقامیر', 'آشور',
+  'آرتا', 'آرشین', 'ارجمند', 'ارمیا', 'اروند', 'اسکندر', 'افلاطون', 'انور', 'ایرج', 'ایلدرم',
+  'ایلگار', 'ایلشن', 'ابراهیم', 'ابوالفضل', 'ابوالقاسم', 'ابوالحسن', 'ابومسلم', 'ابوطالب', 'احتشام', 'احسان',
+  'احمد', 'احمدرضا', 'احمدعلی', 'ادریس', 'ارژنگ', 'ارسام', 'ارسلان', 'ارشا', 'ارشیا', 'ارغون',
+  'اسد', 'اسدالله', 'اسفندیار', 'اسحاق', 'اشک', 'اشکان', 'اسماعیل', 'اصغر', 'اصی', 'افشار',
+  'افشین', 'اکبر', 'اکبی', 'البرز', 'الیا', 'الیاس', 'الچین', 'الیار', 'الوند', 'امان',
+  'امان‌الله', 'امید', 'امیدرضا', 'امیدعلی', 'امیر', 'امیری', 'امیرسام', 'امیرارسلان', 'امیرپاشا', 'امیرحافظ',
+  'امیرطاها', 'امیرکیان', 'امیرکسری', 'امیرماهان', 'امیرنیک', 'امیرآریا', 'امیربهادر', 'امیرصدرا', 'امیرسامان', 'امیرپوریا',
+  'امیرعلی', 'امیرحسین', 'امیرمحمد', 'امیررضا', 'امیرمهدی', 'امیرعباس', 'امیرامین', 'امیرجواد', 'امیرصادق', 'امیرحسن',
+  'امیرکبیر', 'امیرخان', 'امیربخش', 'امیرمنصور', 'امیرمحسن', 'امیرمجید', 'امیرسجاد', 'امیرسعید', 'امین', 'انوش',
+  'انوشیروان', 'اوکتای', 'اورنگ', 'اهورا', 'ایوب', 'ایزد', 'ایلیا', 'ایلخان', 'ایمان', 'بابان',
+  'بابک', 'باربد', 'بارمان', 'بارزان', 'بامداد', 'بامشاد', 'بامین', 'باور', 'بختیار', 'بردیا',
+  'برسام', 'برزو', 'برزین', 'برومند', 'بزرگمهر', 'بکتاش', 'بنیامین', 'بهبد', 'بهداد', 'بهراد',
+  'بهرام', 'بهرنگ', 'بهروز', 'بهزاد', 'بهشاد', 'بهنام', 'بهمن', 'بهنیا', 'بهروش', 'بیژن',
+  'بیستون', 'باقر', 'بشیر', 'برهان', 'باسط', 'بلال', 'بهروزان', 'باقرخان', 'باقی', 'بایرامعلی',
+  'بختیارخان', 'بدیع', 'برات', 'براتعلی', 'برنا', 'پورنگ', 'پیروزفر', 'پیمان‌فر', 'پارسا', 'پاشا',
+  'پاکان', 'پدرام', 'پرهام', 'پژمان', 'پژواک', 'پوریا', 'پویا', 'پویان', 'پیام', 'پیروز',
+  'پیمان', 'پادرا', 'پولاد', 'پهلوان', 'پطرس', 'پندار', 'پارسیک', 'تارخ', 'تاجبخش', 'تایماز',
+  'تقی', 'توفیق', 'تکین', 'تمیم', 'توما', 'تیرداد', 'تهمتن', 'تهمورث', 'تورج', 'توران',
+  'تیمور', 'تیام', 'ثامن', 'ثابت', 'تاج‌الدین', 'تقی‌خان', 'تورنگ', 'توس', 'جابر', 'جاسب',
+  'جاوید', 'جاماسب', 'جعفر', 'جلال', 'جمال', 'جمشید', 'جواد', 'جهان', 'جهانبخش', 'جهانگیر',
+  'جهاندار', 'جهانبخت', 'جبار', 'جوزف', 'جعفرقلی', 'جمال‌الدین', 'جوانشیر', 'جهانگیرخان', 'چاووش', 'چیا',
+  'چیاکو', 'چنگیز', 'چکاو', 'حاتم', 'حاجی', 'حاج', 'حامد', 'حامی', 'حبیب', 'حبیب‌الله',
+  'حجت', 'حر', 'حسام', 'حسن', 'حسین', 'حسی', 'حسون', 'حمزه', 'حمید', 'حمیدرضا',
+  'حمیدعلی', 'حیدر', 'حافظ', 'حنیف', 'حبیب‌قلی', 'حسام‌الدین', 'حسنعلی', 'حسینقلی', 'خسرو', 'خشایار',
+  'خلیل', 'خلیل‌الله', 'خداداد', 'خدایار', 'خرم', 'خیام', 'خسروخان', 'خلیل‌قلی', 'دادمهر', 'دادور',
+  'دارا', 'داراب', 'داریوش', 'داریو', 'داشا', 'دامیار', 'دامون', 'دانا', 'دانیار', 'دانیال',
+  'داوود', 'داود', 'داوید', 'دلاور', 'دلیر', 'دلووان', 'دوران', 'دیاکو', 'داداش‌علی', 'دانش',
+  'داور', 'درویش', 'ذبیح', 'ذبیح‌الله', 'ذوالفقار', 'رئوف', 'راد', 'رادان', 'رادبرد', 'رادمان',
+  'رادمرز', 'رادمهر', 'رادین', 'رادوین', 'راستین', 'راشا', 'راشد', 'رامبد', 'رامتین', 'رامین',
+  'راوش', 'رایان', 'رحمان', 'رحمت', 'رحمت‌الله', 'رحیم', 'رستم', 'رسول', 'رشید', 'رضا',
+  'رضایی', 'رضاچی', 'رجب', 'روح‌الله', 'روزبه', 'روژان', 'روژمان', 'روژبین', 'روئین', 'ریبین',
+  'ریوند', 'رها', 'رهام', 'روهام', 'رستم‌علی', 'رضاقلی', 'رمضان', 'رمضانعلی', 'روشن', 'زادان',
+  'زاهد', 'زامیاد', 'زانا', 'زانیار', 'زرتشت', 'زکریا', 'زوبین', 'زواره', 'زین‌العابدین', 'ژوبین',
+  'ژیان', 'ژیوار', 'ژیر', 'ساسان', 'ساتیار', 'ساجد', 'ساعد', 'سالار', 'سام', 'سامان',
+  'سامین', 'سامیار', 'سامی', 'ساموئل', 'سبحان', 'سجاد', 'سدرا', 'سردار', 'سردشت', 'سرکش',
+  'سروش', 'سهراب', 'سهند', 'سهیل', 'سیاوش', 'سیروان', 'سیروس', 'سینا', 'سینی', 'سیامک',
+  'سیف‌الله', 'سنجر', 'سلجوق', 'سلیمان', 'ستار', 'سهروردی', 'سراج‌الدین', 'سعیدخان', 'سلطانعلی', 'سلیمان‌خان',
+  'سیدرضا', 'سیدعلی', 'سیدمحمد', 'سیدحسین', 'شادمهر', 'شارو', 'شاهرخ', 'شاهروخ', 'شاهکار', 'شاهین',
+  'شاهو', 'شایان', 'شایگان', 'شروین', 'شروان', 'شنتیا', 'شهاب', 'شهبار', 'شهباز', 'شهداد',
+  'شهرام', 'شهرداد', 'شهروز', 'شهریار', 'شوان', 'شعیب', 'شفیع', 'شاکر', 'شمس‌الله', 'شمعون',
+  'شیدوس', 'شیرزاد', 'شیردل', 'شیث', 'شمس‌الدین', 'شهبازخان', 'شیرعلی', 'صابر', 'صادق', 'صادی',
+  'صالح', 'صبور', 'صدرا', 'صدیق', 'صفدر', 'صفر', 'صمد', 'صائب', 'صادق‌خان', 'صدرالدین',
+  'ضیا', 'ضیاالدین', 'طارق', 'طالب', 'طاهر', 'طاها', 'طه', 'طیب', 'طغرل', 'ظفر',
+  'ظهیر', 'عابد', 'عادل', 'عارف', 'عاصم', 'عامر', 'عباس', 'عباسی', 'عبدالحسین', 'عبدالحمید',
+  'عبدالرضا', 'عبدالرسول', 'عبدالرحمان', 'عبدالصمد', 'عبدالعلی', 'عبدالغفور', 'عبدالکریم', 'عبدالمجید', 'عبدالمهدی', 'عبدالهادی',
+  'عبدالله', 'عزت‌الله', 'عزیز', 'عسکر', 'عسکری', 'عطا', 'عطاالله', 'عقیل', 'علی', 'علیرضا',
+  'علی‌رضا', 'علی‌اکبر', 'علیاکبر', 'علی‌اصغر', 'علیاصغر', 'علی‌محمد', 'علیمحمد', 'علی‌سینا', 'علی‌سام', 'علی‌پوریا',
+  'علیو', 'علایی', 'عماد', 'عمار', 'عمران', 'عیسی', 'عرفان', 'عنایت‌الله', 'عباسقلی', 'عبدالباقی',
+  'عبدالخالق', 'عطاخان', 'علیقلی', 'علیخان', 'غالب', 'غلام', 'غلامرضا', 'غلام‌رضا', 'غلامحسین', 'غلامعلی',
+  'غلامعباس', 'غلامحسن', 'غفار', 'غفور', 'فاتح', 'فتاح', 'فرامرز', 'فربد', 'فربود', 'فرجاد',
+  'فرخ', 'فرداد', 'فردین', 'فرزاد', 'فرزام', 'فرزین', 'فرشاد', 'فرشید', 'فرنام', 'فرناس',
+  'فرنود', 'فرهاد', 'فرهام', 'فرهود', 'فرهوش', 'فرید', 'فریدون', 'فیروز', 'فاضل', 'فضل‌الله',
+  'فاروق', 'فواد', 'فتحعلی', 'فخرالدین', 'فرامرزخان', 'فضل‌علی', 'قادر', 'قاسم', 'قاسی', 'قائم',
+  'قباد', 'قدرت', 'قدرت‌الله', 'قربان', 'قنبر', 'قهرمان', 'قاسم‌علی', 'قدرت‌خان', 'قلی', 'قربانعلی',
+  'کارن', 'کارو', 'کاظم', 'کامبیز', 'کامران', 'کامی', 'کامیار', 'کاوان', 'کاوه', 'کاوس',
+  'کاووس', 'کسرا', 'کسری', 'کوروش', 'کورش', 'کوشا', 'کوهیار', 'کیا', 'کیابرزین', 'کیارش',
+  'کیان', 'کیانوش', 'کیاوش', 'کیخسرو', 'کیداد', 'کیقباد', 'کیوان', 'کیومرث', 'کلیم', 'کمال',
+  'کمیل', 'کاکا', 'کاکو', 'کرمعلی', 'کریم‌خان', 'کمال‌الدین', 'کوچک‌خان', 'گودرز', 'گوران', 'گیو',
+  'لطیف', 'لطف‌الله', 'لقمان', 'لوقا', 'لطفعلی‌خان', 'مازیار', 'ماکان', 'ماتیار', 'مانلی', 'مانی',
+  'ماهان', 'ماهبد', 'ماهد', 'ماهور', 'متین', 'مجتبی', 'مجتی', 'مجید', 'محسن', 'محمد',
+  'ممد', 'ممدی', 'ممدعلی', 'ممدحسین', 'ممدصادق', 'ممدامین', 'ممدحسن', 'ممدجواد', 'ممدلی', 'ممدک',
+  'ممدو', 'مملی', 'ممدوف', 'محمدرضا', 'محمدعلی', 'محمدحسین', 'محمدامین', 'محمدمهدی', 'محمدجواد', 'محمدصادق',
+  'محمدحسن', 'محمدباقر', 'محمدطاها', 'محمدیاسین', 'محمدپارسا', 'محمدسبحان', 'محمدعرفان', 'محمدکسری', 'محمدکیان', 'محمدهادی',
+  'محمدمبین', 'محمدامید', 'محمدامیر', 'محمود', 'مختار', 'مراد', 'مرتضی', 'مرشد', 'مرقس', 'مزدا',
+  'مسعود', 'مسلم', 'مصطفی', 'مصطی', 'مظفر', 'معراج', 'معین', 'مقداد', 'منصور', 'منوچهر',
+  'مهبد', 'مهدی', 'مدی', 'مهدیو', 'مهدی‌رضا', 'مهدی‌یار', 'مهران', 'مهربد', 'مهرپویا', 'مهرداد',
+  'مهرزاد', 'مهرسام', 'مهرشاد', 'مهزیار', 'مهیار', 'میثاق', 'میثم', 'میران', 'میرزا', 'میلاد',
+  'موسی', 'متی', 'مالک', 'محمدقلی', 'محمدخان', 'محمدتقی', 'مرادعلی', 'مرتضی‌قلی', 'مظفرالدین', 'معین‌الدین',
+  'منصورخان', 'مهدیقلی', 'نادر', 'ناصح', 'ناصر', 'ناصری', 'ناظم', 'نامدار', 'نامور', 'نامی',
+  'نریمان', 'نصرالله', 'نصیر', 'نوح', 'نوید', 'نویان', 'نیما', 'نیماک', 'نیو', 'نچیروان',
+  'نعمت', 'نعمت‌الله', 'نادرشاه', 'ناصرالدین', 'نجفقلی', 'نصرت', 'نصرت‌الله', 'نظام', 'نظام‌الدین', 'نورالدین',
+  'واحد', 'وریا', 'وریامهر', 'وحید', 'وحیدرضا', 'ولی', 'ولی‌الله', 'هادی', 'هارون', 'هاشم',
+  'هامون', 'هرمز', 'هرمزد', 'هلمت', 'هوال', 'هوتن', 'هوداد', 'هوشمند', 'هوشنگ', 'هوشیار',
+  'هومان', 'هومن', 'هیراد', 'هیربد', 'هیرسام', 'هیرمند', 'هیرش', 'هیوا', 'هیمن', 'هاشم‌خان',
+  'هدایت', 'هدایت‌الله', 'همت', 'همت‌علی', 'یاسر', 'یاسین', 'یاشار', 'یحیی', 'یزدان', 'یزدگرد',
+  'یعقوب', 'یلمان', 'یولداش', 'یونس', 'یوسف', 'یاران', 'یارین', 'یارمحمد', 'یوسفعلی', 'آبان',
+  'آبدار', 'آتروپات', 'آتروان', 'آترینا', 'آرتوان', 'آرتمن', 'آرتور', 'آرشاوش', 'آرشاویر', 'آریارمن',
+  'آریامنش', 'آریانوش', 'آریوبار', 'آژوان', 'آسا', 'آسام', 'آسو', 'آگین', 'آیدوغموش', 'ابطحی',
+  'ابتهاج', 'ابوالعلا', 'اثنی‌عشری', 'اجلال', 'احسان‌الله', 'اختردان', 'اخشید', 'ارژنگ‌خان', 'ارسن', 'ارشاد',
+  'ارم', 'ارنواز', 'اسحاق‌خان', 'اسدخان', 'اسفندیارخان', 'اسکندرخان', 'اشرف', 'اشرف‌خان', 'اعظم', 'اعلم',
+  'افراسیاب', 'افرند', 'افشین‌خان', 'اقصی', 'اکبرخان', 'البرزخان', 'الیاس‌خان', 'الوندخان', 'امامقلی', 'امان‌الله‌خان',
+  'امین‌الدین', 'امین‌الرعایا', 'امین‌السلطان', 'امین‌الضرب', 'انصاری', 'انوشه‌روان', 'انوری', 'ایزدبخش', 'ایزدپناه', 'ایلبیگی',
+  'ایلدرم‌خان', 'ایلشاد', 'ایلقار', 'ایلکین', 'باباخان', 'بابامراد', 'باباشاه', 'بابک‌خان', 'بادین', 'باران',
+  'باربدخان', 'بارسین', 'بارمان‌خان', 'بازان', 'باقرشاه', 'بالی', 'بامشادخان', 'باوان', 'بایزید', 'ببرک',
+  'بختیاروند', 'بدرالدین', 'بدیر', 'برادران', 'براز', 'برزویه', 'برسام‌خان', 'برمک', 'برهان‌الدین', 'بزرگ',
+  'بزرگ‌مهر', 'بهادر', 'بهادرخان', 'بهارلو', 'بهرام‌خان', 'بهرام‌شاه', 'بهرادخان', 'بهروزی', 'بهزادخان', 'بهشادخان',
+  'بهمن‌خان', 'بهنیاخان', 'بهرام‌علی', 'بیات', 'بیدل', 'بیرام', 'بیرامی', 'بیرنگ', 'بیژن‌خان', 'پادشاه',
+  'پارساخان', 'پاشاخان', 'پاکزاد', 'پاکمهر', 'پالیز', 'پامیر', 'پاینده', 'پدرام‌خان', 'پرهام‌خان', 'پرهام‌فر',
+  'پرویز', 'پرویزخان', 'پروین‌خان', 'پژمان‌خان', 'پورابراهیم', 'پوراحمد', 'پوراسماعیل', 'پورجعفر', 'پورحسین', 'پورحیدر',
+  'پورداد', 'پوررضا', 'پورصادق', 'پورعباس', 'پورعلی', 'پورغلام', 'پورقاسم', 'پورمحمد', 'پورمهدی', 'پورنادر',
+  'پیراسته', 'پیروزخان', 'پیروزمهر', 'پیمان‌خان', 'تاریق', 'تالار', 'تامای', 'تانسو', 'تاوات', 'تجلی',
+  'تحسین', 'ترخان', 'تقوی', 'تقی‌زاده', 'تمندر', 'توان', 'توانا', 'توران‌شاه', 'تورج‌خان', 'توفیق‌خان',
+  'توماج', 'توکل', 'تهمتن‌خان', 'تهمورس', 'تیردادخان', 'تیمورخان', 'تیمورلنگ', 'ثابت‌قدم', 'ثاقب', 'ثانی',
+  'ثمین', 'جابرقلی', 'جاجرمی', 'جارالله', 'جامی', 'جبارعلی', 'جباری', 'جبل‌عاملی', 'جعفرخان', 'جلال‌الدین',
+  'جلال‌خان', 'جمشیدخان', 'جمشیدشاه', 'جناب', 'جنید', 'جوادخان', 'جوادمهر', 'جوانبخت', 'جوانه', 'جهانبخش‌خان',
+  'جهانگیرشاه', 'جهاندیده', 'جهانشاه', 'جهانسوز', 'چابک', 'چاوش', 'چاوشان', 'چاور', 'چاووش‌باشی', 'چلیپا',
+  'چمران', 'چوپان', 'چوپانی', 'حاتم‌خان', 'حاجی‌زاده', 'حاجی‌پور', 'حامدی', 'حامدخان', 'حبیب‌زاده', 'حبیب‌پور',
+  'حجت‌الله', 'حرعاملی', 'حرآبادی', 'حریری', 'حسام‌خان', 'حسام‌مهر', 'حسنعلی‌خان', 'حسن‌زاده', 'حسن‌پور', 'حسینعلی‌خان',
+  'حسین‌زاده', 'حسین‌پور', 'حسینی', 'حصاری', 'حفیظ', 'حفیظ‌الله', 'حق‌شناس', 'حق‌گو', 'حق‌پرست', 'حلاج',
+  'حمدالله', 'حمزه‌خان', 'حمیدخان', 'حمیدزاده', 'حمیدپور', 'حیدرخان', 'حیدرعلی‌خان', 'خاتم', 'خادم', 'خادم‌الشریعه',
+  'خالق', 'خالقداد', 'خاوران', 'خداپرست', 'خدابخش', 'خدادادخان', 'خداوردی', 'خدایاری', 'خسروشاه', 'خسروپناه',
+  'خشنود', 'خلیل‌زاده', 'خلیل‌پور', 'خندان', 'خورشیدمهرداد', 'خوش‌بین', 'خوش‌چهره', 'خوش‌خبر', 'خوش‌دست', 'خوش‌رو',
+  'خوش‌زبان', 'خوش‌فرجام', 'خوش‌قدم', 'خوش‌نژاد', 'خوش‌نویس', 'خورسند', 'داداشی', 'دادبخش', 'دادبه', 'دادجو',
+  'دادخواه', 'دادفر', 'دادگر', 'دادگستر', 'دادمان', 'دادویه', 'دانیال‌خان', 'داودخان', 'داودزاده', 'داودپور',
+  'داورمنش', 'داوری', 'دایان', 'درخشان', 'درخشنده', 'درویش‌علی', 'دستان', 'دلاورخان', 'دلفان', 'دلشاد',
+  'دلیران', 'دهباشی', 'دهزاد', 'دهقان', 'دهکردی', 'دیانت', 'دیدار', 'دیده‌ور', 'دیلم', 'دیلمی',
+  'دیلمان', 'دین‌پرور', 'ذاکر', 'ذاکری', 'ذبیحی', 'ذوالفقارخان', 'ذوالفنون', 'ذهن‌بین', 'رادپور', 'رادفر',
+  'رادنژاد', 'رادور', 'رازدار', 'رازق', 'رازقی', 'راسخ', 'راستی', 'راشدین', 'رافع', 'راغب‌پور',
+  'رام', 'رامپور', 'رامجردی', 'رامشگر', 'رامفر', 'راهبر', 'راهدار', 'راهنما', 'ربیع', 'ربیعی',
+  'رجبی', 'رجایی', 'رجحان', 'رخشنده', 'رزم‌آرا', 'رزمجو', 'رزمخواه', 'رستم‌خان', 'رستم‌زاد', 'رسول‌زاده',
+  'رسول‌پور', 'رسولی', 'رشادت', 'رشدیه', 'رشدین', 'رشیدالدین', 'رشیدپور', 'رضاپور', 'رضازاده', 'رضائیان',
+  'رضامند', 'رضوان', 'رضوانی', 'روزبهان', 'روزبهانی', 'روزدار', 'روزگار', 'روشن‌بین', 'روشن‌روان', 'روشن‌ضمیر',
+  'روشن‌علی', 'روحبخش', 'روحانی', 'رهبر', 'رهنما', 'رهی', 'ریاحی', 'ربیع‌زاده', 'زاهدخان', 'زاهدزاده',
+  'زایر', 'زبید', 'زرآبادی', 'زرین', 'زرین‌دست', 'زرین‌کمر', 'زرین‌کوب', 'زرین‌نام', 'زعیم', 'زکایی',
+  'زکریایی', 'زنگنه', 'زند', 'زندی', 'زهتاب', 'زوار', 'زیار', 'زیاری', 'ژاندارم', 'ژاو',
+  'ژک', 'ژیان‌فر', 'ژیوان', 'ژیور', 'سابقی', 'ساعدی', 'ساعدالدین', 'ساغری', 'سالارالدین', 'سالاروند',
+  'سالک', 'سالمی', 'سام‌پور', 'سام‌زاده', 'سامان‌پور', 'سامان‌زاده', 'سامانیان', 'سامری', 'سامور', 'ساوجی',
+  'ساوه', 'ساوجبلاغی', 'سبحانی', 'سبزواری', 'سجادزاده', 'سجادپور', 'سراج', 'سراجی', 'سرتیپ', 'سرتیپ‌زاده',
+  'سرحدی', 'سردارپور', 'سردارزاده', 'سردارنیا', 'سرمد', 'سرمدی', 'سرور', 'سروری', 'سزاوار', 'سدید',
+  'سعیدزاده', 'سعیدپور', 'سعیدی', 'سعیدیان', 'سلیمی', 'سلیمیان', 'سمندر', 'سنایی', 'سنجری', 'سهراب‌خان',
+  'سهندی', 'سهیل‌پور', 'سهروردیان', 'سیاوش‌خان', 'سیادت', 'سیامکی', 'سیدآبادی', 'سیدان', 'سیرجانی', 'سینایی',
+  'شاد', 'شاداب', 'شادان', 'شادباش', 'شادفر', 'شادکام', 'شادلو', 'شادمان', 'شادمهرخان', 'شادنوش',
+  'شادی', 'شاطر', 'شاطریان', 'شاهمرادی', 'شاه‌ولی', 'شاه‌علی', 'شاه‌محمد', 'شاه‌حسین', 'شاه‌عباس', 'شاه‌رضا',
+  'شاه‌قاسم', 'شاه‌نواز', 'شاهین‌فر', 'شایسته‌مهر', 'شباهنگ', 'شباویز', 'شبستری', 'شبلی', 'شجاع', 'شجاع‌الدین',
+  'شجاع‌پور', 'شجاعی', 'شجاعیان', 'شجریان', 'شریعت', 'شریعتی', 'شریف', 'شریف‌زاده', 'شریف‌پور', 'شریفیان',
+  'شعبان', 'شعبان‌علی', 'شعبانی', 'شفا', 'شفایی', 'شفیعی', 'شفیعیان', 'شقاقی', 'شکیب', 'شکیبامهر',
+  'شمس', 'شمس‌علی', 'شمسایی', 'شمسی', 'شمسیان', 'شنگول', 'شوکتی', 'شهرام‌خان', 'شهرام‌پور', 'شهرام‌زاده',
+  'شهریارخان', 'شهریارپور', 'شهریاری', 'شهنازخان', 'شهنی', 'شهیدی', 'شیبانی', 'شیخ‌الاسلام', 'شیخ‌الاسلامی', 'شیخ‌علی',
+  'شیخ‌محمد', 'شیرمحمد', 'شیرعلی‌خان', 'شیردل‌خان', 'شیرازی', 'شیروانی', 'شیرویه', 'صابرپور', 'صابری', 'صابریان',
+  'صادق‌پور', 'صادق‌زاده', 'صادقیان', 'صالح‌پور', 'صالح‌زاده', 'صالحی', 'صالحیان', 'صامت', 'صامتی', 'صباحی',
+  'صبحدم', 'صبح‌خیز', 'صبوری', 'صدر', 'صدرزاده', 'صدرالدین‌خان', 'صدری', 'صدوقی', 'صدیق‌پور', 'صدیق‌زاده',
+  'صدیقی', 'صدیقیان', 'صراطی', 'صفار', 'صفاری', 'صفائیان', 'صفوی', 'صفویان', 'صفی', 'صفی‌الدین',
+  'صفی‌الله', 'صفی‌پور', 'صفی‌زاده', 'صیاد', 'صیادی', 'صیادمنش', 'ضارب', 'ضامنی', 'ضیاپور', 'ضیازاده',
+  'ضیایی', 'ضیائیان', 'طالب‌پور', 'طالب‌زاده', 'طالبی', 'طالبیان', 'طاهرپور', 'طاهرزاده', 'طاهری', 'طاهریان',
+  'طاهرخان', 'طاووس', 'طباطبایی', 'طباطبائی', 'طبرسی', 'طبسی', 'طبیب', 'طبیب‌زاده', 'طراوت', 'طریقت',
+  'طلوعی', 'طهماسب', 'طهماسبی', 'طهمورث', 'طهمورثی', 'طوفان', 'ظریف', 'ظریفی', 'ظفرپور', 'ظفرزاده',
+  'ظفریان', 'ظهیرالدین', 'ظهوری', 'عابدی', 'عابدیان', 'عادل‌پور', 'عادل‌زاده', 'عادلی', 'عارف‌پور', 'عارف‌زاده',
+  'عارفی', 'عاشور', 'عاشوری', 'عاصمی', 'عاطفی', 'عاقلی', 'عامری', 'عبادی', 'عباس‌پور', 'عباس‌زاده',
+  'عباسیان', 'عبدالباسط', 'عبدالعظیم', 'عبدالغنی', 'عبدالواحد', 'عبدی', 'عبقر', 'عتیق', 'عتیقی', 'عتیق‌الله',
+  'عثمان', 'عدل', 'عدلی', 'عدالت', 'عدالت‌خواه', 'عرب', 'عرب‌زاده', 'عرب‌پور', 'عراقی', 'عزیزی',
+  'عزیزیان', 'عسگری', 'عسگریان', 'عشقی', 'عصاری', 'عطار', 'عطارزاده', 'عطاری', 'عطاریان', 'عطوفی',
+  'عظیم', 'عظیمی', 'عظیم‌پور', 'عفیف', 'عفیفی', 'علائی', 'علامیر', 'علامه', 'علوی', 'علی‌اکبرپور',
+  'علی‌اصغرپور', 'علی‌پور', 'علی‌زاده', 'علی‌نیا', 'علی‌دوست', 'علی‌بخش', 'علی‌مراد', 'علینژاد', 'علی‌وردی', 'عمادی',
+  'عماری', 'عمید', 'عنایت‌پور', 'عنایتی', 'عهد', 'عهدی', 'عیسی‌پور', 'عیسی‌زاده', 'غازیان', 'غایب',
+  'غریب', 'غریبی', 'غریب‌پور', 'غفارپور', 'غفارزاده', 'غفاری', 'غفوری', 'غفوریان', 'غلام‌پور', 'غلام‌زاده',
+  'غلامیان', 'غنی', 'غنی‌زاده', 'غنی‌پور', 'فائق', 'فائقی', 'فتاح‌پور', 'فتاح‌زاده', 'فتاحی', 'فتاحیان',
+  'فتح‌الله‌پور', 'فتح‌الله‌زاده', 'فتحی', 'فتحیان', 'فخر', 'فخری', 'فخرایی', 'فدایی', 'فراست', 'فراستی',
+  'فرامرزی', 'فرامرزیان', 'فراهانی', 'فربدفر', 'فرجام', 'فرجام‌مهر', 'فرجامی', 'فرح‌بخش', 'فرخ‌رو', 'فرخ‌زاد',
+  'فرخ‌منش', 'فرد', 'فردادفر', 'فردوس', 'فردوسی', 'فردین‌پور', 'فرزانه', 'فرزانه‌فر', 'فرزدق', 'فرزین‌پور',
+  'فرسام', 'فرساد', 'فرشادفر', 'فرشیدفر', 'فرمان', 'فرمانبر', 'فرمانروا', 'فرهمند', 'فرهمندپور', 'فروتن',
+  'فروزان', 'فریدپور', 'فریدزاده', 'فریدی', 'فریدونی', 'فصیح', 'فصیحی', 'فضائلی', 'فضل', 'فضلی',
+  'فکور', 'فلاح', 'فلاحی', 'فولاد', 'فولادی', 'فولادوند', 'فیروزپور', 'فیروززاده', 'فیروزفام', 'فیروزکوهی',
+  'قائم‌مقام', 'قادری', 'قادریان', 'قاسم‌پور', 'قاسم‌زاده', 'قاسمی', 'قاسمیان', 'قاضی', 'قاضی‌زاده', 'قاضی‌نور',
+  'قانع', 'قانعیان', 'قانونی', 'قاهر', 'قدس', 'قدسی', 'قدس‌طینت', 'قدوسی', 'قدرت‌پور', 'قدرتی',
+  'قدیمی', 'قربان‌پور', 'قربان‌زاده', 'قربانی', 'قربانیان', 'قریشی', 'قزوینی', 'قزل', 'قزل‌باش', 'قشم',
+  'قشمی', 'قصاب', 'قصابی', 'قضاوت', 'قطب', 'قطبی', 'قلعه', 'قلعه‌بانی', 'قلی‌پور', 'قلی‌زاده',
+  'قلیان', 'قمری', 'قنبری', 'قنبریان', 'قوامی', 'قویدل', 'قهرمانی', 'قهرمانیان', 'کاتب', 'کاتبی',
+  'کاتوزیان', 'کاشانی', 'کاشف', 'کاشفی', 'کاظم‌پور', 'کاظم‌زاده', 'کاظمی', 'کاظمیان', 'کاظم‌خان', 'کاکایی',
+  'کامیاب', 'کامرانی', 'کامرانیان', 'کامیارفر', 'کانونی', 'کانون', 'کاوش', 'کاوش‌مهر', 'کاویان', 'کاویانی',
+  'کبیری', 'کبیریان', 'کتابی', 'کتیبه', 'کدیور', 'کرامت', 'کرامتی', 'کرد', 'کردپور', 'کردستانی',
+  'کرمانی', 'کرمانشاهی', 'کریم‌پور', 'کریم‌زاده', 'کریمی', 'کریمیان', 'کسرایی', 'کلالی', 'کلهر', 'کمالی',
+  'کمالیان', 'کنعانی', 'کواکب', 'کواکبی', 'کیامهر', 'کیان‌پور', 'کیان‌زاده', 'کیانی', 'کیانیان', 'کیخسروی',
+  'کیقبادی', 'کیوانی', 'کیوانفر', 'کیومرثی', 'گنابادی', 'گودرزی', 'گیل', 'گیلانی', 'گیله‌مرد', 'لاچین',
+  'لاله', 'لاری', 'لاریجانی', 'لاجوردی', 'لایق', 'لبیب', 'لشکری', 'لطفی', 'لطفیان', 'لقایی',
+  'لهراسب', 'لهراسبی', 'لواسانی', 'ماجدی', 'مادح', 'مارلیک', 'مازندرانی', 'مالک‌پور', 'مالکی', 'مامانی',
+  'مامش', 'ماموری', 'مانامانی', 'مانی‌فر', 'ماهر', 'ماهری', 'ماهوتی', 'ماهیار', 'مبشری', 'مبین‌پور',
+  'مجاهد', 'مجاهدی', 'مجتهد', 'مجتهدزاده', 'مجتهدی', 'مجد', 'مجدی', 'مجدالدین', 'مجذوب', 'مجلل',
+  'مجلسی', 'مجمر', 'مجیدی', 'مجیدیان', 'محامی', 'محتشم', 'محتشمی', 'محسنی', 'محسنیان', 'محقق',
+  'محققی', 'محمدپور', 'محمدزاده', 'محمدیان', 'محمدیار', 'محمدی‌نژاد', 'محمودی', 'محمودیان', 'مختاری', 'مختاریان',
+  'مختوم‌قلی', 'مختوم', 'مختومی', 'مددی', 'مدرس', 'مدرسی', 'مدنی', 'مدنیان', 'مدیر', 'مدیرزاده',
+  'مدیری', 'مدیریان', 'مرادی', 'مرادیان', 'مرتضوی', 'مرتضویاء', 'مرجانی', 'مردانی', 'مرزبان', 'مرزوق',
+  'مرعشی', 'مرودشتی', 'مروتی', 'مروج', 'مروجی', 'مروزی', 'مزید', 'مژدهی', 'مسعودپور', 'مسعودزاده',
+  'مسعودی', 'مسعودیان', 'مسیح', 'مسیحا', 'مسیحی', 'مشاور', 'مشایخ', 'مشایخی', 'مشتاق', 'مشتاقی',
+  'مشفق', 'مشفقی', 'مشکات', 'مشکاتی', 'مشکوه', 'مشکور', 'مشکی', 'مشکین', 'مشهدی', 'مصباح',
+  'مصباحی', 'مصدق', 'مصدقی', 'مصری', 'مصلح', 'مصلحی', 'مصلحیان', 'مصور', 'مضطر', 'مطهری',
+  'مطهریان', 'مظاهری', 'مظلوم', 'مظلومی', 'مظفری', 'مظفریان', 'معارفی', 'معتمد', 'معتمدی', 'معتمدنیا',
+  'معتمدالملک', 'معتضد', 'معتضدی', 'معدل', 'معرفت', 'معروفی', 'معروفیان', 'معصوم', 'معصومی', 'معصومیان',
+  'معظمی', 'معین‌پور', 'معین‌زاده', 'معینی', 'معینیان', 'مغازه‌ای', 'مقدم', 'مقدم‌مراغه‌ای', 'مقدسی', 'مقدسیان',
+  'مقتدا', 'مقتدایی', 'مقرون', 'مکتوبی', 'مکرم', 'مکرومی', 'مکفی', 'مکی', 'مکیان', 'ممتاز',
+  'ممتازی', 'منزه', 'منصف', 'منصفی', 'منطق', 'منطقی', 'منظوم', 'منظوری', 'منفرد', 'منوچهری',
+  'منوچهریان', 'مهام', 'مهبودی', 'مهدوی', 'مهدویان', 'مهدی‌زاده', 'مهدی‌پور', 'مهدیان', 'مهرآرا', 'مهرآسا',
+  'مهران‌پور', 'مهران‌زاده', 'مهرانفر', 'مهرانی', 'مهرآیین', 'مهربان', 'مهربانی', 'مهردادپور', 'مهردادزاده', 'مهرزادفر',
+  'مهرگان', 'مهری', 'مهرویان', 'مهیاری', 'میر', 'میرآب', 'میرآبادی', 'میراحمدی', 'میربابایی', 'میرباقری',
+  'میرپناه', 'میرتاج‌الدینی', 'میرجلیلی', 'میرحسینی', 'میرحیدری', 'میردامادی', 'میرزاآقا', 'میرزابابا', 'میرزایی', 'میرزائی',
+  'میرسلیم', 'میرصادقی', 'میرطاهری', 'میرعابدینی', 'میرعلی', 'میرفتحی', 'میرفندرسکی', 'میرقاسمی', 'میرکمالی', 'میرلوحی',
+  'میرمحمدی', 'میرمحمدرضایی', 'میرمرادی', 'میرمصطفی', 'میرمنصور', 'میرمؤمنی', 'میرمهدی', 'میرنظامی', 'میروالی', 'میرولی',
+  'میزبانی', 'میثمی', 'ناصح‌پور', 'ناصحی', 'ناصحیان', 'ناصرپور', 'ناصرزاده', 'ناصریان', 'ناطق', 'ناطقی',
+  'ناظر', 'ناظری', 'ناظمی', 'نامجو', 'نامدارپور', 'نامداری', 'نامی‌پور', 'نامیان', 'نایب', 'نایبی',
+  'نبوی', 'نبی', 'نبی‌زاده', 'نبی‌پور', 'نبی‌الله', 'نجات', 'نجاتی', 'نجاتیان', 'نجف', 'نجف‌زاده',
+  'نجف‌پور', 'نجفی', 'نجفیان', 'نجمی', 'نخجوانی', 'نخعی', 'ندام', 'ندایی', 'نداف', 'ندیمی',
+  'نراقی', 'نرسی', 'نرسیس', 'نژاد', 'نژادحسینی', 'نژادعلی', 'نژادفلاح', 'نژادقلی', 'نصر', 'نصراصفهانی',
+  'نصرتی', 'نصرتیان', 'نصیری', 'نصیریان', 'نظارت', 'نظر', 'نظرزاده', 'نظرپور', 'نظری', 'نظری‌منش',
+  'نظمی', 'نظم‌الدین', 'نعمان', 'نعمتی', 'نعمتیان', 'نقی', 'نقی‌پور', 'نقی‌زاده', 'نقیب', 'نقیبی',
+  'نمازی', 'نمازیان', 'نمود', 'نواب', 'نوابی', 'نور', 'نوراحمد', 'نورالله‌پور', 'نوربخش', 'نوروزی',
+  'نوروزیان', 'نوری', 'نوریان', 'نوش‌آذر', 'نوش‌آفرین', 'نوشین‌مهر', 'نوین', 'نوینی', 'نهایتی', 'نهاوندی',
+  'نهروانی', 'نیارکی', 'نیازی', 'نیک', 'نیک‌آیین', 'نیک‌اندیش', 'نیک‌بین', 'نیک‌پی', 'نیک‌دل', 'نیک‌رای',
+  'نیک‌رو', 'نیک‌زاد', 'نیک‌فر', 'نیک‌فال', 'نیک‌قدم', 'نیک‌مرام', 'نیک‌نام', 'نیک‌نژاد', 'نیک‌خواه', 'نیک‌پور',
+  'نیکبخت', 'نیکیان', 'نیلی', 'نیماپور', 'نیمافر', 'واعظ', 'واعظی', 'واقفی', 'والی', 'والی‌پور',
+  'والی‌زاده', 'وحیدپور', 'وحیدزاده', 'وحیدی', 'وحیدیان', 'وحیدمنش', 'ورزنده', 'وزین', 'وزیری', 'وزیریان',
+  'وفا', 'وفادار', 'وفایی', 'وفائی', 'ولی‌پور', 'ولی‌زاده', 'ولی‌خانی', 'ولی‌نژاد', 'هادی‌پور', 'هادیزاده',
+  'هادیان', 'هادی‌فر', 'هادی‌منش', 'هانی', 'همتی', 'همتیان', 'همایونی', 'همدم', 'هوشنگی', 'هوشیارپور',
+  'هوشیاری', 'هومنی', 'هیربدی', 'هیرمندی', 'هیبتی', 'هیدجی', 'یادگار', 'یادگاری', 'یاسمی', 'یاسی',
+  'یاشارپور', 'یاشاری', 'یاوری', 'یحیوی', 'یحیی‌پور', 'یحیی‌زاده', 'یزدانی', 'یزدانیان', 'یعقوبی', 'یعقوبیان',
+  'یگانگی', 'یگانه', 'یوسف‌پور', 'یوسف‌زاده', 'یوسفی', 'یوسفیان'
+];
+
+const MALE_LATIN_NAMES = [
+  'ali', 'alireza', 'alirezaa', 'alirez', 'alirezai', 'alirezaei', 'amirreza', 'amirali', 'amirhossein', 'amirmohammad',
+  'amirabbas', 'amirmahdi', 'amirmehdi', 'amirjavad', 'amir', 'amiiir', 'amirwise', 'amiri', 'amirian', 'reza',
+  'rezaa', 'reeeza', 'rezaw', 'rezoo', 'rezai', 'rezaee', 'rezam', 'mohammad', 'mohamad', 'muhammad',
+  'mohamed', 'muhammed', 'mohammadreza', 'mohammadali', 'mohammadhossein', 'mohammadi', 'mamad', 'mammad', 'mamadi', 'mamo',
+  'mamali', 'mamex', 'hossein', 'hosein', 'hossin', 'hosyn', 'hosi', 'hosseini', 'hassan', 'hasan',
+  'hassani', 'mehdi', 'mahdi', 'mahdy', 'mehdy', 'madi', 'sajjad', 'sajad', 'sohrab', 'sina',
+  'nima', 'parsa', 'arash', 'behzad', 'behnam', 'babak', 'pouya', 'pooya', 'puya', 'pourya',
+  'porya', 'poorya', 'peyman', 'payman', 'pezhman', 'pejman', 'javad', 'javed', 'hamed', 'hamid',
+  'danial', 'daniel', 'dani', 'ramin', 'roozbeh', 'ruzbeh', 'saman', 'sepehr', 'saeed', 'saeid',
+  'said', 'soheil', 'shayan', 'shahin', 'sadegh', 'sadigh', 'abbas', 'erfan', 'farzad', 'farhad',
+  'farid', 'kamran', 'kaveh', 'kasra', 'kourosh', 'kurosh', 'kian', 'kiyan', 'maziar', 'mazyar',
+  'mani', 'majid', 'mohsen', 'morteza', 'mostafa', 'mehran', 'mehrdad', 'milad', 'navid', 'vahid',
+  'vahyd', 'hadi', 'yashar', 'younes', 'yunus', 'yunes', 'ehsan', 'ahmad', 'ahmed', 'ashkan',
+  'omid', 'omyd', 'iman', 'arman', 'armin', 'aydin', 'bardia', 'benyamin', 'benjamin', 'pedram',
+  'parham', 'payam', 'dariush', 'daryoush', 'daryush', 'rasoul', 'rasool', 'soroush', 'soroosh', 'siavash',
+  'shervin', 'shahab', 'shahriar', 'emad', 'masoud', 'masood', 'meysam', 'maysam', 'matin', 'nader',
+  'houman', 'hooman', 'hootan', 'hirad', 'yasin', 'yazdan', 'arsalan', 'ebrahim', 'ibrahim', 'esmail',
+  'ismail', 'akbar', 'asghar', 'behrooz', 'behruz', 'shahram', 'siroos', 'cyrus', 'adel', 'ghasem',
+  'mahmoud', 'mahmood', 'mansour', 'mansoor', 'manouchehr', 'mehyar', 'nariman', 'habib', 'afshin', 'ario',
+  'ariya', 'arya', 'khosro', 'khosrow', 'rostam', 'sam', 'salar', 'samiar', 'sami', 'fardin',
+  'mojtaba', 'yousef', 'yosef', 'yahya', 'radin', 'rayan', 'roham', 'rooham', 'sourena', 'karen',
+  'koosha', 'kusha', 'mahan', 'namee', 'nami', 'noyan', 'artin', 'ilia', 'ahura', 'taha',
+  'faramarz', 'keyvan', 'kayvan', 'aria', 'aryan', 'shahrokh', 'toraj', 'jamshid', 'bahram', 'esfandiar',
+  'bijan', 'bizhan', 'ardavan', 'ardeshir', 'hoshang', 'houshang', 'farrokh', 'farokh', 'farshid', 'farshad',
+  'shapur', 'shapoor', 'homayoun', 'homayun', 'shahbaz', 'shervan', 'vario', 'voria', 'sardar', 'hesam',
+  'hessam', 'khashayar', 'kamyar', 'kambiz', 'kayumars', 'kiyomars', 'araz', 'ayhan', 'baban', 'barzan',
+  'bakhtiar', 'taymaz', 'tiam', 'chia', 'chiako', 'daniar', 'delir', 'ribin', 'zana', 'zhir',
+  'zhiwar', 'soran', 'sirwan', 'shahu', 'shwan', 'hemen', 'hewal', 'hirsh', 'oktay', 'afshar',
+  'tekin', 'damon', 'arad', 'arsin', 'aryabad', 'arsen', 'armia', 'aran', 'ayrik', 'arvan',
+  'aeen', 'satyar', 'mehrad', 'yarin', 'john', 'david', 'michael', 'mike', 'james', 'robert',
+  'bob', 'bobby', 'william', 'bill', 'billy', 'thomas', 'tom', 'tommy', 'dan', 'danny',
+  'matthew', 'matt', 'alex', 'alexander', 'chris', 'christopher', 'mark', 'paul', 'george', 'steven',
+  'steve', 'brian', 'kevin', 'jason', 'jeff', 'jeffrey', 'eric', 'scott', 'ryan', 'justin',
+  'brandon', 'jake', 'jacob', 'luke', 'lucas', 'adam', 'nick', 'nicholas', 'jack', 'samuel',
+  'ben', 'harry', 'oliver', 'jackson', 'liam', 'noah', 'ethan', 'mason', 'andrew', 'andy',
+  'anthony', 'tony', 'charles', 'charlie', 'josh', 'joshua', 'nathan', 'nate', 'peter', 'pete',
+  'henry', 'edward', 'ed', 'eddie', 'aaron', 'sean', 'shawn', 'simon', 'victor', 'vincent',
+  'vince', 'patrick', 'pat', 'richard', 'rick', 'ricky', 'dick', 'gary', 'larry', 'terry',
+  'tim', 'timothy', 'alan', 'allan', 'allen', 'bruce', 'carl', 'craig', 'dennis', 'douglas',
+  'doug', 'frank', 'greg', 'gregory', 'raymond', 'ray', 'roger', 'ronald', 'ron', 'ronnie',
+  'russell', 'russ', 'carlos', 'marco', 'marcus', 'leo', 'leon', 'leonardo', 'max', 'maximilian',
+  'felix', 'isaac', 'joseph', 'oscar', 'louis', 'lewis', 'arthur', 'theo', 'theodore', 'sebastian',
+  'jesse', 'gabriel', 'elias', 'julian', 'adrian', 'christian', 'dominic', 'colin', 'ian', 'jasper',
+  'owen', 'kyle', 'tyler', 'dylan', 'caleb', 'austin', 'hunter', 'cameron', 'connor', 'travis',
+  'shane', 'cody', 'dustin', 'jared', 'trevor', 'alavi', 'moradi', 'rezaei', 'ahmadi', 'mousavi',
+  'kazemi', 'hashemi', 'ghasemi', 'abbasi', 'karimi', 'salehi', 'jafari', 'sadeghi', 'bagheri', 'rahimi',
+  'ebrahimi', 'mohammadzadeh', 'rezazadeh', 'alizadeh', 'amirzadeh', 'hoseinzadeh'
+];
+
+const FEMALE_PERSIAN_NAMES = [
+  'فاطمه', 'زهرا', 'مریم', 'زینب', 'نرگس', 'سارا', 'نیلوفر', 'مهسا', 'پریسا', 'نگار',
+  'نسترن', 'بهاره', 'بهار', 'شیما', 'رویا', 'الهام', 'سحر', 'عاطفه', 'یاسمن', 'یاس',
+  'پروانه', 'فرشته', 'مرجان', 'مونا', 'آیدا', 'شقایق', 'کیمیا', 'هانیه', 'حانیه', 'سپیده',
+  'ترانه', 'شبنم', 'مهشید', 'پگاه', 'غزل', 'صبا', 'حدیث', 'سمیه', 'ملیکا', 'سوگند',
+  'نگین', 'نازنین', 'آتنا', 'یلدا', 'دنیا', 'روژان', 'روناک', 'باران', 'آناهیتا', 'بهنوش',
+  'تینا', 'درسا', 'دلارام', 'دیبا', 'رکسانا', 'رونیکا', 'ساغر', 'ستایش', 'سونیا', 'شیدا',
+  'طناز', 'عسل', 'فرناز', 'لادن', 'لیلا', 'مارال', 'مائده', 'ماندانا', 'مهتاب', 'مهدیس',
+  'میترا', 'نوشین', 'نیکی', 'هدیه', 'هلیا', 'یکتا', 'آنیتا', 'اسما', 'پریا', 'تارا',
+  'حسنا', 'حنا', 'خاطره', 'راحله', 'راحیل', 'رها', 'ریحانه', 'ژاله', 'سمانه', 'سمیرا',
+  'شراره', 'شکوفه', 'شمیم', 'فرنوش', 'فریبا', 'گلناز', 'لاله', 'لعیا', 'محیا', 'مژده',
+  'مژگان', 'مهناز', 'نادیا', 'نسرین', 'نغمه', 'هما', 'ویدا', 'گلرخ', 'لیدا', 'سیمین',
+  'شیرین', 'پریناز', 'پانته‌آ', 'پانته‌ا', 'تهمینه', 'سودابه', 'فرانک', 'منیژه', 'کتایون',
+  'گوهر', 'مهین', 'شهین', 'پروین', 'توران', 'ایران', 'اکرم', 'اقدس', 'ملوک', 'بتول',
+  'صغری', 'کبری', 'طاهره', 'معصومه', 'اشرف', 'ستاره', 'سایه', 'شعله', 'شکیبا', 'شیوا',
+  'طلا', 'فروغ', 'گیتی', 'مرمر', 'نوا', 'ونوس', 'هنگامه', 'آویشن', 'رژین', 'سروین',
+  'طیبه', 'فائزه', 'مهلا', 'نیره', 'وجیهه', 'نازی', 'نازلی', 'ملودی', 'ملینا', 'مهرو',
+  'هلن', 'هلنا', 'هانا', 'آیسان', 'آیلین', 'آیلا', 'الینا', 'المیرا', 'پرنیان', 'ترنم',
+  'چشمه', 'دلربا', 'درنا', 'روژین', 'روجا', 'رومینا', 'ژوان', 'سوگل', 'شادن', 'شهرزاد',
+  'عاطی', 'غزال', 'کژال', 'کیانا', 'مهسیما', 'مهنوش', 'مینو', 'نوشا', 'هیران', 'ونوشه',
+  'تیدا', 'چکاوک', 'آرزو', 'ارغوان', 'افسانه', 'اکتای', 'انوشه', 'پگاه', 'پوپک', 'جوانه'
+];
+
+const FEMALE_LATIN_NAMES = [
+  'fatemeh', 'fateme', 'ftm', 'zahra', 'zhra', 'maryam', 'mary', 'mrym', 'sara', 'sarah',
+  'mahsa', 'mhsa', 'parisa', 'niloofar', 'niloufar', 'negar', 'nastaran', 'bahar', 'bahareh',
+  'shima', 'roya', 'elham', 'sahar', 'atefeh', 'atefe', 'kimya', 'kimia', 'hanieh', 'sepideh',
+  'taraneh', 'shabnam', 'mahshid', 'pegah', 'ghazal', 'saba', 'negin', 'nazanin', 'nazi',
+  'melika', 'sogand', 'darya', 'yalda', 'donya', 'tina', 'dorsa', 'delaram', 'sheida',
+  'asal', 'farnaz', 'leila', 'leyla', 'lila', 'maral', 'maedeh', 'mandana', 'mahtab',
+  'mitra', 'noushin', 'nooshin', 'niki', 'helia', 'priya', 'reihaneh', 'samira', 'shirin',
+  'parinaz', 'pantea', 'katayoun', 'simin', 'shahrzad', 'melina', 'atina', 'arezoo', 'arzu',
+  'helen', 'helena', 'hana', 'aysan', 'aylin', 'elina', 'elmira', 'parnian', 'kiana',
+  'minoo', 'minu', 'romina', 'sogol',
+  'emma', 'olivia', 'sophia', 'isabella', 'mia', 'charlotte', 'amelia', 'emily', 'anna',
+  'jessica', 'ashley', 'amanda', 'jennifer', 'taylor', 'lauren', 'rachel', 'megan', 'hannah',
+  'victoria', 'elizabeth', 'chloe', 'samantha', 'nicole', 'stephanie', 'alyssa', 'kayla',
+  'lucy', 'claire', 'grace', 'lily', 'zoe', 'natalie', 'audrey', 'allison', 'maya', 'leah'
+];
+
+function buildExpandedPersianSet(baseList) {
+  const set = new Set();
+  for (const raw of baseList) {
+    if (!raw) continue;
+    const clean = raw.trim();
+    set.add(clean);
+    if (clean.startsWith('آ')) set.add('ا' + clean.slice(1));
+    else if (clean.startsWith('ا')) set.add('آ' + clean.slice(1));
+    if (clean.includes('‌')) {
+      set.add(clean.replace(/‌/g, ''));
+      set.add(clean.replace(/‌/g, ' '));
+    }
+  }
+  return set;
+}
+
+function buildExpandedLatinSet(baseList) {
+  const set = new Set();
+  for (const raw of baseList) {
+    if (!raw) continue;
+    const clean = raw.toLowerCase().trim();
+    set.add(clean);
+    set.add(clean.replace(/ou/g, 'oo'));
+    set.add(clean.replace(/oo/g, 'ou'));
+    set.add(clean.replace(/ou/g, 'u'));
+    set.add(clean.replace(/oo/g, 'u'));
+    set.add(clean.replace(/u/g, 'ou'));
+    set.add(clean.replace(/u/g, 'oo'));
+    set.add(clean.replace(/ee/g, 'i'));
+    set.add(clean.replace(/ei/g, 'ey'));
+    set.add(clean.replace(/ey/g, 'ei'));
+    set.add(clean.replace(/ei/g, 'i'));
+    set.add(clean.replace(/ey/g, 'i'));
+    set.add(clean.replace(/kh/g, 'x'));
+    set.add(clean.replace(/x/g, 'kh'));
+    set.add(clean.replace(/gh/g, 'q'));
+    set.add(clean.replace(/q/g, 'gh'));
+    set.add(clean.replace(/([a-z])\1+/g, '$1'));
+  }
+  return set;
+}
+
+const MALE_PERSIAN_SET = buildExpandedPersianSet(MALE_PERSIAN_NAMES);
+const MALE_LATIN_SET = buildExpandedLatinSet(MALE_LATIN_NAMES);
+const FEMALE_PERSIAN_SET = buildExpandedPersianSet(FEMALE_PERSIAN_NAMES);
+const FEMALE_LATIN_SET = buildExpandedLatinSet(FEMALE_LATIN_NAMES);
+
+const HONORIFIC_TITLES = new Set([
+  'دکتر', 'مهندس', 'سید', 'حاجی', 'حاج', 'کربلایی', 'شیخ', 'میرزا', 'استاد',
+  'سرهنگ', 'سردار', 'dr', 'eng', 'mr', 'mrs', 'ms', 'seyed', 'seyyed', 'haj', 'haji', 'prof'
+]);
+
+const PERSIAN_SUFFIXES = ['خان', 'جان', 'آقا', 'اقا', 'زاده', 'پور', 'نیا', 'راد', 'فر', 'وند'];
+const HANDLE_PREFIXES = ['mr', 'dr', 'seyed', 'haj', 'haji', 'its', 'iam', 'the', 'real', 'official', 'lord', 'king', 'sir', 'boy'];
+const HANDLE_SUFFIXES = ['boy', 'pv', 'official', 'dev', 'tech', 'pro', 'music', 'fit', 'gym', 'iran', 'teh', 'ir'];
+
+const LEET_MAP = {
+  '0': 'o',
+  '1': 'i',
+  '3': 'e',
+  '4': 'a',
+  '5': 's',
+  '7': 't',
+  '8': 'b',
+};
+
+function decodeLeetspeak(str) {
+  if (!str) return '';
+  return str.replace(/[0134578]/g, (ch) => LEET_MAP[ch] || ch);
+}
+
+function collapseRepeatedLetters(str) {
+  if (!str) return '';
+  return str.replace(/([a-z])\1+/g, '$1');
+}
+
+function normalizePersianText(str) {
+  if (!str) return '';
+  return String(str)
+    .normalize('NFKC')
+    .replace(/[ً-ٰٟ]/g, '')
+    .replace(/ـ/g, '')
+    .replace(/[‌‍​­﻿]/g, ' ')
+    .replace(/[يى]/g, 'ی')
+    .replace(/ك/g, 'ک')
+    .replace(/[ةۀ]/g, 'ه')
+    .replace(/[آأإٱ]/g, 'ا')
+    .replace(/ؤ/g, 'و')
+    .replace(/ئ/g, 'ی')
+    .toLowerCase();
+}
+
+function cleanPersianTokens(str) {
+  if (!str) return [];
+  const n = normalizePersianText(str);
+  const candidates = new Set();
+  const tokens = n.replace(/[^\p{L}\p{N}\s]/gu, ' ').trim().split(/\s+/).filter(Boolean);
+
+  for (const t of tokens) {
+    if (HONORIFIC_TITLES.has(t)) continue;
+    if (t.length >= 2) {
+      candidates.add(t);
+      const collapsed3 = t.replace(/(.)\1{2,}/gu, '$1');
+      candidates.add(collapsed3);
+      for (const suff of PERSIAN_SUFFIXES) {
+        if (t.endsWith(suff) && t.length - suff.length >= 2) {
+          candidates.add(t.slice(0, -suff.length));
+        }
+      }
+    }
+  }
+  return Array.from(candidates);
+}
+
+function getHandleCandidateTokens(handle) {
+  if (!handle) return [];
+  const clean = String(handle).replace(/^@/, '').toLowerCase();
+  const rawParts = clean.split(/[^a-z0-9]+/).filter(Boolean);
+  const candidates = new Set();
+
+  for (const part of rawParts) {
+    const pureAlpha = part.replace(/[0-9]/g, '');
+    if (pureAlpha.length >= 3) {
+      candidates.add(pureAlpha);
+      candidates.add(collapseRepeatedLetters(pureAlpha));
+    }
+    const decoded = decodeLeetspeak(part).replace(/[0-9]/g, '');
+    if (decoded.length >= 3) {
+      candidates.add(decoded);
+      candidates.add(collapseRepeatedLetters(decoded));
+    }
+    for (const pref of HANDLE_PREFIXES) {
+      if (decoded.startsWith(pref) && decoded.length - pref.length >= 3) {
+        const stripped = decoded.slice(pref.length);
+        candidates.add(stripped);
+        candidates.add(collapseRepeatedLetters(stripped));
+      }
+    }
+    for (const suff of HANDLE_SUFFIXES) {
+      if (decoded.endsWith(suff) && decoded.length - suff.length >= 3) {
+        const stripped = decoded.slice(0, -suff.length);
+        candidates.add(stripped);
+        candidates.add(collapseRepeatedLetters(stripped));
+      }
+    }
+  }
+  return Array.from(candidates);
+}
+
+function extractDisplayNameCandidates(displayName) {
+  if (!displayName) return { persianTokens: [], latinTokens: [] };
+  const persianTokens = cleanPersianTokens(displayName);
+
+  const latinClean = String(displayName).toLowerCase().replace(/[^a-z0-9\s]/g, ' ').trim();
+  const rawLatin = latinClean.split(/\s+/).filter(Boolean);
+  const latinCandidates = new Set();
+
+  for (const part of rawLatin) {
+    const pureAlpha = part.replace(/[0-9]/g, '');
+    if (pureAlpha.length >= 3) {
+      latinCandidates.add(pureAlpha);
+      latinCandidates.add(collapseRepeatedLetters(pureAlpha));
+    }
+    const decoded = decodeLeetspeak(part).replace(/[0-9]/g, '');
+    if (decoded.length >= 3) {
+      latinCandidates.add(decoded);
+      latinCandidates.add(collapseRepeatedLetters(decoded));
+    }
+  }
+  return { persianTokens, latinTokens: Array.from(latinCandidates) };
+}
+
+const FEMALE_HANDLE_KEYWORD_REGEX = /(?:^|[._\-])(girl|girly|woman|female|mother|mom|sister|wife|daughter|mrs|ms|miss|lady|queen|princess|dokhtar|dokhtare|khanom|khanome|banoo|maman)(?:[._\-]|$)/i;
+const FEMALE_PRONOUNS_REGEX = /\b(she\/her|she\/hers|she \/ her|her\/hers|sheher|she\/they)\b/i;
+const FEMALE_EMOJIS_REGEX = /(?:👩|👧|👱‍♀️|👩‍🦰|👩‍🦱|👩‍🦳|👩‍🦲|👸|👰|🤰|🤱|♀️|♀|🚺)/u;
+const FEMALE_WORDS_REGEX = /(?:^|[^\p{L}\p{N}])(دختر(?:م|ونه|ام|مون)?|دخمل(?:ی)?|زن(?:م|ونه|انه|ام)?|خان[وم]م?(?:ی|ام|تون|مون)?|بانو(?:ی|هام|مون)?|دوشیزه|مادر(?:م|ام|مون)?|مامان(?:م|ام|تون|مون|ی)?|مامی|خواهر(?:م|ام|مون)?|[آا]بجی|ابجی|زنونه|عروس(?:م|مون)?|خاله|عمه|girl|girly|woman|female|mother|mom|sister|wife|daughter|mrs|ms|miss|lady|queen|princess)(?:$|[^\p{L}\p{N}])/ui;
+
+const MALE_PRONOUNS_REGEX = /\b(he\/him|he\/his|he\/him\/his|he \/ him|him\/his|hehim|he\/they)\b/i;
+const MALE_EMOJIS_REGEX = /(?:👨|👦|🧔|🧔‍♂️|👨‍🦰|👨‍🦱|👨‍🦳|👨‍🦲|🤴|🤵|♂️|♂|🚹)/u;
+const MALE_WORDS_REGEX = /(?:^|[^\p{L}\p{N}])(پسر(?:م|ک|ونه|ام|مون)?|گل‌پسر|گل\s*پسر|شاه‌پسر|مرد(?:م|ونه|انه|ک|ام)?|جوانمرد|[آا]قا(?:مون|م|یی|ها|زاده)?|[آا]قای|پدر(?:م|ام|مون)?|بابا(?:م|ش|شم|یی|هام|مون)?|پاپا|داداش(?:م|ی|یا|یام|ام|تون|مون)?|دادا(?:م|ش)?|داش(?:ی|م)?|برادر(?:م|ام|مون)?|برار|کاکا|کاکو|شوهر(?:م|ام|تون|مون)?|داماد|شازده|سلطان|boy|guy|dude|man|father|dad|brother|husband|son|mister|gentleman|boyish|male|bro|bloke|chap|fella)(?:$|[^\p{L}\p{N}])/ui;
+const MALE_HANDLE_KEYWORD_REGEX = /(?:^|[._\-])(boy|guy|dude|man|father|dad|brother|bro|husband|son|mister|mr|pesare?|marde?|shazdeh|dadash|dada|kaka)(?:[._\-]|$)/i;
+
+function containsMalePersianSubname(token) {
+  if (!token || token.length < 2) return false;
+  if (MALE_PERSIAN_SET.has(token)) return true;
+  for (let i = 0; i < MALE_PERSIAN_NAMES.length; i++) {
+    const name = MALE_PERSIAN_NAMES[i];
+    if (name.length >= 3) {
+      if (token.startsWith(name) || token.endsWith(name)) return true;
+    } else if (name.length === 2 && (name === 'علی' || name === 'رضا')) {
+      if (token.startsWith(name) || token.endsWith(name)) return true;
+    }
+  }
+  return false;
+}
+
+function containsMaleLatinSubname(str) {
+  if (!str || str.length < 3) return false;
+  const decoded = decodeLeetspeak(str);
+  const collapsed = collapseRepeatedLetters(decoded);
+  if (MALE_LATIN_SET.has(str) || MALE_LATIN_SET.has(decoded) || MALE_LATIN_SET.has(collapsed)) {
+    return true;
+  }
+  for (let i = 0; i < MALE_LATIN_NAMES.length; i++) {
+    const name = MALE_LATIN_NAMES[i];
+    if (name.length >= 4) {
+      if (str.includes(name) || decoded.includes(name) || collapsed.includes(name)) return true;
+    } else if (name.length === 3) {
+      if (
+        str.startsWith(name) || str.endsWith(name) ||
+        decoded.startsWith(name) || decoded.endsWith(name) ||
+        str.includes('_' + name) || str.includes(name + '_') ||
+        decoded.includes('_' + name) || decoded.includes(name + '_')
+      ) {
+        return true;
+      }
+    }
+  }
+  return false;
+}
+
+function evaluateGuyAccount(displayName, bio, handle) {
+  const normBio = normalizePersianText(bio);
+  const normName = normalizePersianText(displayName);
+  const rawHandle = String(handle || '').replace(/^@/, '');
+  const normHandle = rawHandle.toLowerCase();
+
+  // ---------------------------------------------------------
+  // Step 1: Female Guard (Absolute Immunity for Women)
+  // ---------------------------------------------------------
+  if (FEMALE_HANDLE_KEYWORD_REGEX.test(rawHandle)) {
+    return false;
+  }
+
+  if (FEMALE_PRONOUNS_REGEX.test(bio) || FEMALE_PRONOUNS_REGEX.test(displayName) || FEMALE_PRONOUNS_REGEX.test(normHandle)) {
+    return false;
+  }
+
+  if (FEMALE_EMOJIS_REGEX.test(bio) || FEMALE_EMOJIS_REGEX.test(displayName)) {
+    return false;
+  }
+
+  if (FEMALE_WORDS_REGEX.test(normBio) || FEMALE_WORDS_REGEX.test(normName)) {
+    return false;
+  }
+
+  const { persianTokens: namePersian, latinTokens: nameLatin } = extractDisplayNameCandidates(displayName);
+  const handleCandidates = getHandleCandidateTokens(rawHandle);
+
+  for (const t of namePersian) {
+    if (FEMALE_PERSIAN_SET.has(t) || FEMALE_LATIN_SET.has(t)) {
+      return false;
+    }
+  }
+
+  for (const t of nameLatin) {
+    if (FEMALE_LATIN_SET.has(t) || FEMALE_PERSIAN_SET.has(t)) {
+      return false;
+    }
+  }
+
+  for (const t of handleCandidates) {
+    if (FEMALE_LATIN_SET.has(t) || FEMALE_PERSIAN_SET.has(t)) {
+      return false;
+    }
+  }
+
+  // ---------------------------------------------------------
+  // Step 2: Male Indicators
+  // ---------------------------------------------------------
+  // A. Male Pronouns
+  if (MALE_PRONOUNS_REGEX.test(bio) || MALE_PRONOUNS_REGEX.test(displayName) || MALE_PRONOUNS_REGEX.test(normHandle)) {
+    return true;
+  }
+
+  // B. Male Emojis
+  if (MALE_EMOJIS_REGEX.test(bio) || MALE_EMOJIS_REGEX.test(displayName)) {
+    return true;
+  }
+
+  // C. Male Identity Keywords
+  if (MALE_WORDS_REGEX.test(normBio) || MALE_WORDS_REGEX.test(normName)) {
+    return true;
+  }
+
+  // D. Male Handle Keywords (e.g., @pesare_tanha, @mr_reza, @bad_boy_99, @pouya_boy)
+  if (MALE_HANDLE_KEYWORD_REGEX.test(rawHandle)) {
+    return true;
+  }
+
+  // E. Male First Names or Concatenated Subnames in Display Name
+  for (const t of namePersian) {
+    if (containsMalePersianSubname(t) || containsMaleLatinSubname(t)) {
+      return true;
+    }
+  }
+
+  for (const t of nameLatin) {
+    if (containsMaleLatinSubname(t) || containsMalePersianSubname(t)) {
+      return true;
+    }
+  }
+
+  // F. Male First Names or Concatenated Subnames in Handle
+  if (containsMaleLatinSubname(rawHandle)) {
+    return true;
+  }
+
+  for (const t of handleCandidates) {
+    if (containsMaleLatinSubname(t) || containsMalePersianSubname(t)) {
+      return true;
+    }
+  }
+  return false;
+}
+
+function detectGuyAccount(tweet) {
+  const handle = getHandleFromTweet(tweet);
+  if (!handle || isHandleBoysWhitelisted(handle)) return false;
+
+  const cleanHandle = String(handle).toLowerCase().replace(/^@/, '').trim();
+
+  // Fast L1 memory cache
+  if (genderDetectionCache.has(cleanHandle)) {
+    return genderDetectionCache.get(cleanHandle);
+  }
+
+  // Check persistent cache
+  if (typeof XWiseCache !== 'undefined' && XWiseCache.getMemoryOnly) {
+    const memVerdict = XWiseCache.getMemoryOnly('gender', cleanHandle);
+    if (typeof memVerdict === 'boolean') {
+      genderDetectionCache.set(cleanHandle, memVerdict);
+      return memVerdict;
+    }
+  }
+
+  const displayName = extractDisplayNameFromTweet(tweet) || '';
+  const bio = extractBioForUser(handle, tweet) || '';
+
+  const isMale = evaluateGuyAccount(displayName, bio, cleanHandle);
+  genderDetectionCache.set(cleanHandle, isMale);
+
+  if (typeof XWiseCache !== 'undefined' && XWiseCache.set) {
+    XWiseCache.set('gender', cleanHandle, isMale);
+  }
+
+  return isMale;
+}
+
+// ============================================================================
 // Unicode Normalization & Filter Engine
 // ============================================================================
 
@@ -972,11 +1793,16 @@ function extractFullTextWithAlt(element) {
 }
 
 function extractDisplayNameFromTweet(tweet) {
-  const userNameContainer = tweet.querySelector('[data-testid="User-Name"]');
-  if (!userNameContainer) return '';
-  const nameAnchor = userNameContainer.querySelector('a[role="link"]');
-  if (nameAnchor) return extractFullTextWithAlt(nameAnchor);
-  return extractFullTextWithAlt(userNameContainer);
+  // Strictly take User-Name of the primary author, not the quoted tweet
+  const userNames = tweet.querySelectorAll('[data-testid="User-Name"]');
+  for (let i = 0; i < userNames.length; i++) {
+    const un = userNames[i];
+    if (isInsideQuoteTweet(un, tweet)) continue;
+    const nameAnchor = un.querySelector('a[role="link"]');
+    if (nameAnchor) return extractFullTextWithAlt(nameAnchor);
+    return extractFullTextWithAlt(un);
+  }
+  return '';
 }
 
 function extractBioForUser(handle, tweet) {
@@ -992,22 +1818,33 @@ function extractBioForUser(handle, tweet) {
     }
   }
 
-  const profileBio = document.querySelector('[data-testid="UserDescription"]');
-  if (profileBio) {
-    const bioText = extractFullTextWithAlt(profileBio);
-    if (bioText) {
-      userBioCache.set(cleanHandle, bioText);
-      if (typeof XWiseCache !== 'undefined') XWiseCache.set('bios', cleanHandle, bioText);
-      return bioText;
+  // Only read profile bio if the current page actually IS this user's profile
+  const path = window.location.pathname.toLowerCase();
+  if (path === `/${cleanHandle}` || path === `/${cleanHandle}/`) {
+    const profileBio = document.querySelector('[data-testid="UserDescription"]');
+    if (profileBio) {
+      const bioText = extractFullTextWithAlt(profileBio);
+      if (bioText) {
+        userBioCache.set(cleanHandle, bioText);
+        if (typeof XWiseCache !== 'undefined') XWiseCache.set('bios', cleanHandle, bioText);
+        return bioText;
+      }
     }
   }
 
-  const cellBio = tweet?.querySelector?.('[data-testid="UserDescription"]');
-  if (cellBio) {
-    const bioText = extractFullTextWithAlt(cellBio);
-    userBioCache.set(cleanHandle, bioText);
-    if (typeof XWiseCache !== 'undefined') XWiseCache.set('bios', cleanHandle, bioText);
-    return bioText;
+  // Inside a tweet cell, ensure UserDescription is NOT inside a quote tweet
+  const bios = tweet?.querySelectorAll?.('[data-testid="UserDescription"]');
+  if (bios && bios.length > 0) {
+    for (let i = 0; i < bios.length; i++) {
+      const b = bios[i];
+      if (isInsideQuoteTweet(b, tweet)) continue;
+      const bioText = extractFullTextWithAlt(b);
+      if (bioText) {
+        userBioCache.set(cleanHandle, bioText);
+        if (typeof XWiseCache !== 'undefined') XWiseCache.set('bios', cleanHandle, bioText);
+        return bioText;
+      }
+    }
   }
 
   return '';
@@ -1097,6 +1934,16 @@ async function processTweetFilter(tweet) {
   const botMatch = detectBotOrBait(tweet);
   if (botMatch) {
     applyHideTweet(tweet, { rule: botMatch.rule, scope: botMatch.type, handle: botMatch.handle });
+    return;
+  }
+
+  // No-Boys Timeline Filter (Fun Feature — strictly on "For you" timeline tab!)
+  if (settings.hideBoysMode && isForYouTab() && detectGuyAccount(tweet)) {
+    applyHideTweet(tweet, {
+      rule: settings.language === 'fa' ? 'اکانت پسر 🚹' : 'Boy Account 🚹',
+      scope: 'gender',
+      handle,
+    });
     return;
   }
 
@@ -1648,6 +2495,7 @@ function loadSettings() {
       settings = { ...DEFAULT_SETTINGS, ...stored };
       if (stored.lastVolume !== undefined) lastVolume = stored.lastVolume;
       updateWhitelistSet();
+      updateBoysWhitelistSet();
       applyTimelineCleaners();
       cleanWhoToFollowRecommendations(document);
       resolve(settings);
@@ -1664,6 +2512,33 @@ chrome.storage?.onChanged?.addListener((changes, area) => {
   }
   if ('whitelist' in changes) {
     updateWhitelistSet();
+  }
+  if ('boysWhitelist' in changes) {
+    updateBoysWhitelistSet();
+    document.querySelectorAll('article.xe-tweet-hidden[data-xe-reason="gender"]').forEach((tw) => {
+      const h = getHandleFromTweet(tw);
+      if (isHandleBoysWhitelisted(h)) {
+        tw.classList.remove('xe-tweet-hidden');
+        tw.removeAttribute('data-xe-reason');
+        tw.querySelector('.xe-filtered-bar[data-xe-gender="true"]')?.remove();
+        hiddenTweetNodes.delete(tw);
+      }
+    });
+  }
+  if ('hideBoysMode' in changes) {
+    if (changes.hideBoysMode.newValue) {
+      document.querySelectorAll('article[data-testid="tweet"]').forEach((tw) => {
+        scannedTweetNodes.delete(tw);
+        processTweetFilter(tw);
+      });
+    } else {
+      document.querySelectorAll('article.xe-tweet-hidden[data-xe-reason="gender"]').forEach((tw) => {
+        tw.classList.remove('xe-tweet-hidden');
+        tw.removeAttribute('data-xe-reason');
+        tw.querySelector('.xe-filtered-bar[data-xe-gender="true"]')?.remove();
+        hiddenTweetNodes.delete(tw);
+      });
+    }
   }
   applyTimelineCleaners();
   cleanWhoToFollowRecommendations(document);
@@ -1744,16 +2619,71 @@ const pendingRoots = new Set();
 let scanScheduled = false;
 
 let currentUrl = window.location.href;
+let lastIsForYou = true;
+
+function isForYouTab() {
+  const path = window.location.pathname.toLowerCase();
+  // 1. Must be on home timeline root (/ or /home)
+  if (path !== '/' && path !== '/home') {
+    return false;
+  }
+
+  // 2. Must be on 'For you' tab (not Following, not Lists, not Profiles)
+  const tablist = document.querySelector('[role="tablist"]');
+  if (tablist) {
+    const tabs = Array.from(tablist.querySelectorAll('[role="tab"]'));
+    if (tabs.length >= 2) {
+      const selected = tablist.querySelector('[role="tab"][aria-selected="true"]');
+      if (selected && selected !== tabs[0]) {
+        return false;
+      }
+    }
+  }
+
+  return true;
+}
 
 function handleNavigation() {
-  if (window.location.href !== currentUrl) {
+  const urlChanged = window.location.href !== currentUrl;
+  const curForYou = isForYouTab();
+  const forYouChanged = curForYou !== lastIsForYou;
+
+  if (urlChanged || forYouChanged) {
     currentUrl = window.location.href;
+    lastIsForYou = curForYou;
+
     applyTimelineCleaners();
     cleanWhoToFollowRecommendations(document);
+    cleanZenSidebar();
+
+    // If leaving For You tab (switching to Following or navigating to a Profile):
+    if (!curForYou && settings.hideBoysMode) {
+      document.querySelectorAll('article[data-xe-reason="gender"]').forEach((tw) => {
+        tw.classList.remove('xe-tweet-hidden', 'xe-tweet-revealed');
+        tw.removeAttribute('data-xe-hidden');
+        tw.removeAttribute('data-xe-revealed');
+        tw.removeAttribute('data-xe-reason');
+        tw.querySelector('.xe-filtered-bar')?.remove();
+        tw.querySelector('.xe-rehide-banner')?.remove();
+        hiddenTweetNodes.delete(tw);
+      });
+    } else if (curForYou && settings.hideBoysMode) {
+      // Re-scan when returning to For You tab
+      document.querySelectorAll('article[data-testid="tweet"]').forEach((tw) => {
+        scannedTweetNodes.delete(tw);
+        processTweetFilter(tw);
+      });
+    }
   }
 }
 
 window.addEventListener('popstate', handleNavigation);
+document.addEventListener('click', (e) => {
+  if (e.target.closest?.('[role="tab"], a[href="/home"], a[role="tab"]')) {
+    setTimeout(handleNavigation, 80);
+    setTimeout(handleNavigation, 250);
+  }
+}, { passive: true });
 
 function flushScan() {
   scanScheduled = false;
@@ -1780,6 +2710,7 @@ function flushScan() {
 
   // Sweep sidebar recommendations on full document
   cleanWhoToFollowRecommendations(document);
+  cleanZenSidebar();
 
   ensureInPageLauncher();
 }

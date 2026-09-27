@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>XWise Blocker Pro v3.0</title>
+  <title>XWise Blocker Pro v3.1.1</title>
   <link rel="stylesheet" href="popup.css" />
 </head>
 <body>
@@ -15,7 +15,7 @@
         <div class="xe-header-text">
           <div class="xe-title-row">
             <h1>XWise Blocker</h1>
-            <span class="xe-badge">v3.0 Pro</span>
+            <span class="xe-badge">v3.1.1 Pro</span>
           </div>
           <p class="xe-sub" data-i18n="appSubtitle">سوئیت فیلتر هوشمند، ردیاب آنفالو و پاک‌ساز X</p>
         </div>
@@ -480,11 +480,19 @@
         <div class="xe-row">
           <div class="xe-row-content">
             <p class="xe-row-title" data-i18n="zenModeTitle">حالت تمرکز و مطالعه (Zen Mode)</p>
-            <p class="xe-row-desc" data-i18n="zenModeDesc">مخفی کردن ستون‌های کناری و متمرکز کردن تایم‌لاین</p>
+            <p class="xe-row-desc" data-i18n="zenModeDesc">خلوت‌سازی سایدبار راست و متمرکز کردن تایم‌لاین</p>
           </div>
           <label class="xe-switch">
             <input type="checkbox" id="zenModeEnabled" />
             <span></span>
+          </label>
+        </div>
+
+        <!-- Zen Mode Search Option -->
+        <div class="xe-zen-options" id="zenSubOptions" style="display: none;">
+          <label class="xe-checkbox-label">
+            <input type="checkbox" id="zenKeepSearch" checked />
+            <span data-i18n="zenKeepSearch">روشن ماندن کادر جستجو در سایدبار</span>
           </label>
         </div>
 
@@ -577,6 +585,43 @@
             <option value="replies-only" data-i18n="optRepliesOnly">فقط در ریپلای‌ها</option>
             <option value="all" data-i18n="optAll">همه جا</option>
           </select>
+        </div>
+      </section>
+
+      <!-- Fun & Special Filter: No-Boys Mode (New in v3.0.1) -->
+      <section class="xe-card xe-fun-card">
+        <div class="xe-card-badge-row">
+          <span class="xe-badge-fun">Fun ⚡</span>
+        </div>
+
+        <div class="xe-row">
+          <div class="xe-row-content">
+            <div class="xe-fun-title-row">
+              <span class="xe-fun-icon">🚹🚫</span>
+              <p class="xe-row-title" data-i18n="hideBoysModeTitle">حالت بدون پسر (No-Boys Mode)</p>
+            </div>
+            <p class="xe-row-desc" data-i18n="hideBoysModeDesc">مخفی‌سازی خودکار توییت‌های اکانت‌های پسر و آقایان در تب For you (شناسایی هوشمند نام، بایو و ضمایر)</p>
+          </div>
+          <label class="xe-switch">
+            <input type="checkbox" id="hideBoysMode" />
+            <span></span>
+          </label>
+        </div>
+
+        <!-- Whitelist for Friends in No-Boys Mode -->
+        <div class="xe-fun-whitelist" id="boysWhitelistSection">
+          <div class="xe-card-header-row">
+            <span class="xe-mode-label" data-i18n="boysWhitelistHeading">لیست دوستان پسر (استثناها):</span>
+            <span class="xe-count-badge" id="boysWhitelistCountBadge">0</span>
+          </div>
+          <p class="xe-card-note" data-i18n="boysWhitelistDesc">اکانت‌های این لیست در تایم‌لاین هرگز مخفی نخواهند شد.</p>
+          <div class="xe-input-wrapper">
+            <input type="text" id="boysWhitelistInput" class="xe-text-input xe-input-compact"
+                   placeholder="آیدی توییتر دوستتان (مثلاً amir@)..."
+                   data-i18n-placeholder="boysWhitelistPlaceholder" autocomplete="off" />
+            <button type="button" id="btnAddBoysWhitelist" class="xe-btn-secondary xe-btn-compact" data-i18n="btnAdd">افزودن</button>
+          </div>
+          <div id="boysWhitelistContainer" class="xe-whitelist-chips xe-fun-chips"></div>
         </div>
       </section>
     </main>

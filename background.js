@@ -1,7 +1,7 @@
 'use strict';
 
 /**
- * XWise Blocker v3.0.0 — Background Service Worker
+ * XWise Blocker v3.1.1 — Background Service Worker
  * Handles unified storage migration to v5, media download automation,
  * cross-tab synchronization, periodic relationship tracking, and runtime messaging.
  */
@@ -38,6 +38,7 @@ const DEFAULT_SETTINGS = {
   hidePremiumUpsell: true,     // Hide "Subscribe to Premium" boxes
   hideViewCounts: false,       // Hide view counts on tweets
   zenModeEnabled: false,       // Focus / Zen reader mode (hide sidebars)
+  zenKeepSearch: true,         // Keep search box in sidebar during zen mode
   scrollToTopEnabled: true,    // Smooth floating scroll to top button
   highResImagesEnabled: true,  // Automatically load high-res images
 
@@ -56,6 +57,10 @@ const DEFAULT_SETTINGS = {
   // Anti-Spam & Bot Detection
   filterDefaultAvatars: false, // Filter default egg avatars
   filterEngagementBait: false, // Filter obvious engagement bait
+
+  // Fun & Special Filters (New in v3.0.1)
+  hideBoysMode: false, // Fun mode: hide guy/male accounts on timeline (default: off)
+  boysWhitelist: [],   // Exempt friend handles for No-Boys Mode
 
   // Ad Cleaner
   adBlockerEnabled: true,

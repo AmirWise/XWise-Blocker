@@ -1,7 +1,7 @@
 'use strict';
 
 /**
- * XWise Blocker v3.0.0 Masterpiece — Complete Controller
+ * XWise Blocker v3.1.1 Masterpiece — Complete Controller
  * High-performance bilingual controller managing 5-tab suite,
  * real-time relationship tracking, safety action queue, and caching.
  */
@@ -99,7 +99,8 @@ const I18N = {
     adBlockerTitle: 'مسدودساز تبلیغات و اسپانسرها (Ad Blocker)',
     adBlockerDesc: 'حذف بدون پرش و کامل توییت‌های Promoted و تبلیغاتی',
     zenModeTitle: 'حالت تمرکز و مطالعه (Zen Mode)',
-    zenModeDesc: 'مخفی کردن ستون‌های کناری و متمرکز کردن تایم‌لاین',
+    zenModeDesc: 'خلوت‌سازی سایدبار راست و متمرکز کردن تایم‌لاین',
+    zenKeepSearch: 'روشن ماندن کادر جستجو در سایدبار',
     hideWhoToFollowTitle: 'مخفی کردن «چه کسانی را دنبال کنید»',
     hideWhoToFollowDesc: 'حذف پیشنهادهای فالو و کادرهای اضافه در تایم‌لاین',
     hideProfileWhoToFollowTitle: 'مخفی کردن «پیشنهاد فالو» در پروفایل‌ها',
@@ -119,6 +120,14 @@ const I18N = {
     optOff: 'خاموش',
     optRepliesOnly: 'فقط در ریپلای‌ها',
     optAll: 'همه جا',
+    funFiltersHeading: 'فیلتر اختصاصی و سرگرمی',
+    hideBoysModeTitle: 'حالت بدون پسر (No-Boys Mode)',
+    hideBoysModeDesc: 'مخفی‌سازی خودکار توییت‌های اکانت‌های پسر و آقایان در تایم‌لاین (شناسایی هوشمند نام، بایو و ضمایر)',
+    boysWhitelistHeading: 'لیست دوستان پسر (استثناها):',
+    boysWhitelistDesc: 'اکانت‌های این لیست در تایم‌لاین هرگز مخفی نخواهند شد.',
+    boysWhitelistPlaceholder: 'آیدی توییتر دوستتان (مثلاً amir@)...',
+    boysWhitelistAdded: 'به لیست دوستان مصون افزوده شد',
+    boysWhitelistExists: 'این کاربر قبلاً در لیست دوستان وجود دارد',
 
     // Settings & Cache
     settingsGeneralHeading: 'تنظیمات عمومی و کاربری',
@@ -239,7 +248,8 @@ const I18N = {
     adBlockerTitle: 'Ad & Sponsored Tweet Blocker',
     adBlockerDesc: 'Instant zero-flicker removal of promoted tweets',
     zenModeTitle: 'Zen Focus Reader Mode',
-    zenModeDesc: 'Hide clutter sidebars and center the feed',
+    zenModeDesc: 'Clean right sidebar and center the timeline',
+    zenKeepSearch: 'Keep Search Bar visible in sidebar',
     hideWhoToFollowTitle: 'Hide "Who to follow"',
     hideWhoToFollowDesc: 'Remove follow recommendations from timeline',
     hideProfileWhoToFollowTitle: 'Hide Who to follow on Profiles',
@@ -259,6 +269,14 @@ const I18N = {
     optOff: 'Off',
     optRepliesOnly: 'Replies Only',
     optAll: 'All Tweets',
+    funFiltersHeading: 'Fun & Special Filters',
+    hideBoysModeTitle: 'No-Boys Mode (Hide Guys)',
+    hideBoysModeDesc: 'Automatically hide tweets from male accounts on timeline (smart detection by name, bio & pronouns)',
+    boysWhitelistHeading: 'Exempt Friends Whitelist:',
+    boysWhitelistDesc: 'Accounts in this list will never be hidden on timeline.',
+    boysWhitelistPlaceholder: 'Friend username (e.g. @amir)...',
+    boysWhitelistAdded: 'Added to exempt friends list',
+    boysWhitelistExists: 'User already in exempt list',
 
     // Settings & Cache
     settingsGeneralHeading: 'General Settings',
@@ -360,6 +378,10 @@ document.addEventListener('DOMContentLoaded', async () => {
     filters: [],
     whitelist: [],
     language: 'fa',
+    zenModeEnabled: false,
+    zenKeepSearch: true,
+    hideBoysMode: false,
+    boysWhitelist: [],
     ...loaded,
   };
   currentLang = currentSettings.language || 'fa';
@@ -544,10 +566,11 @@ async function setupDashboard() {
 }
 
 async function renderDashboard() {
-  // Update stats
+  // Update stats (Total blocked = manual block + auto filter blocks)
+  const totalBlocked = (currentSettings.blockCount || 0) + (currentSettings.filterBlockCount || 0);
   document.getElementById('statAdBlockCount').textContent = currentSettings.adBlockCount || 0;
   document.getElementById('statHideCount').textContent = currentSettings.hideCount || 0;
-  document.getElementById('statBlockCount').textContent = currentSettings.blockCount || 0;
+  document.getElementById('statBlockCount').textContent = totalBlocked;
   document.getElementById('statUnfollowCount').textContent = trackerCategories.unfollowers?.length || 0;
 
   // Update account card if latest snapshot exists
@@ -1363,7 +1386,19 @@ function setupMediaTab() {
     'hideViewCounts',
     'filterDefaultAvatars',
     'filterEngagementBait',
+    'hideBoysMode',
+    'zenKeepSearch',
   ];
+
+  const zenSubOptions = document.getElementById('zenSubOptions');
+  const zenToggle = document.getElementById('zenModeEnabled');
+  const updateZenSubVisibility = () => {
+    if (zenSubOptions && zenToggle) {
+      zenSubOptions.style.display = zenToggle.checked ? 'flex' : 'none';
+    }
+  };
+  updateZenSubVisibility();
+  if (zenToggle) zenToggle.addEventListener('change', updateZenSubVisibility);
 
   toggles.forEach((key) => {
     const el = document.getElementById(key);
@@ -1390,6 +1425,66 @@ function setupMediaTab() {
       await saveSettings({ blueCheckFilter: blueCheckSelect.value });
     });
   }
+
+  // No-Boys Friends Whitelist
+  function renderBoysWhitelistChips() {
+    const container = document.getElementById('boysWhitelistContainer');
+    const badge = document.getElementById('boysWhitelistCountBadge');
+    if (!container) return;
+
+    const list = Array.isArray(currentSettings.boysWhitelist) ? currentSettings.boysWhitelist : [];
+    if (badge) badge.textContent = list.length;
+
+    container.innerHTML = '';
+    list.forEach((handle) => {
+      const chip = document.createElement('div');
+      chip.className = 'xe-chip';
+
+      const text = document.createElement('span');
+      text.textContent = `@${handle}`;
+
+      const del = document.createElement('button');
+      del.type = 'button';
+      del.className = 'xe-chip-del';
+      del.innerHTML = '&times;';
+      del.addEventListener('click', async () => {
+        const updated = list.filter((h) => h.toLowerCase() !== handle.toLowerCase());
+        await saveSettings({ boysWhitelist: updated });
+        renderBoysWhitelistChips();
+      });
+
+      chip.appendChild(text);
+      chip.appendChild(del);
+      container.appendChild(chip);
+    });
+  }
+
+  const btnAddBoysWhitelist = document.getElementById('btnAddBoysWhitelist');
+  const boysWhitelistInput = document.getElementById('boysWhitelistInput');
+  if (btnAddBoysWhitelist && boysWhitelistInput) {
+    btnAddBoysWhitelist.addEventListener('click', async () => {
+      const raw = boysWhitelistInput.value.trim().replace(/^@/, '');
+      if (!raw) return;
+
+      const list = Array.isArray(currentSettings.boysWhitelist) ? [...currentSettings.boysWhitelist] : [];
+      if (list.some((h) => h.toLowerCase() === raw.toLowerCase())) {
+        showPopupToast(currentLang === 'fa' ? 'این کاربر قبلاً در لیست دوستان وجود دارد' : 'User already in exempt list');
+        return;
+      }
+
+      list.unshift(raw);
+      await saveSettings({ boysWhitelist: list });
+      boysWhitelistInput.value = '';
+      renderBoysWhitelistChips();
+      showPopupToast(currentLang === 'fa' ? 'به لیست دوستان مصون افزوده شد' : 'Added to exempt friends list');
+    });
+
+    boysWhitelistInput.addEventListener('keydown', (e) => {
+      if (e.key === 'Enter') btnAddBoysWhitelist.click();
+    });
+  }
+
+  renderBoysWhitelistChips();
 }
 
 // ============================================================================
