@@ -715,10 +715,12 @@ function cleanZenSidebar() {
   if (settings.zenKeepSearch !== false) {
     const isSearchRelated = (el) => {
       if (!el) return false;
-      if (el.querySelector('form[role="search"], [data-testid="SearchBox_Search_Input"], [data-testid*="typeahead" i], [role="listbox"]')) return true;
-      if (el.matches?.('form[role="search"], [data-testid="SearchBox_Search_Input"], [data-testid*="typeahead" i], [role="listbox"]')) return true;
+      if (el.querySelector('form[role="search"], [data-testid="SearchBox_Search_Input"], [data-testid*="typeahead" i], [data-testid="TypeaheadUser"], [role="listbox"]')) return true;
+      if (el.matches?.('form[role="search"], [data-testid="SearchBox_Search_Input"], [data-testid*="typeahead" i], [data-testid="TypeaheadUser"], [role="listbox"]')) return true;
       const aria = (el.getAttribute('aria-label') || '').toLowerCase();
+      const text = (el.textContent || '').toLowerCase();
       if (aria.includes('search') || aria.includes('recent') || aria.includes('جستجو') || aria.includes('اخیر')) return true;
+      if (text.includes('recent') || text.includes('searches') || text.includes('جستجوهای اخیر')) return true;
       return false;
     };
 
@@ -769,13 +771,24 @@ function cleanWhoToFollowRecommendations(root = document) {
       const w = widgets[i];
       if (w.classList.contains('xe-recommendation-hidden')) continue;
 
+      // Absolute Immunity for Search Box and Recent Searches/Typeahead Profiles!
+      const isSearchBoxOrRecent =
+        !!w.querySelector('form[role="search"], [data-testid="SearchBox_Search_Input"], [data-testid*="typeahead" i], [data-testid="TypeaheadUser"], [role="listbox"]') ||
+        w.matches?.('form[role="search"], [data-testid="SearchBox_Search_Input"], [data-testid*="typeahead" i], [data-testid="TypeaheadUser"], [role="listbox"]') ||
+        (w.getAttribute('aria-label') || '').toLowerCase().includes('recent') ||
+        (w.getAttribute('aria-label') || '').includes('اخیر') ||
+        (w.textContent || '').includes('جستجوهای اخیر');
+
+      if (isSearchBoxOrRecent) continue;
+
       const txt = w.textContent || '';
       const aria = w.getAttribute('aria-label') || '';
       const hasConnectLink = !!w.querySelector('a[href*="/connect_people"], a[href*="/i/connect_people"]');
       const hasUserCell = !!w.querySelector('[data-testid="UserCell"]');
       const isRecText = isRecommendationText(txt) || isRecommendationText(aria);
 
-      if (hasConnectLink || isRecText || (hasUserCell && !w.querySelector('[data-testid="trend"]'))) {
+      // Only hide genuine follow recommendations (do NOT hide search results or recent accounts!)
+      if (hasConnectLink || isRecText || (hasUserCell && !w.querySelector('[data-testid="trend"]') && !isSearchBoxOrRecent)) {
         hideRecommendationElement(w);
       }
     }

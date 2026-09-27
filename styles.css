@@ -121,8 +121,8 @@
 .xe-clean-who-to-follow aside[aria-label*="افراد مرتبط" i],
 .xe-clean-who-to-follow aside[aria-label*="Suggested" i],
 .xe-clean-who-to-follow aside[aria-label*="پیشنهاد" i],
-.xe-clean-who-to-follow [data-testid="sidebarColumn"] aside:has([data-testid="UserCell"]),
-.xe-clean-who-to-follow [data-testid="sidebarColumn"] section:has([data-testid="UserCell"]):not(:has([data-testid="trend"])),
+.xe-clean-who-to-follow [data-testid="sidebarColumn"] aside:has([data-testid="UserCell"]):not(:has(form[role="search"], [data-testid*="typeahead" i], [role="listbox"])),
+.xe-clean-who-to-follow [data-testid="sidebarColumn"] section:has([data-testid="UserCell"]):not(:has([data-testid="trend"], form[role="search"], [data-testid*="typeahead" i], [role="listbox"])),
 .xe-clean-who-to-follow [data-testid="sidebarColumn"] aside:has(a[href*="/connect_people"]),
 .xe-clean-who-to-follow [data-testid="sidebarColumn"] aside:has(a[href*="/i/connect_people"]),
 .xe-clean-who-to-follow [data-testid="cellInnerDiv"]:has(a[href*="/connect_people"]),
@@ -146,8 +146,8 @@
 .xe-clean-profile-who-to-follow aside[aria-label*="چه کسانی را دنبال کنید" i],
 .xe-clean-profile-who-to-follow aside[aria-label*="افرادی برای دنبال کردن" i],
 .xe-clean-profile-who-to-follow aside[aria-label*="شاید بپسندید" i],
-.xe-clean-profile-who-to-follow [data-testid="sidebarColumn"] aside:has([data-testid="UserCell"]),
-.xe-clean-profile-who-to-follow [data-testid="sidebarColumn"] section:has([data-testid="UserCell"]):not(:has([data-testid="trend"])),
+.xe-clean-profile-who-to-follow [data-testid="sidebarColumn"] aside:has([data-testid="UserCell"]):not(:has(form[role="search"], [data-testid*="typeahead" i], [role="listbox"])),
+.xe-clean-profile-who-to-follow [data-testid="sidebarColumn"] section:has([data-testid="UserCell"]):not(:has([data-testid="trend"], form[role="search"], [data-testid*="typeahead" i], [role="listbox"])),
 .xe-clean-profile-who-to-follow [data-testid="cellInnerDiv"]:has(a[href*="/connect_people"]),
 .xe-clean-profile-who-to-follow [data-testid="cellInnerDiv"]:has(a[href*="/i/connect_people"]),
 .xe-clean-profile-who-to-follow [data-testid="cellInnerDiv"]:has([aria-label*="Suggested" i]),
@@ -228,9 +228,13 @@
   opacity: 0 !important;
 }
 
-/* Explicitly guarantee Recent Searches / Typeahead dropdown is ALWAYS visible & interactive */
+/* Explicitly guarantee Recent Searches, Searched Profiles & Typeahead dropdown are ALWAYS visible & interactive */
 .xe-zen-mode.xe-zen-keep-search [data-testid="sidebarColumn"] [data-testid*="typeahead" i],
+.xe-zen-mode.xe-zen-keep-search [data-testid="sidebarColumn"] [data-testid*="typeahead" i] *,
+.xe-zen-mode.xe-zen-keep-search [data-testid="sidebarColumn"] [data-testid="TypeaheadUser"],
+.xe-zen-mode.xe-zen-keep-search [data-testid="sidebarColumn"] [data-testid="TypeaheadUser"] *,
 .xe-zen-mode.xe-zen-keep-search [data-testid="sidebarColumn"] [data-testid="typeaheadRecentSearches"],
+.xe-zen-mode.xe-zen-keep-search [data-testid="sidebarColumn"] [data-testid="typeaheadRecentSearches"] *,
 .xe-zen-mode.xe-zen-keep-search [data-testid="sidebarColumn"] div[role="listbox"],
 .xe-zen-mode.xe-zen-keep-search [data-testid="sidebarColumn"] div[role="listbox"] * {
   display: flex !important;
