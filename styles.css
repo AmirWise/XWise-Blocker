@@ -230,18 +230,36 @@
 
 /* Explicitly guarantee Recent Searches, Searched Profiles & Typeahead dropdown are ALWAYS visible & interactive */
 .xe-zen-mode.xe-zen-keep-search [data-testid="sidebarColumn"] [data-testid*="typeahead" i],
-.xe-zen-mode.xe-zen-keep-search [data-testid="sidebarColumn"] [data-testid*="typeahead" i] *,
 .xe-zen-mode.xe-zen-keep-search [data-testid="sidebarColumn"] [data-testid="TypeaheadUser"],
-.xe-zen-mode.xe-zen-keep-search [data-testid="sidebarColumn"] [data-testid="TypeaheadUser"] *,
 .xe-zen-mode.xe-zen-keep-search [data-testid="sidebarColumn"] [data-testid="typeaheadRecentSearches"],
-.xe-zen-mode.xe-zen-keep-search [data-testid="sidebarColumn"] [data-testid="typeaheadRecentSearches"] *,
 .xe-zen-mode.xe-zen-keep-search [data-testid="sidebarColumn"] div[role="listbox"],
-.xe-zen-mode.xe-zen-keep-search [data-testid="sidebarColumn"] div[role="listbox"] * {
-  display: flex !important;
+.xe-zen-mode.xe-zen-keep-search [data-testid="sidebarColumn"] div[data-testid="Dropdown"] {
+  display: block !important;
   visibility: visible !important;
   opacity: 1 !important;
   height: auto !important;
   max-height: none !important;
+}
+
+/* Ensure images, avatars and icons inside recent searches keep their native dimensions and render perfectly */
+[data-testid="sidebarColumn"] [data-testid*="typeahead" i] img,
+[data-testid="sidebarColumn"] [data-testid="TypeaheadUser"] img,
+[data-testid="sidebarColumn"] [data-testid="typeaheadRecentSearches"] img,
+[data-testid="sidebarColumn"] div[role="listbox"] img,
+[data-testid="sidebarColumn"] [data-testid*="Avatar" i] img,
+[data-testid="sidebarColumn"] [data-testid="Tweet-User-Avatar"] img {
+  display: block !important;
+  visibility: visible !important;
+  opacity: 1 !important;
+  max-width: 100% !important;
+}
+
+[data-testid="sidebarColumn"] [data-testid*="typeahead" i] [data-testid*="Avatar" i],
+[data-testid="sidebarColumn"] [data-testid="TypeaheadUser"] [data-testid*="Avatar" i],
+[data-testid="sidebarColumn"] div[role="listbox"] [data-testid*="Avatar" i] {
+  display: flex !important;
+  visibility: visible !important;
+  opacity: 1 !important;
 }
 
 /* =====================================================================
