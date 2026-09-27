@@ -6,12 +6,19 @@ dist/
 build/
 *.crx
 
-# Private keys (NEVER commit)
+# Private keys & secrets (NEVER commit)
 *.pem
+*.key
+*.cert
+*.pfx
+
+# Claude & Agent metadata
+.claude/
 
 # OS files
 .DS_Store
 Thumbs.db
+desktop.ini
 
 # Editor/IDE
 .vscode/
@@ -29,3 +36,4 @@ coverage/
 # Environment
 .env
 .env.local
+.env.*.local

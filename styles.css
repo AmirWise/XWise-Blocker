@@ -1,24 +1,16 @@
 /* =====================================================================
-   XWise Blocker v2 — injected UI styles
-
-   Design principles:
-   - Adapt to X's light / dark / dim themes automatically
-   - Match X's native UI elements (action buttons, toasts, sliders)
-   - Never clash with any X page: timeline, profile, search,
-     lists, notifications, messages, tweet detail, spaces, communities
-   - Use X's own spacing (4px grid), font stack, border-radius
-   - Respect X's z-index layers
-   - Vazirmatn font for Persian/Arabic support
+   XWise Blocker v3.0.0 — Native Injected Styles
+   Seamlessly integrates with X (Twitter) matching native Twitter design 100%.
    ===================================================================== */
 
-/* --- Vazirmatn Font (local embed) --- */
+/* --- Embed Vazirmatn Variable Font --- */
 @font-face {
   font-family: 'Vazirmatn';
   font-style: normal;
   font-weight: 100 900;
   font-display: swap;
   src: url('fonts/vazirmatn-arabic.woff2') format('woff2');
-  unicode-range: U+0600-06FF, U+0750-077F, U+0870-088E, U+0890-0891, U+0897-08E1, U+08E3-08FF, U+200C-200E, U+2010-2011, U+204F, U+2E41, U+FB50-FDFF, U+FE70-FE74, U+FE76-FEFC, U+102E0-102FB, U+10E60-10E7E, U+10EC2-10EC4, U+10EFC-10EFF, U+1EE00-1EE03, U+1EE05-1EE1F, U+1EE21-1EE22, U+1EE24, U+1EE27, U+1EE29-1EE32, U+1EE34-1EE37, U+1EE39, U+1EE3B, U+1EE42, U+1EE47, U+1EE49, U+1EE4B, U+1EE4D-1EE4F, U+1EE51-1EE52, U+1EE54, U+1EE57, U+1EE59, U+1EE5B, U+1EE5D, U+1EE5F, U+1EE61-1EE62, U+1EE64, U+1EE67-1EE6A, U+1EE6C-1EE72, U+1EE74-1EE77, U+1EE79-1EE7C, U+1EE7E, U+1EE80-1EE89, U+1EE8B-1EE9B, U+1EEA1-1EEA3, U+1EEA5-1EEA9, U+1EEAB-1EEBB, U+1EEF0-1EEF1;
+  unicode-range: U+0600-06FF, U+0750-077F, U+0870-088E, U+0890-0891, U+0897-08E1, U+08E3-08FF, U+200C-200E, U+2010-2011, U+204F, U+2E41, U+FB50-FDFF, U+FE70-FE74, U+FE76-FEFC;
 }
 @font-face {
   font-family: 'Vazirmatn';
@@ -26,7 +18,7 @@
   font-weight: 100 900;
   font-display: swap;
   src: url('fonts/vazirmatn-latin-ext.woff2') format('woff2');
-  unicode-range: U+0100-02BA, U+02BD-02C5, U+02C7-02CC, U+02CE-02D7, U+02DD-02FF, U+0304, U+0308, U+0329, U+1D00-1DBF, U+1E00-1E9F, U+1EF2-1EFF, U+2020, U+20A0-20AB, U+20AD-20C0, U+2113, U+2C60-2C7F, U+A720-A7FF;
+  unicode-range: U+0100-02BA, U+02BD-02C5, U+02C7-02CC, U+02CE-02D7, U+02DD-02FF, U+0304, U+0308, U+0329, U+1D00-1DBF, U+1E00-1E9F, U+1EF2-1EFF;
 }
 @font-face {
   font-family: 'Vazirmatn';
@@ -38,96 +30,240 @@
 }
 
 /* =====================================================================
-   Theme tokens — auto-switch via data-xe-theme on <html>
+   Theme Tokens
    ===================================================================== */
-
-/* Dark theme (default) */
 :root,
 [data-xe-theme="dark"] {
-  --xe-bg-primary: rgb(21, 32, 43);
-  --xe-bg-float: rgba(21, 32, 43, 0.95);
-  --xe-bg-glass: rgba(0, 0, 0, 0.75);
-  --xe-bg-hover: rgba(239, 243, 244, 0.1);
-  --xe-bg-active: rgba(239, 243, 244, 0.2);
+  --xe-bg-primary: rgb(0, 0, 0);
+  --xe-bg-card: rgb(22, 24, 28);
+  --xe-bg-hover: rgba(239, 243, 244, 0.08);
   --xe-text-primary: rgb(231, 233, 234);
   --xe-text-secondary: rgb(113, 118, 123);
-  --xe-border: rgba(239, 243, 244, 0.1);
+  --xe-border: rgb(47, 51, 54);
   --xe-accent: rgb(29, 155, 240);
-  --xe-accent-hover: rgba(29, 155, 240, 0.15);
+  --xe-accent-hover: rgb(26, 140, 216);
   --xe-danger: rgb(244, 33, 46);
   --xe-danger-hover: rgba(244, 33, 46, 0.1);
-  --xe-danger-active: rgba(244, 33, 46, 0.2);
   --xe-warning: rgb(255, 184, 0);
-  --xe-warning-hover: rgba(255, 184, 0, 0.15);
   --xe-success: rgb(0, 186, 124);
-  --xe-success-hover: rgba(0, 186, 124, 0.15);
   --xe-toast-bg: rgb(29, 155, 240);
   --xe-toast-text: rgb(255, 255, 255);
-  --xe-toast-error-bg: rgb(244, 33, 46);
-  --xe-toast-warning-bg: rgb(255, 184, 0);
-  --xe-toast-success-bg: rgb(0, 186, 124);
-  --xe-shadow: 0 0 15px rgba(255,255,255,0.05), 0 0 3px 1px rgba(255,255,255,0.05);
-  --xe-font-primary: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
-  --xe-font-arabic: 'Vazirmatn', var(--xe-font-primary);
+  --xe-shadow: rgba(255, 255, 255, 0.12) 0px 0px 15px, rgba(255, 255, 255, 0.08) 0px 0px 3px 1px;
+  --xe-font: 'Vazirmatn', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
 }
 
-/* Light theme */
-[data-xe-theme="light"] {
-  --xe-bg-primary: rgb(255, 255, 255);
-  --xe-bg-float: rgba(255, 255, 255, 0.97);
-  --xe-bg-glass: rgba(255, 255, 255, 0.85);
-  --xe-bg-hover: rgba(15, 20, 25, 0.1);
-  --xe-bg-active: rgba(15, 20, 25, 0.15);
-  --xe-text-primary: rgb(15, 20, 25);
-  --xe-text-secondary: rgb(83, 100, 113);
-  --xe-border: rgba(15, 20, 25, 0.1);
-  --xe-accent: rgb(29, 155, 240);
-  --xe-accent-hover: rgba(29, 155, 240, 0.12);
-  --xe-danger: rgb(244, 33, 46);
-  --xe-danger-hover: rgba(244, 33, 46, 0.1);
-  --xe-danger-active: rgba(244, 33, 46, 0.2);
-  --xe-warning: rgb(200, 140, 0);
-  --xe-warning-hover: rgba(200, 140, 0, 0.12);
-  --xe-success: rgb(0, 150, 100);
-  --xe-success-hover: rgba(0, 150, 100, 0.12);
-  --xe-toast-bg: rgb(29, 155, 240);
-  --xe-toast-text: rgb(255, 255, 255);
-  --xe-toast-error-bg: rgb(244, 33, 46);
-  --xe-toast-warning-bg: rgb(200, 140, 0);
-  --xe-toast-success-bg: rgb(0, 150, 100);
-  --xe-shadow: rgba(101,119,134,0.2) 0px 0px 15px, rgba(101,119,134,0.15) 0px 0px 3px 1px;
-}
-
-/* Dim theme */
 [data-xe-theme="dim"] {
   --xe-bg-primary: rgb(21, 32, 43);
-  --xe-bg-float: rgba(21, 32, 43, 0.96);
-  --xe-bg-glass: rgba(21, 32, 43, 0.8);
-  --xe-bg-hover: rgba(239, 243, 244, 0.08);
-  --xe-bg-active: rgba(239, 243, 244, 0.16);
+  --xe-bg-card: rgb(30, 39, 50);
+  --xe-bg-hover: rgba(239, 243, 244, 0.06);
   --xe-text-primary: rgb(247, 249, 249);
   --xe-text-secondary: rgb(139, 152, 165);
-  --xe-border: rgba(239, 243, 244, 0.08);
+  --xe-border: rgb(56, 68, 77);
   --xe-accent: rgb(29, 155, 240);
-  --xe-accent-hover: rgba(29, 155, 240, 0.12);
+  --xe-accent-hover: rgb(26, 140, 216);
   --xe-danger: rgb(244, 33, 46);
   --xe-danger-hover: rgba(244, 33, 46, 0.1);
-  --xe-danger-active: rgba(244, 33, 46, 0.2);
   --xe-warning: rgb(255, 184, 0);
-  --xe-warning-hover: rgba(255, 184, 0, 0.12);
   --xe-success: rgb(0, 186, 124);
-  --xe-success-hover: rgba(0, 186, 124, 0.12);
   --xe-toast-bg: rgb(29, 155, 240);
   --xe-toast-text: rgb(255, 255, 255);
-  --xe-toast-error-bg: rgb(244, 33, 46);
-  --xe-toast-warning-bg: rgb(255, 184, 0);
-  --xe-toast-success-bg: rgb(0, 186, 124);
-  --xe-shadow: rgba(136,153,166,0.15) 0px 0px 15px, rgba(136,153,166,0.1) 0px 0px 3px 1px;
+  --xe-shadow: rgba(136, 153, 166, 0.2) 0px 0px 15px, rgba(136, 153, 166, 0.1) 0px 0px 3px 1px;
+  --xe-font: 'Vazirmatn', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+}
+
+[data-xe-theme="light"] {
+  --xe-bg-primary: rgb(255, 255, 255);
+  --xe-bg-card: rgb(247, 249, 249);
+  --xe-bg-hover: rgba(15, 20, 25, 0.06);
+  --xe-text-primary: rgb(15, 20, 25);
+  --xe-text-secondary: rgb(83, 100, 113);
+  --xe-border: rgb(239, 243, 244);
+  --xe-accent: rgb(29, 155, 240);
+  --xe-accent-hover: rgb(26, 140, 216);
+  --xe-danger: rgb(244, 33, 46);
+  --xe-danger-hover: rgba(244, 33, 46, 0.1);
+  --xe-warning: rgb(200, 140, 0);
+  --xe-success: rgb(0, 186, 124);
+  --xe-toast-bg: rgb(29, 155, 240);
+  --xe-toast-text: rgb(255, 255, 255);
+  --xe-shadow: rgba(101, 119, 134, 0.2) 0px 0px 15px, rgba(101, 119, 134, 0.15) 0px 0px 3px 1px;
+  --xe-font: 'Vazirmatn', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
 }
 
 /* =====================================================================
-   VOLUME SLIDER — floating overlay on videos
-   Compact pill, auto-fades, expands on hover
+   CLEAN TIMELINE & AD REMOVAL (Zero gaps, zero FOUC)
+   ===================================================================== */
+
+/* CSS-First Ad Blocker: eliminates layout shift before JS runs */
+[data-testid="cellInnerDiv"]:has([data-testid="placementTracking"]):not(:has(video)),
+[data-testid="cellInnerDiv"]:has(a[href*="/quick_promote_web/"]),
+[data-testid="cellInnerDiv"]:has(.xe-ad-hidden),
+.xe-ad-cell-hidden,
+.xe-ad-hidden {
+  display: none !important;
+  visibility: hidden !important;
+  height: 0 !important;
+  min-height: 0 !important;
+  max-height: 0 !important;
+  margin: 0 !important;
+  padding: 0 !important;
+  border: none !important;
+  overflow: hidden !important;
+}
+
+/* CSS-First Who To Follow & Recommendations Removal */
+.xe-clean-who-to-follow aside[aria-label*="Who to follow" i],
+.xe-clean-who-to-follow aside[aria-label*="چه کسانی را دنبال کنید" i],
+.xe-clean-who-to-follow aside[aria-label*="افرادی برای دنبال کردن" i],
+.xe-clean-who-to-follow aside[aria-label*="You might like" i],
+.xe-clean-who-to-follow aside[aria-label*="شاید بپسندید" i],
+.xe-clean-who-to-follow aside[aria-label*="Relevant people" i],
+.xe-clean-who-to-follow aside[aria-label*="افراد مرتبط" i],
+.xe-clean-who-to-follow aside[aria-label*="Suggested" i],
+.xe-clean-who-to-follow aside[aria-label*="پیشنهاد" i],
+.xe-clean-who-to-follow [data-testid="sidebarColumn"] aside:has([data-testid="UserCell"]),
+.xe-clean-who-to-follow [data-testid="sidebarColumn"] section:has([data-testid="UserCell"]),
+.xe-clean-who-to-follow [data-testid="sidebarColumn"] aside:has(a[href*="/connect_people"]),
+.xe-clean-who-to-follow [data-testid="sidebarColumn"] aside:has(a[href*="/i/connect_people"]),
+.xe-clean-who-to-follow [data-testid="sidebarColumn"] section:has(a[href*="/connect_people"]),
+.xe-clean-who-to-follow [data-testid="sidebarColumn"] section:has(a[href*="/i/connect_people"]),
+.xe-clean-who-to-follow [data-testid="sidebarColumn"] div:has(> aside[aria-label*="Who to follow" i]),
+.xe-clean-who-to-follow [data-testid="sidebarColumn"] div:has(> aside[aria-label*="You might like" i]),
+.xe-clean-who-to-follow [data-testid="sidebarColumn"] div:has(> aside[aria-label*="Relevant people" i]),
+.xe-clean-who-to-follow [data-testid="sidebarColumn"] div:has(> aside[aria-label*="چه کسانی را دنبال کنید" i]),
+.xe-clean-who-to-follow [data-testid="cellInnerDiv"]:has(a[href*="/connect_people"]),
+.xe-clean-who-to-follow [data-testid="cellInnerDiv"]:has(a[href*="/i/connect_people"]),
+.xe-clean-who-to-follow [data-testid="cellInnerDiv"]:has([aria-label*="Suggested" i]),
+.xe-clean-who-to-follow [data-testid="cellInnerDiv"]:has([aria-label*="پیشنهاد" i]),
+.xe-clean-who-to-follow [data-testid="cellInnerDiv"]:has(aside[aria-label*="Who to follow" i]),
+.xe-clean-who-to-follow [data-testid="cellInnerDiv"]:has(aside[aria-label*="چه کسانی را دنبال کنید" i]),
+.xe-clean-who-to-follow [data-testid="cellInnerDiv"]:has(aside[aria-label*="You might like" i]),
+.xe-clean-who-to-follow [data-testid="cellInnerDiv"]:has(aside[aria-label*="شاید بپسندید" i]),
+.xe-clean-who-to-follow [data-testid="cellInnerDiv"]:has(aside[aria-label*="Relevant people" i]),
+.xe-clean-who-to-follow [data-testid="cellInnerDiv"]:has(aside[aria-label*="افراد مرتبط" i]),
+.xe-clean-who-to-follow [data-testid="cellInnerDiv"]:has(aside[aria-label*="افرادی برای دنبال کردن" i]),
+.xe-clean-who-to-follow [data-testid="cellInnerDiv"]:has([data-testid="Carousel"]),
+.xe-clean-who-to-follow div[aria-label*="Suggested for you" i],
+.xe-clean-who-to-follow div[aria-label*="پیشنهاد شده برای شما" i],
+.xe-clean-profile-who-to-follow aside[aria-label*="Relevant people" i],
+.xe-clean-profile-who-to-follow aside[aria-label*="افراد مرتبط" i],
+.xe-clean-profile-who-to-follow aside[aria-label*="Who to follow" i],
+.xe-clean-profile-who-to-follow aside[aria-label*="You might like" i],
+.xe-clean-profile-who-to-follow aside[aria-label*="چه کسانی را دنبال کنید" i],
+.xe-clean-profile-who-to-follow aside[aria-label*="افرادی برای دنبال کردن" i],
+.xe-clean-profile-who-to-follow aside[aria-label*="شاید بپسندید" i],
+.xe-clean-profile-who-to-follow [data-testid="sidebarColumn"] aside:has([data-testid="UserCell"]),
+.xe-clean-profile-who-to-follow [data-testid="sidebarColumn"] section:has([data-testid="UserCell"]),
+.xe-clean-profile-who-to-follow [data-testid="cellInnerDiv"]:has(a[href*="/connect_people"]),
+.xe-clean-profile-who-to-follow [data-testid="cellInnerDiv"]:has(a[href*="/i/connect_people"]),
+.xe-clean-profile-who-to-follow [data-testid="cellInnerDiv"]:has([aria-label*="Suggested" i]),
+.xe-clean-profile-who-to-follow [data-testid="cellInnerDiv"]:has([aria-label*="پیشنهاد" i]),
+.xe-clean-profile-who-to-follow [data-testid="cellInnerDiv"]:has([data-testid="Carousel"]),
+.xe-clean-profile-who-to-follow div[aria-label*="Suggested for you" i],
+.xe-clean-profile-who-to-follow div[aria-label*="پیشنهاد شده برای شما" i],
+.xe-recommendation-hidden {
+  display: none !important;
+  visibility: hidden !important;
+  height: 0 !important;
+  min-height: 0 !important;
+  max-height: 0 !important;
+  margin: 0 !important;
+  padding: 0 !important;
+  border: none !important;
+  overflow: hidden !important;
+}
+
+.xe-clean-grok a[data-testid="AppTabBar_Grok_Link"],
+.xe-clean-grok [data-testid="GrokDrawer"],
+.xe-clean-grok div[aria-label*="Grok" i],
+.xe-clean-grok a[href*="/i/grok" i] {
+  display: none !important;
+}
+
+.xe-clean-premium aside[aria-label*="Subscribe to Premium" i],
+.xe-clean-premium a[data-testid="SideNav_Premium_Link"],
+.xe-clean-premium a[href*="/i/premium_sign_up" i],
+.xe-clean-premium [data-testid="superFollowsUpsell"] {
+  display: none !important;
+}
+
+.xe-clean-view-counts article a[href*="/analytics" i] {
+  display: none !important;
+}
+
+/* =====================================================================
+   ZEN MODE: Natural & Balanced Reading View
+   ===================================================================== */
+.xe-zen-mode [data-testid="sidebarColumn"] {
+  display: none !important;
+  visibility: hidden !important;
+  width: 0 !important;
+  min-width: 0 !important;
+  max-width: 0 !important;
+  overflow: hidden !important;
+}
+
+.xe-zen-mode [data-testid="primaryColumn"] {
+  width: 620px !important;
+  max-width: 620px !important;
+}
+
+/* =====================================================================
+   NATIVE-FEELING TWEET HIDING
+   ===================================================================== */
+
+article.xe-tweet-hidden:not(.xe-tweet-revealed) > *:not(.xe-filtered-bar) {
+  display: none !important;
+}
+
+article.xe-tweet-hidden:not(.xe-tweet-revealed) {
+  min-height: 0 !important;
+  padding: 4px 16px !important;
+}
+
+.xe-filtered-bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 8px 14px;
+  border-radius: 8px;
+  background: var(--xe-bg-hover);
+  border: 1px solid var(--xe-border);
+  font-family: var(--xe-font);
+  user-select: none;
+}
+
+.xe-filtered-label {
+  font-size: 13px;
+  color: var(--xe-text-secondary);
+  font-weight: 500;
+}
+
+.xe-filtered-show-btn {
+  background: transparent;
+  border: 1px solid var(--xe-border);
+  color: var(--xe-accent);
+  padding: 3px 12px;
+  border-radius: 9999px;
+  font-size: 12px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: all 0.15s ease;
+  font-family: inherit;
+}
+
+.xe-filtered-show-btn:hover {
+  background: rgba(29, 155, 240, 0.1);
+  border-color: var(--xe-accent);
+}
+
+article.xe-tweet-hidden.xe-tweet-revealed .xe-filtered-bar {
+  margin-bottom: 8px;
+  opacity: 0.6;
+}
+
+/* =====================================================================
+   PRO VIDEO TOOLBAR
    ===================================================================== */
 
 .xe-volume-wrapper {
@@ -137,65 +273,53 @@
   z-index: 10;
   display: flex;
   align-items: center;
-  gap: 0;
+  gap: 2px;
   height: 32px;
-  padding: 0 4px;
+  padding: 0 5px;
   border-radius: 9999px;
-  background: var(--xe-bg-glass);
-  backdrop-filter: blur(12px) saturate(180%);
-  -webkit-backdrop-filter: blur(12px) saturate(180%);
+  background: rgba(0, 0, 0, 0.85);
+  backdrop-filter: blur(14px);
+  -webkit-backdrop-filter: blur(14px);
+  border: 1px solid var(--xe-border);
   opacity: 0;
-  transform: scale(0.92);
-  transition: opacity 0.2s ease, transform 0.2s ease, width 0.25s ease, gap 0.2s ease;
+  transform: scale(0.94);
+  transition: opacity 0.2s ease, transform 0.2s ease, width 0.24s cubic-bezier(0.4, 0, 0.2, 1);
   pointer-events: auto;
   overflow: hidden;
-  width: 36px;
-  will-change: opacity, transform, width;
+  width: 34px;
 }
 
-/* Show on video hover (target the video player container) */
+[dir="rtl"] .xe-volume-wrapper {
+  right: auto;
+  left: 8px;
+}
+
 [data-testid="videoPlayer"]:hover .xe-volume-wrapper,
 .xe-volume-wrapper:hover,
-.xe-volume-wrapper:focus-within,
-*:hover > .xe-volume-wrapper {
+.xe-volume-wrapper:focus-within {
   opacity: 1;
   transform: scale(1);
-}
-
-.xe-volume-wrapper:hover,
-.xe-volume-wrapper:focus-within {
-  width: 120px;
-  gap: 2px;
+  width: 235px;
 }
 
 .xe-volume-icon {
   display: flex;
   align-items: center;
   justify-content: center;
-  width: 28px;
-  height: 28px;
+  width: 26px;
+  height: 26px;
   flex-shrink: 0;
   border: none;
   background: none;
   color: var(--xe-text-primary);
   cursor: pointer;
   border-radius: 9999px;
-  transition: background 0.15s ease;
-  padding: 0;
 }
 
-.xe-volume-icon:hover {
-  background: var(--xe-bg-hover);
-}
-
-.xe-volume-icon svg {
-  display: block;
-}
-
-/* Custom track visualization (sits behind the native range) */
 .xe-volume-track {
   position: relative;
   flex: 1;
+  min-width: 44px;
   height: 4px;
   border-radius: 2px;
   background: rgba(255, 255, 255, 0.2);
@@ -205,13 +329,8 @@
   transition: opacity 0.2s ease;
 }
 
-.xe-volume-wrapper:hover .xe-volume-track,
-.xe-volume-wrapper:focus-within .xe-volume-track {
+.xe-volume-wrapper:hover .xe-volume-track {
   opacity: 1;
-}
-
-[data-xe-theme="light"] .xe-volume-track {
-  background: rgba(0, 0, 0, 0.15);
 }
 
 .xe-volume-fill {
@@ -221,34 +340,29 @@
   height: 100%;
   border-radius: 2px;
   background: var(--xe-text-primary);
-  transition: width 0.05s linear;
 }
 
 .xe-volume-thumb {
   position: absolute;
   top: 50%;
-  width: 12px;
-  height: 12px;
-  margin-left: -6px;
-  margin-top: -6px;
+  width: 10px;
+  height: 10px;
+  margin-left: -5px;
+  margin-top: -5px;
   border-radius: 50%;
   background: var(--xe-text-primary);
-  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.3);
   transform: scale(0);
   transition: transform 0.15s ease;
-  pointer-events: none;
 }
 
 .xe-volume-wrapper:hover .xe-volume-thumb {
   transform: scale(1);
 }
 
-/* Native range input — sits on top, fully transparent */
 .xe-volume-range {
   position: absolute;
-  right: 4px;
-  top: 0;
-  width: calc(100% - 36px);
+  left: 30px;
+  width: 60px;
   height: 100%;
   margin: 0;
   opacity: 0;
@@ -256,9 +370,40 @@
   z-index: 2;
 }
 
+.xe-video-pill-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 25px;
+  height: 25px;
+  flex-shrink: 0;
+  border: none;
+  background: transparent;
+  color: var(--xe-text-primary);
+  cursor: pointer;
+  border-radius: 9999px;
+  transition: background 0.15s ease, color 0.15s ease;
+  padding: 0;
+  z-index: 3;
+}
+
+.xe-video-pill-btn:hover {
+  background: var(--xe-bg-hover);
+  color: var(--xe-accent);
+}
+
+.xe-video-pill-btn.active {
+  color: var(--xe-accent);
+  background: rgba(29, 155, 240, 0.15);
+}
+
+.xe-speed-btn {
+  font-size: 10px;
+  font-weight: 700;
+}
+
 /* =====================================================================
-   BLOCK BUTTON — matches X's native action bar buttons
-   Same sizing, spacing, hover states as reply/retweet/like/share
+   SINGLE INLINE BLOCK BUTTON (Native Tweet Button)
    ===================================================================== */
 
 .xe-block-btn-wrapper {
@@ -266,17 +411,14 @@
   align-items: center;
   justify-content: center;
   cursor: pointer;
-  -webkit-user-select: none;
   user-select: none;
-  /* Match X action button container spacing */
-  min-width: 36px;
+  min-width: 34.75px;
   align-self: stretch;
 }
 
 .xe-block-btn-inner {
   display: flex;
   align-items: center;
-  gap: 4px;
   transition: color 0.2s ease;
   color: var(--xe-text-secondary);
 }
@@ -300,25 +442,123 @@
 }
 
 .xe-block-btn-wrapper:active .xe-block-btn-icon {
-  background-color: var(--xe-danger-active);
+  background-color: rgba(244, 33, 46, 0.2);
 }
 
 .xe-block-btn-icon svg {
-  width: 18.75px;
-  height: 18.75px;
+  width: 18px;
+  height: 18px;
   fill: currentColor;
 }
 
-/* Focus visible for keyboard nav */
-.xe-block-btn-wrapper:focus-visible {
-  outline: 2px solid var(--xe-accent);
-  outline-offset: -2px;
+/* =====================================================================
+   IN-PAGE FLOATING LAUNCHER BUTTON
+   Positioned comfortably above XChat / DM drawer
+   ===================================================================== */
+
+.xe-inpage-launcher {
+  position: fixed;
+  bottom: 96px;
+  z-index: 9998;
+  width: 50px;
+  height: 50px;
   border-radius: 9999px;
+  background: rgb(29, 155, 240);
+  border: 1px solid rgba(255, 255, 255, 0.25);
+  color: #ffffff;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  box-shadow: 0 8px 26px rgba(29, 155, 240, 0.5);
+  transition: transform 0.2s cubic-bezier(0.16, 1, 0.3, 1), box-shadow 0.2s ease, background-color 0.15s ease;
+}
+
+/* LTR Twitter: Launcher sits on the right */
+.xe-inpage-launcher[data-pos="right"],
+:root:not([dir="rtl"]) .xe-inpage-launcher {
+  right: 20px;
+  left: auto;
+}
+
+/* RTL Twitter (Persian): Launcher sits on the left above DM drawer */
+.xe-inpage-launcher[data-pos="left"],
+:root[dir="rtl"] .xe-inpage-launcher,
+[dir="rtl"] .xe-inpage-launcher {
+  left: 20px;
+  right: auto;
+}
+
+.xe-inpage-launcher:hover {
+  transform: scale(1.08);
+  background: rgb(26, 140, 216);
+  box-shadow: 0 10px 30px rgba(29, 155, 240, 0.65);
+}
+
+.xe-inpage-launcher:active {
+  transform: scale(0.96);
+}
+
+.xe-inpage-launcher svg {
+  width: 25px;
+  height: 25px;
+  fill: currentColor;
 }
 
 /* =====================================================================
-   FILTER BADGES — v2 dry-run mode visual indicator
-   Subtle badge on matched tweets, non-intrusive
+   IN-PAGE NATIVE IFRAME DRAWER
+   Seamlessly renders the exact 10/10 popup UI inside Twitter
+   with complete sandbox isolation, zero CSS leaks, and perfect RTL/LTR.
+   ===================================================================== */
+
+.xe-inpage-drawer {
+  position: fixed;
+  bottom: 96px;
+  z-index: 99999;
+  width: 430px;
+  max-width: calc(100vw - 32px);
+  height: 620px;
+  max-height: calc(100vh - 110px);
+  border-radius: 16px;
+  background: #000000;
+  border: 1px solid rgb(47, 51, 54);
+  box-shadow: 0 16px 48px rgba(0, 0, 0, 0.85), 0 0 1px rgba(255, 255, 255, 0.2);
+  display: none;
+  overflow: hidden;
+  animation: xeDrawerSlideUp 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+/* Dynamic Placement */
+:root:not([dir="rtl"]) .xe-inpage-drawer {
+  right: 20px;
+  left: auto;
+}
+
+:root[dir="rtl"] .xe-inpage-drawer,
+[dir="rtl"] .xe-inpage-drawer {
+  left: 20px;
+  right: auto;
+}
+
+.xe-inpage-drawer.xe-open {
+  display: block;
+}
+
+@keyframes xeDrawerSlideUp {
+  from { opacity: 0; transform: translateY(18px) scale(0.96); }
+  to { opacity: 1; transform: translateY(0) scale(1); }
+}
+
+.xe-inpage-iframe {
+  width: 100%;
+  height: 100%;
+  border: none;
+  display: block;
+  background: transparent;
+}
+
+/* =====================================================================
+   DRY-RUN FILTER BADGE
    ===================================================================== */
 
 .xe-filter-badge {
@@ -327,52 +567,31 @@
   padding: 2px 8px;
   font-size: 11px;
   font-weight: 600;
-  line-height: 1.2;
   border-radius: 9999px;
   white-space: nowrap;
-  max-width: 200px;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  font-family: var(--xe-font-arabic);
+  font-family: var(--xe-font);
   margin-left: 8px;
   flex-shrink: 0;
 }
 
-/* Subtle style (default) — barely noticeable, blends with UI */
 .xe-filter-badge-subtle {
   background: var(--xe-bg-hover);
   color: var(--xe-text-secondary);
   border: 1px solid var(--xe-border);
 }
 
-/* Prominent style — more visible for accessibility */
-.xe-filter-badge-prominent {
-  background: var(--xe-accent-hover);
-  color: var(--xe-accent);
-  border: 1px solid var(--xe-accent);
-}
-
-/* Hover state */
-.xe-filter-badge:hover {
-  opacity: 0.85;
-}
-
-/* RTL support for Persian/Arabic */
-[dir="rtl"] .xe-filter-badge,
-.xe-filter-badge:lang(fa),
-.xe-filter-badge:lang(ar) {
+[dir="rtl"] .xe-filter-badge {
   margin-left: 0;
   margin-right: 8px;
 }
 
 /* =====================================================================
-   TOASTS — matches X's native bottom snackbar
-   X shows a colored bar at the bottom center
+   TOAST NOTIFICATIONS
    ===================================================================== */
 
 .xe-toast-container {
   position: fixed;
-  bottom: 0;
+  bottom: 14px;
   left: 0;
   right: 0;
   z-index: 2147483000;
@@ -380,7 +599,6 @@
   flex-direction: column;
   align-items: center;
   pointer-events: none;
-  padding: 12px;
 }
 
 .xe-toast {
@@ -388,22 +606,19 @@
   display: flex;
   align-items: center;
   gap: 12px;
-  padding: 12px 16px;
-  min-height: 44px;
-  border-radius: 4px;
+  padding: 10px 18px;
+  min-height: 42px;
+  border-radius: 8px;
   background: var(--xe-toast-bg);
   color: var(--xe-toast-text);
-  font-size: 15px;
-  font-family: var(--xe-font-primary);
-  font-weight: 400;
-  line-height: 20px;
-  box-shadow: var(--xe-shadow);
+  font-size: 13.5px;
+  font-family: var(--xe-font);
+  font-weight: 500;
+  box-shadow: 0 6px 24px rgba(0, 0, 0, 0.4);
   opacity: 0;
   transform: translateY(12px);
-  transition: opacity 0.22s cubic-bezier(0.4, 0, 0.2, 1),
-              transform 0.22s cubic-bezier(0.4, 0, 0.2, 1);
+  transition: opacity 0.2s ease, transform 0.2s ease;
   white-space: nowrap;
-  max-width: 600px;
 }
 
 .xe-toast-in {
@@ -416,126 +631,19 @@
   transform: translateY(12px);
 }
 
-/* Toast type variants */
-.xe-toast-error {
-  background: var(--xe-toast-error-bg);
-}
 .xe-toast-warning {
-  background: var(--xe-toast-warning-bg);
-}
-.xe-toast-success {
-  background: var(--xe-toast-success-bg);
-}
-
-.xe-toast-text {
-  flex: 1;
+  background: var(--xe-warning);
+  color: #000000;
 }
 
 .xe-toast-action {
   border: none;
-  background: none;
-  color: var(--xe-toast-text);
+  background: rgba(0, 0, 0, 0.15);
+  color: inherit;
   font-weight: 700;
   cursor: pointer;
-  font-size: 15px;
+  font-size: 13px;
   font-family: inherit;
-  padding: 0;
-  white-space: nowrap;
-  text-decoration: none;
-  opacity: 0.9;
-  transition: opacity 0.15s ease;
-}
-
-.xe-toast-action:hover {
-  opacity: 1;
-  text-decoration: underline;
-}
-
-/* =====================================================================
-   RESPONSIVE — make sure nothing breaks on different X views
-   Timeline, Profile, Search, Lists, Notifications, Messages,
-   Tweet Detail, Spaces, Communities, Explore
-   ===================================================================== */
-
-/* Tweet detail page — videos can be larger */
-[data-testid="tweetDetail"] .xe-volume-wrapper {
-  top: 12px;
-  right: 12px;
-}
-
-/* Photo/video modal overlay */
-[aria-modal="true"] .xe-volume-wrapper {
-  top: 16px;
-  right: 16px;
-}
-
-/* Messages / DM — hide block button (you block from profile there) */
-[data-testid="DMDrawer"] .xe-block-btn-wrapper,
-[data-testid="DmActivityViewport"] .xe-block-btn-wrapper {
-  display: none;
-}
-
-/* Make sure our elements don't break tweet layout */
-article .xe-block-btn-wrapper {
-  flex-shrink: 0;
-}
-
-/* Filter badge positioning in various contexts */
-article .xe-filter-badge {
-  vertical-align: middle;
-}
-
-/* High contrast / reduced motion */
-@media (prefers-reduced-motion: reduce) {
-  .xe-volume-wrapper,
-  .xe-volume-thumb,
-  .xe-volume-fill,
-  .xe-toast,
-  .xe-block-btn-icon,
-  .xe-block-btn-inner,
-  .xe-filter-badge {
-    transition: none !important;
-  }
-}
-
-@media (prefers-contrast: more) {
-  .xe-volume-wrapper {
-    border: 1px solid var(--xe-border);
-  }
-
-  .xe-block-btn-wrapper:focus-visible {
-    outline-width: 3px;
-  }
-
-  .xe-filter-badge {
-    border-width: 2px;
-  }
-}
-
-/* Ensure volume wrapper doesn't conflict with X's video controls */
-[data-testid="videoPlayer"] {
-  /* X already has position:relative, just ensure our z-index layer */
-}
-
-.xe-volume-wrapper {
-  /* Stay above X's video controls but below modals */
-  z-index: 10;
-}
-
-/* =====================================================================
-   POPUP-SPECIFIC OVERRIDES (when injected via content script)
-   These ensure popups opened on X pages also look right
-   ===================================================================== */
-
-/* Extension popup if opened on X domain */
-#xwise-popup-root {
-  all: initial;
-  font-family: var(--xe-font-primary);
-}
-
-/* Filter input in content context (if needed) */
-.xe-filter-input {
-  font-family: var(--xe-font-arabic);
-  direction: ltr;
-  unicode-bidi: plaintext;
+  padding: 2px 8px;
+  border-radius: 4px;
 }

@@ -1,230 +1,170 @@
-# XWise Blocker v2.0.0
+# XWise Blocker v3.0.0 Pro 🛡️⚡
 
-A Chrome extension for X (Twitter) that adds **smart content filtering** (keywords, emojis, symbols), **per-video volume sliders**, **native inline Block buttons**, and a **customizable keyboard shortcut** — all from a clean, Persian/English bilingual settings panel with Vazirmatn font.
-
----
-
-## ✨ What's New in v2.0.0
-
-| Feature | Description |
-|---------|-------------|
-| **Smart Filter Engine** | Unicode-aware matching for keywords, *any emoji* (flags, skin tones, ZWJ sequences, compound emojis), and symbols |
-| **Dry-Run Mode** | Preview matches with subtle inline badges — **zero accidental blocks** |
-| **Auto-Block Mode** | Automatically blocks accounts matching your filters via X's native menu |
-| **Targeted Scopes** | Scan **Display Name** and **Bio** by default (tweet text optional) |
-| **Vazirmatn Font** | Built-in Persian/Arabic font — beautiful RTL & LTR support without external CDN |
-| **Bilingual UI** | Full Persian/English interface with one-click language switch |
-| **Preserved v1 Features** | Volume sliders, inline Block button, keyboard shortcut — all refined |
+A powerful, ultra-fast, and native-feeling Chrome extension for X (Twitter). XWise Blocker purifies your timeline, protects your attention, and manages your social graph: **Follow/Unfollow Tracker**, **Relationship Manager (Non-followers, Fans, Mutuals, Lost followers)**, **Anti-Limit Safety Queue**, **Two-Tier LRU & TTL Caching**, **Instant CSS-First Ad Blocker**, **Pro Video Suite with MP4 Downloader & Loop**, and **10/10 Modern Bilingual UI (FA/EN)** with embedded Vazirmatn font.
 
 ---
 
-## 🧠 Filter Engine Details
+## ✨ Features Overview
 
-The filter engine uses **NFKC Unicode normalization** with Arabic/Persian letter canonicalization (`ي`→`ی`, `ك`→`ک`) and variation-selector stripping. This ensures:
+### 1️⃣ Follow/Unfollow Tracker & Relationship Manager 👥
+- **Logged-in Account Auto-Detection**: Seamlessly detects your current active Twitter account with zero login hassle.
+- **5 Smart Relationship Categories**:
+  - 💔 **Unfollowed (آنفالو کردند)**: Tracks accounts that unfollowed you between scans with historical timestamped logging.
+  - 🚫 **Non-Followers (بک نداده‌ها)**: Accounts you follow that do not follow you back.
+  - 🌟 **Fans (طرفداران)**: Accounts that follow you, but you do not follow.
+  - 🤝 **Mutuals (متقابل)**: Mutual connections following each other.
+  - 🎉 **New Followers (جدیدها)**: Recent additions to your followers.
+- **1-Click Single & Batch Actions**: Unfollow or remove followers directly from user cards without visiting individual profiles.
+- **🛡️ Anti-Limit Safety Queue**:
+  - Random jittered delays (3.5s – 5.5s) between actions to keep your account 100% safe from Twitter action limits and shadowbans.
+  - Live progress bar, countdown timer, pause/resume, and immediate stop controls.
+- **Background Periodic Alerts**: Configurable alarm that scans in the background and updates the extension icon badge with new unfollower counts.
 
-- ✅ **Emojis work perfectly**: `🇮🇷`, `👨‍👩‍👧‍👦`, `🏳️‍🌈`, `🤲🏽`, `😀`, `❤️`, `⚡`, all skin-tone & ZWJ sequences
-- ✅ **Keywords match correctly**: case-insensitive, whole-word option, Arabic/Persian diacritic-insensitive
-- ✅ **No false positives**: scope limited to display name + bio (tweet text opt-in)
-- ✅ **Dry-Run first**: subtle badge shows *what* matched *where* before any action
+### 2️⃣ High-Performance Two-Tier Caching Engine ⚡
+- **L1 In-Memory LRU Map**: $O(1)$ fast lookups for user bios and tweet checks, strictly capped under 5MB RAM.
+- **L2 Persistent Storage with TTL**: Automatically prunes expired data after 24h/7d in `chrome.storage.local`.
+- **Cache Dashboard**: Real-time statistics in the Settings tab with a 1-click "Clear Cache" button.
+
+### 3️⃣ Smart Filters & Shield 🛡️
+- **Master Shield Switch**: Instant one-click toggle to pause/resume all protections.
+- **3 Action Modes**:
+  - 🔵 **Hide (Default)**: Collapses matched tweets into a clean bar with a "Show" button.
+  - 🔴 **Auto-Block**: Automatically blocks matching accounts natively.
+  - 🟠 **Auto-Mute**: Automatically mutes matching accounts natively.
+- **Targeted Inspection Scopes**: Choose any combination of **Display Name**, **User Bio**, and **Tweet Text**.
+- **Unicode & Emoji Normalization**: NFKC normalization, Arabic/Persian canonicalization (`ي`→`ی`, `ك`→`ک`), variation selector stripping. Matches flags, skin tones, ZWJ sequences, and complex compound emojis.
+- **Curated 1-Click Preset Packs**:
+  - 🎒 **Cyber & State Trolls**: Flag/symbol spam and coordinated state troll keywords.
+  - 🎣 **Engagement Bait**: "Follow + RT", "بک میدم", fake giveaway traps.
+  - 🎰 **Betting & Gambling**: Casino bots, betting sites, and prediction spam.
+  - 🪙 **Crypto Spam**: Token spam, airdrop phishing, presale minting.
+- **Whitelist (Immunity)**: Exempt trusted friends from all filtering and block actions.
+
+### 4️⃣ Timeline Cleaner & Zen Mode 🧹
+- **CSS-First Instant Ad Blocker**: Eliminates Promoted and sponsored tweets with zero layout shift (CLS) and zero flash of unstyled content (FOUC).
+- **Clutter Purge**: Hides "Who to follow", "Relevant people", "You might like", Grok AI sidebar/drawer, Premium upsell banners, and view counts.
+- **Balanced Zen Mode**: Centers timeline and hides sidebars for distraction-free reading.
+
+### 5️⃣ Pro Video Suite 🎬
+- **Floating Volume Toolbar**: Elegant pill over timeline videos with persistent volume memory across browser sessions.
+- **1-Click MP4 Downloader**: Directly save high-quality MP4 videos to disk.
+- **Auto Loop**: Continuous seamless video replay.
+- **Playback Rate Selector**: Control video playback speed from 0.5x to 2x.
+
+### 6️⃣ 10/10 Modern Bilingual UI (FA/EN) 🎨
+- Designed to match official Twitter/X design tokens in dark, dim, and light themes.
+- Dual view: Works as standard browser toolbar popup AND as an integrated in-page drawer inside X.com.
+- Full RTL (Persian) and LTR (English) localization with embedded Vazirmatn variable font.
 
 ---
 
 ## 🚀 Installation (Developer Mode)
 
-1. Open `chrome://extensions` in Chrome
-2. Enable **Developer mode** (top-right toggle)
-3. Click **Load unpacked**
-4. Select the `XWise Blocker v1` folder
-5. Click the extension icon in your toolbar to open settings
+1. Clone or download this repository:
+   ```bash
+   git clone https://github.com/AmirWise/XWise-Blocker.git
+   ```
+2. Open your browser and navigate to `chrome://extensions` (compatible with Chrome, Brave, Edge, Arc, Opera).
+3. Enable **Developer mode** using the toggle in the top-right corner.
+4. Click **Load unpacked** (بارگذاری اکستنشن باز شده).
+5. Select this project folder (`XWise-Blocker`).
+6. Pin **XWise Blocker** to your browser toolbar and enjoy a cleaner, safer X!
 
 ---
 
-## ⚙️ Settings — Three Tabs
+## 🔒 Privacy & Security
 
-### 1️⃣ Filters (New in v2)
-- **Master toggle** — enable/disable filter engine
-- **Mode selector** — **Dry-Run** (amber badge preview) or **Auto-Block** (red, executes native block)
-- **Add filters** — type any word, phrase, emoji, symbol, flag (max 100)
-- **Scope checkboxes** — Display Name ✓, Bio ✓, Tweet Text (off by default)
-- **Active chips** — live list with one-click delete
-
-### 2️⃣ Features (Classic v1)
-| Setting | Default | Description |
-|---------|---------|-------------|
-| Volume sliders | ✅ On | Floating pill over timeline videos |
-| Remember volume | ✅ On | Last volume persists across videos |
-| Inline Block button | ✅ On | Native-styled button in every tweet action bar |
-| Keyboard shortcut | ✅ On | Hover tweet + `Ctrl+Alt+B` (customizable) |
-| Shortcut modifiers | `Ctrl` + `Alt` | Click to toggle, type letter to remap |
-| Confirm before block | ✅ On | 2-second cancel toast on shortcut |
-
-### 3️⃣ Statistics
-- **Direct Blocks** — manual blocks via button/shortcut
-- **Dry-Run Matches** — tweets flagged in test mode
-- **Filter Auto-Blocks** — blocks executed by auto mode
-- **Total Blocked** — cumulative counter
-- **Reset** — one-click counter wipe
+- **100% Client-Side**: All filtering, relationship tracking, and calculations occur entirely within your browser.
+- **Zero Remote Telemetry**: No external servers, no tracking scripts, no third-party analytics.
+- **Secure Authentication**: Uses the browser's existing authenticated X.com session cookies (`ct0` CSRF token) without collecting or storing credentials.
+- **Local Storage Only**: Your settings, filters, and cache remain stored exclusively in your browser's `chrome.storage`.
 
 ---
 
-## 📦 Packaging with Same Extension ID
+<div dir="rtl">
 
-If you have the private key (`.pem`) from a previous release:
+# راهنمای فارسی افزونه XWise Blocker نسخه 3.0.0 Pro 🛡️⚡
 
-1. Go to `chrome://extensions`
-2. Click **Pack extension**
-3. **Extension root directory**: select this folder
-4. **Private key file**: select your `.pem` file
-5. Click **Pack extension** — produces a `.crx` with the same ID
-
-> ⚠️ **Security**: Never share or commit your `.pem` file. Anyone with it can publish updates as your extension ID.
+افزونه اختصاصی و فوق‌العاده سریع برای مرورگرهای کرومیوم (Chrome, Brave, Edge, Arc, Opera) جهت پاک‌سازی تایم‌لاین، مدیریت شبکه ارتباطات و ارتقای امنیت در شبکه اجتماعی X (توییتر).
 
 ---
 
-## 🐛 Known Limitations
+## 🌟 قابلیت‌های کلیدی
 
-- Filter matching relies on DOM text + `img[alt]` for emojis (X renders Twemoji as images)
-- Bio caching is session-scoped; hovercards enrich cache dynamically
-- Works on `x.com` and `twitter.com` only
-- Auto-block uses X's native "More → Block → Confirm" flow — no private APIs
+### ۱️⃣ آنفالویاب هوشمند و مدیریت ارتباطات 👥
+- **شناسایی خودکار اکانت لاگین‌شده**: بدون نیاز به وارد کردن نام کاربری یا پسورد.
+- **۵ دسته‌بندی هوشمند ارتباطی**:
+  - 💔 **آنفالو کردند (Unfollowers)**: ردیابی اکانت‌هایی که شما را آنفالو کرده‌اند به همراه تاریخچه دقیق زمانی.
+  - 🚫 **بک نداده‌ها (Non-Followers)**: افرادی که شما فالو کرده‌اید ولی آن‌ها به شما بک نداده‌اند.
+  - 🌟 **طرفداران (Fans)**: کسانی که شما را دنبال کرده‌اند اما شما آن‌ها را فالو نکرده‌اید.
+  - 🤝 **متقابل (Mutuals)**: ارتباطات دوطرفه که هر دو طرف یکدیگر را دنبال می‌کنند.
+  - 🎉 **فالوورهای جدید (New Followers)**: فالوورهایی که اخیراً اضافه شده‌اند.
+- **اقدام سریع با ۱ کلیک**: آنفالو کردن یا حذف فالوور مستقیماً از روی کارت‌های کاربری به صورت تکی یا دسته‌جمعی.
+- **🛡️ صف ایمن ضد لیمیت (Anti-Limit Safety Queue)**: اعمال وقفه تصادفی ۳.۵ تا ۵.۵ ثانیه‌ای بین هر اقدام همراه با نوار پیشرفت زنده، تایمر معکوس، و کلیدهای مکث/ادامه/توقف جهت جلوگیری قطعی از لیمیت یا شادوبن شدن اکانت توییتر.
+- **ردیابی دوره‌ای در پس‌زمینه**: هشدار تغییرات و نمایش تعداد آنفالوورها روی بج آیکون اکستنشن.
 
----
+### ۲️⃣ سیستم کش دو لایه با سرعت نور (Two-Tier Caching) ⚡
+- **لایه اول (L1) حافظه رم**: جستجوی آنی با پیچیدگی زمانی $O(1)$ و مصرف رم کمتر از ۵ مگابایت.
+- **لایه دوم (L2) ذخیره‌سازی محلی با TTL**: ذخیره امن بایوها و اطلاعات در `chrome.storage.local` با منقضی شدن خودکار داده‌های قدیمی.
+- **داشبورد وضعیت کش**: نمایش آنلاین تعداد آیتم‌ها و حجم کش در تنظیمات به همراه کلید پاک‌سازی آنی.
 
-## 🛠 Technical Highlights
+### ۳️⃣ موتور فیلتر هوشمند و شیلد امنیتی 🛡️
+- **کلید شیلد مستر**: روشن/خاموش کردن کل فیلترها و بلاکرها با یک کلیک.
+- **۳ حالت عملکرد**:
+  - 🔵 **پنهان‌سازی (Hide)**: توییت به صورت یک کادر ظریف جمع می‌شود و با کلیک روی «نمایش» باز می‌شود.
+  - 🔴 **بلاک خودکار (Auto-Block)**: مسدودسازی خودکار اکانت طبق قوانین از طریق منوی رسمی توییتر.
+  - 🟠 **بی‌صدا کردن خودکار (Auto-Mute)**: میوت کردن اکانت‌ها بدون بلاک.
+- **محدوده‌های هدفمند**: امکان اسکن دلخواه روی نام نمایشی، بایو و متن توییت.
+- **پشتیبانی کامل از یونیکد و ایموجی‌ها**: نرمال‌سازی حروف عربی/فارسی (`ي` به `ی` و `ك` به `ک`)، حذف فواصل مجازی، و تطبیق دقیق پرچم‌ها، تن‌های رنگ پوست و ایموجی‌های چندبخشی (ZWJ).
+- **پک‌های فیلتر آماده با یک کلیک**:
+  - 🎒 اکانت‌های سایبری و ترول‌های حکومتی
+  - 🎣 تله‌های تعامل و توییت‌های طعمه («فالو + ریتوییت»، «بک میدم»)
+  - 🎰 بات‌های شرط‌بندی و پیش‌بینی فوتبال
+  - 🪙 اسپم‌های رمزارز، ایردراپ و شت‌کوین‌ها
+- **لیست سفید (Whitelist)**: مصونیت کامل دوستان و حساب‌های مورد اعتماد از فیلتر و بلاک.
 
-- **Unicode Engine**: NFKC normalization + Arabic/Persian canonicalization + variation-selector stripping
-- **Emoji Handling**: Full support for flags, skin tones, ZWJ sequences, compound emojis
-- **Performance**: Scoped `MutationObserver` + `requestIdleCallback` — no full-page rescans
-- **Reliability**: `waitFor()` helper replaces fragile `setTimeout` chains; waits for actual menu/confirmation elements
-- **Memory**: `WeakSet` tracking lets GC reclaim removed DOM nodes
-- **Theme Detection**: Reads computed `background-color` on `<body>` to infer light/dark/dim
-- **Font Loading**: Local `woff2` via `chrome.runtime.getURL()` — zero network requests, works offline
-- **Manifest V3**: Service worker background, `storage` + `scripting` permissions only
+### ۴️⃣ تمیزکننده تایم‌لاین و حالت تمرکز (Zen Mode) 🧹
+- **حذف قطعی تبلیغات (CSS-First)**: مسدودسازی کامل توییت‌های پروموت‌شده و اسپانسری بدون پرش صفحه (Zero Shift).
+- **پاک‌سازی محتوای اضافه**: حذف کامل کادرهای «چه کسانی را دنبال کنید»، افراد مرتبط، کشوی هوش مصنوعی Grok، تبلیغات اشتراک Premium و آمار بازدید (View Count).
+- **حالت تمرکز (Zen Mode)**: مخفی‌سازی سایدبارها و متمرکز کردن فید برای مطالعه آرام.
 
----
+### ۵️⃣ سوئیت چندرسانه‌ای و ویدیوی پرو 🎬
+- **اسلایدر شناور صدا**: تنظیم ولوم روی هر ویدیو با ذخیره‌سازی پایدار میزان صدا برای دفعات بعدی.
+- **دانلودر مستقیم MP4**: ذخیره ویدیوها با بالاترین کیفیت موجود روی سیستم با ۱ کلیک.
+- **تکرار خودکار (Loop)**: پخش پیوسته و بدون وقفه ویدیوها.
+- **تنظیم سرعت پخش**: تغییر سرعت ویدیو از ۰.۵x تا ۲x.
 
-## 📄 License
-
-MIT License — free to use, modify, and distribute.
-
----
-
-## XWise Blocker v2.0.0 (فارسی)
-
-اکستنشن کروم برای X (توییتر) که امکانات زیر رو اضافه می‌کنه:
-- **موتور فیلتر هوشمند**: کلمات، *هر نوع ایموجی*، پرچم‌ها و علائم با پشتیبانی کامل یونیکد
-- **حالت آزمایشی (Dry-Run)**: نشان ظریف روی توییت‌های تطبیق‌یافته، بدون هیچ بلاکی
-- **حالت بلاک خودکار**: مسدودسازی اتوماتیک حساب‌های مطابق با فیلترها
-- **اسپت‌های هدفمند**: بررسی نام نمایشی و بایو (متن توییت اختیاری)
-- **فونت وزیرمتن**: فونت فارسی/عربی داخلی، پشتیبانی کامل RTL و LTR بدون CDN
-- **رابط دو زبانه**: فارسی/انگلیسی با یک کلیک
-- **اسلایدر صدا** روی هر ویدیو در تایم‌لاین
-- **دکمه Block آنی** در نوار اکشن هر توییت
-- **شورتکات کیبورد** قابل تنظیم برای بلاک کردن توییتِ هاورشده
-
-همه از یک پنل تنظیمات تمیز، دو زبانه و حرفه‌ای کنترل میشن.
-
----
-
-## ✨ امکانات جدید در v2.0.0
-
-| قابلیت | توضیح |
-|---------|---------|
-| **موتور فیلتر هوشمند** | تطبیق یونیکد برای کلمات، *هر ایموجی* (پرچم، تن پوست، ZWJ، ایموجی ترکیبی)، و علائم |
-| **حالت آزمایشی** | پیش‌نمایش تطابق‌ها با نشان ظریف درون‌خطی — **صفر بلاک تصادفی** |
-| **حالت بلاک خودکار** | مسدودسازی اتوماتیک حساب‌های مطابق با فیلترها از طریق منوی رسمی X |
-| **اسپت‌های هدفمند** | بررسی **نام نمایشی** و **بایو** به‌صورت پیش‌فرض (متن توییت اختیاری) |
-| **فونت وزیرمتن** | فونت فارسی/عربی داخلی — پشتیبانی زیبا RTL و LTR بدون CDN خارجی |
-| **رابط دو زبانه** | رابط کاربری کامل فارسی/انگلیسی با تغییر زبان فوری |
-| **حفظ امکانات v1** | اسلایدر صدا، دکمه Block در توییت، شرتکات کیبورد — همه بازنویسی و بهینه‌شده |
+### ۶️⃣ رابط کاربری حرفه‌ای دو زبانه (FA/EN) 🎨
+- کامپوننت‌های مدرن و هماهنگ با دیزاین سیستم اصلی X در تم‌های دارک، لایت و Dim.
+- امکان باز شدن به صورت پاپ‌آپ نوار ابزار و همچنین دراور شناور اختصاصی درون خود صفحه X.com.
+- مجهز به فونت متغیر وزیرمتن (Vazirmatn) بدون نیاز به اینترنت و بدون افت سرعت.
 
 ---
 
-## 🧠 جزئیات موتور فیلتر
+## 🚀 راهنمای نصب
 
-موتور فیلتر از **نرمال‌سازی یونیکد NFKC** با قانون‌سازی حروف فارسی/عربی (`ي`→`ی`, `ك`→`ک`) و حذف سلکتورهای نمایش (VS15/VS16) استفاده می‌کند. این باعث می‌شود:
-
-- ✅ **ایموجی‌ها بی‌نقص کار می‌کنند**: `🇮🇷`، `👨‍👩‍👧‍👦`، `🏳️‍🌈`، `🤲🏽`، `😀`، `❤️`، `⚡`، تمام توالی‌های تن پوست و ZWJ
-- ✅ **کلمات به‌درستی تطبیق می‌یابند**: حروف بزرگ/کوچک، گزینه کلمه کامل، نادیده گرفتن حرکات عربی/فارسی
-- ✅ **بدون مثبت‌کاذب**: محدوده محدود به نام نمایشی + بایو (متن توییت فقط با فعال‌سازی)
-- ✅ **آزمایشی اول**: نشان ظریف می‌گوید *چه* فیلتری در *کجا* تطبیق داده — قبل از هر اقدامی
-
----
-
-## 🚀 نصب (حالت Developer)
-
-1. در کروم به `chrome://extensions` بروید
-2. **Developer mode** (گوشه بالا راست) را فعال کنید
-3. روی **Load unpacked** کلیک کنید
-4. پوشه `XWise Blocker v1` را انتخاب کنید
-5. آیکون اکستنشن در نوار ابزار ظاهر می‌شود — روش کلیک کنید تا تنظیمات باز شود
+1. پروژه را دانلود یا کلون کنید:
+   ```bash
+   git clone https://github.com/AmirWise/XWise-Blocker.git
+   ```
+2. مرورگر کروم یا مرورگرهای مبتنی بر کرومیوم را باز کرده و به آدرس `chrome://extensions` بروید.
+3. گزینه **Developer mode** را از گوشه بالا سمت راست فعال کنید.
+4. روی دکمه **Load unpacked** کلیک کنید.
+5. پوشه پروژه را انتخاب کنید.
+6. آیکون **XWise Blocker** را به نوار ابزار پین کنید و از توییتر تمیز و سریع لذت ببرید!
 
 ---
 
-## ⚙️ تنظیمات — سه زبانه
+## 🔒 حریم خصوصی و امنیت
 
-### ۱️⃣ فیلترها (جدید در v2)
-- **مستر سوئیچ** — فعال/غیرفعال کردن موتور فیلتر
-- **انتخاب حالت** — **آزمایشی** (نشان زرد پیش‌نمایش) یا **بلاک خودکار** (قرمز، اجرا از منوی رسمی)
-- **افزودن فیلتر** — هر کلمه، عبارت، ایموجی، نماد، پرچم تایپ کنید (حداکثر ۱۰۰)
-- **چک‌باکس‌های محدوده** — نام نمایشی ✓، بایو ✓، متن توییت (پیش‌فرض خاموش)
-- **چیپ‌های فعال** — لیست زنده با حذف تک‌کلیک
-
-### ۲️⃣ امکانات (کلاسیک v1)
-| گزینه | پیش‌فرض | توضیح |
-|---------|---------|---------|
-| اسلایدر صدا | ✅ روشن | قرص شناور روی ویدیوهای تایم‌لاین |
-| یادتان باشد صدا | ✅ روشن | آخرین سطح صدا در ویدیوهای بعد حفظ شود |
-| دکمه Block در توییت | ✅ روشن | دکمه Block بومی در نوار اکشن هر توییت |
-| شرتکات کیبورد | ✅ روشن | هاور روی توییت + `Ctrl+Alt+B` (قابل تغییر) |
-| модиفایرهای شرتکات | `Ctrl` + `Alt` | کلیک برای فعال/غیرفعال، تایپ حرف برای تغییر |
-| تأیید قبل از بلاک | ✅ روشن | تاست ۲ ثانیه‌ای با دکمه Cancel برای جلوگیری از بلاک تصادفی |
-
-### ۳️⃣ آمار
-- **بلاک‌های مستقیم** — بلاک دستی از طریق دکمه/شورتکات
-- **تطابق‌های آزمایشی** — توییت‌های پرچم‌گذاری‌شده در حالت Dry-Run
-- **بلاک‌های خودکار فیلتر** — بلاک‌های اجرا شده توسط حالت Auto
-- **مجموع مسدودها** — شمارنده تجمعی
-- **صفر کردن** — حذف تمام شمارنده‌ها با یک کلیک
+- **کاملاً آفلاین و Client-Side**: هیچ داده‌ای به هیچ سرور خارجی ارسال نمی‌شود.
+- **بدون ابزارهای ردیابی و آنالیتیکس**: هیچ تلمتری یا لاگی از رفتار شما برداشته نمی‌شود.
+- **احراز هویت بومی**: استفاده مستقیم از سشن کوکی‌های خود مرورگر بدون دسترسی به رمز عبور شما.
 
 ---
 
-## 📦 بسته‌بندی با همان Extension ID
+## 📄 مجوز (License)
 
-اگر فایل کلید خصوصی (`.pem`) از نسخه قبلی را دارید:
+این پروژه تحت مجوز **MIT** منتشر شده است. استفاده، تغییر و بازتوزیع آن کاملاً آزاد و رایگان است.
 
-1. به `chrome://extensions` بروید
-2. روی **Pack extension** کلیک کنید
-3. **Extension root directory**: این پوشه را انتخاب کنید
-4. **Private key file**: فایل `.pem` قدیمی را انتخاب کنید
-5. **Pack extension** بزنید — یک فایل `.crx` با همان Extension ID تولید می‌شود
-
-> ⚠️ **نکته امنیتی**: فایل `.pem` را در هیچ nơi عمومی (گیت‌هاب پابلیک، پیام‌رسان‌های ناامن) آپلود نکنید. هر کسی که این فایل را داشته باشد می‌تواند به نام همان Extension ID آپدیت منتشر کند.
-
----
-
-## 🐛 محدودیت‌های شناخته‌شده
-
-- تطبیق فیلتر بر پایه متن DOM + `img[alt]` برای ایموجی‌ها است (X ایموجی‌ها را به‌صورت تصویر Twemoji رندر می‌کند)
-- کش بایو در طول سشن معتبر است؛ هاورکارت‌ها به‌صورت پویا کش را غنی می‌کنند
-- تنها روی `x.com` و `twitter.com` کار می‌کند
-- بلاک خودکار از جریان بومی «بیشتر → مسدود → تایید» استفاده می‌کند — هیچ API خصوصی نیست
-
----
-
-## 🛠 نکات فنی
-
-- **موتور یونیکد**: نرمال‌سازی NFKC + قانون‌سازی حروف فارسی/عربی + حذف سلکتورهای نمایش
-- **مدیریت ایموجی**: پشتیبانی کامل پرچم‌ها، تن‌های پوست، توالی‌های ZWJ، ایموجی‌های ترکیبی
-- **پرفورمنس**: `MutationObserver` محدود + `requestIdleCallback` — هیچ اسکن مجدد کل صفحه
-- **قابلیت اطمینان**: تابع `waitFor()` جایگزین زنجیرهای شکننده `setTimeout`؛ منتظر ظاهر شدن واقعی منو/دکمه تایید می‌ماند
-- **حافظه**: ردیابی با `WeakSet` به GC اجازه می‌دهد گره‌های DOM حذف‌شده را بازیابی کند
-- **تشخیص تم**: خواندن `background-color` محاسبه‌شده روی `<body>` برای استنتاج light/dark/dim
-- **بارگذاری فونت**: `woff2` محلی عبر `chrome.runtime.getURL()` — هیچ درخواست شبکه‌ای، آفلاین کار می‌کند
-- **Manifest V3**: Service Worker در پس‌زمینه، فقط مجوز `storage` و `scripting`
-
----
-
-## 📄 مجوز
-
-مجوز MIT — آزاد برای استفاده، تغییر و توزیع.
+</div>
