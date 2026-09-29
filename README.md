@@ -1,4 +1,4 @@
-# XWise Blocker v3.1.1 Pro 🛡️⚡
+# XWise Blocker v3.2.1 🛡️⚡
 
 A powerful, ultra-fast, and native-feeling Chrome extension for X (Twitter). XWise Blocker purifies your timeline, protects your attention, and manages your social graph: **Follow/Unfollow Tracker**, **Relationship Manager (Non-followers, Fans, Mutuals, Lost followers)**, **Anti-Limit Safety Queue**, **Two-Tier LRU & TTL Caching**, **Instant CSS-First Ad Blocker**, **Pro Video Suite with MP4 Downloader & Loop**, **No-Boys Mode (Timeline Gender Filter)**, and **10/10 Modern Bilingual UI (FA/EN)** with embedded Vazirmatn font.
 
@@ -68,6 +68,23 @@ A powerful, ultra-fast, and native-feeling Chrome extension for X (Twitter). XWi
 - **Native Inline Re-hide Action Button**: Clicking "Show" reveals the tweet completely normally, placing a sleek native action button in the bottom action bar (`[role="group"]`) to instantly re-collapse it without breaking tweet balance.
 - **Disabled by Default**: Safe, optional, and easily toggled in the "Media & Zen" tab under "Fun & Special Filters".
 
+## 🆕 What's new in 3.2.1
+
+- **Auto-block / auto-mute fixed**: menu items are now matched by their stable `data-testid` (`block`, `mute`) instead of localized text only, filters saved by older versions without an `enabled` flag are honored, legacy `block`/`mute` filter actions map correctly, and a warning toast appears if an automatic action cannot complete.
+
+## 🆕 What's new in 3.2.0
+
+- **Reliability**: batch unfollow / remove-follower now runs inside the X tab, so closing the popup no longer aborts it; progress is restored when the popup is reopened. A single action can no longer wipe the saved follower snapshot.
+- **Accurate unfollower tracking**: stable timestamps, a persistent unfollower list, no false "unfollowers" after removing a follower, no false results from partially fetched lists, and a guard against account switches.
+- **Ad blocker**: no longer flags reposts by users whose names contain "ad" (Hadi, Nadia...), and the CSS-first rules respect the toggle.
+- **Filters apply live**: adding, editing or disabling a filter, the whitelist, or the master shield takes effect immediately, and hidden tweets are restored correctly.
+- **Video download**: resolves real MP4 variants for the tweet (blob-only players previously failed).
+- **Shortcut** works on non-Latin keyboard layouts (physical key fallback).
+- **Master shield** is now a dedicated switch and no longer overwrites individual toggles.
+- **Storage**: counters and the activity log are batched in local storage (no sync quota errors); the cache is stored per namespace and no longer loads all extension data on every page.
+- **Popup UX**: paginated user lists, per-filter enable toggle, regex validation, import validation, readable error messages, live last-scan time.
+- **Security**: in-page drawer messages are accepted only from the extension's own frame; web-accessible resources reduced to the minimum.
+
 ---
 
 ## 🚀 Installation (Developer Mode)
@@ -95,7 +112,7 @@ A powerful, ultra-fast, and native-feeling Chrome extension for X (Twitter). XWi
 
 <div dir="rtl">
 
-# راهنمای فارسی افزونه XWise Blocker نسخه 3.1.1 Pro 🛡️⚡
+# راهنمای فارسی افزونه XWise Blocker نسخه 3.2.1 🛡️⚡
 
 افزونه اختصاصی و فوق‌العاده سریع برای مرورگرهای کرومیوم (Chrome, Brave, Edge, Arc, Opera) جهت پاک‌سازی تایم‌لاین، مدیریت شبکه ارتباطات و ارتقای امنیت در شبکه اجتماعی X (توییتر).
 
@@ -162,6 +179,23 @@ A powerful, ultra-fast, and native-feeling Chrome extension for X (Twitter). XWi
 - **شیلد ایمنی بانوان (Female Guard)**: مصونیت ۱۰۰٪ برای خانم‌ها بر اساس نام‌ها، ضمایر (`she/her`)، کلمات کلیدی و ایموجی‌ها جهت جلوگیری قطعی از خطای مثبت.
 - **دکمه بومی هاید مجدد زیر توییت**: با زدن «نمایش»، توییت کاملاً طبیعی لود می‌شود و دکمه بومی هاید مجدد در نوار ابزار پایین توییت قرار می‌گیرد تا توازن صفحه حفظ شود.
 - **غیرفعال به صورت پیش‌فرض**: کاملاً اختیاری و قابل فعال‌سازی در تب «رسانه و تمیز» بخش فیلترهای اختصاصی.
+
+## 🆕 تغییرات نسخه 3.2.1
+
+- **رفع مشکل بلاک/میوت خودکار**: آیتم‌های منو حالا با `data-testid` ثابت (`block` و `mute`) شناسایی می‌شوند نه فقط متن ترجمه‌شده؛ فیلترهای نسخه‌های قدیمی بدون فیلد `enabled` هم اعمال می‌شوند؛ اکشن‌های قدیمی `block`/`mute` درست تبدیل می‌شوند؛ و اگر اجرای خودکار ناموفق باشد هشدار نمایش داده می‌شود.
+
+## 🆕 تغییرات نسخه 3.2.0
+
+- **پایداری**: صف آنفالو/حذف فالوور حالا داخل تب X اجرا می‌شود و با بستن پاپ‌آپ متوقف نمی‌شود؛ با بازکردن دوباره پاپ‌آپ پیشرفت نمایش داده می‌شود. اقدام تکی دیگر اسنپ‌شات ذخیره‌شده را پاک نمی‌کند.
+- **ردیابی دقیق‌تر آنفالوها**: زمان ثابت، لیست ماندگار، بدون آنفالوی کاذب پس از حذف فالوور یا دریافت ناقص لیست، و محافظت در برابر تغییر اکانت.
+- **مسدودساز تبلیغات**: ریپست کاربرانی مثل Hadi و Nadia دیگر به‌اشتباه تبلیغ حساب نمی‌شود و قوانین CSS از کلید خاموش/روشن پیروی می‌کنند.
+- **اعمال آنی فیلترها**: افزودن، حذف یا غیرفعال‌کردن فیلتر، لیست سفید و سپر اصلی بلافاصله اعمال می‌شود و توییت‌های پنهان درست بازیابی می‌شوند.
+- **دانلود ویدیو**: لینک واقعی MP4 از روی توییت پیدا می‌شود.
+- **میانبر** روی کیبورد فارسی هم کار می‌کند.
+- **سپر اصلی** کلید مستقل دارد و تنظیمات دیگر را بازنویسی نمی‌کند.
+- **ذخیره‌سازی**: شمارنده‌ها و لاگ به‌صورت دسته‌ای در حافظه محلی ذخیره می‌شوند و کش دیگر کل داده‌های افزونه را در هر صفحه نمی‌خواند.
+- **رابط**: صفحه‌بندی لیست‌ها، فعال/غیرفعال‌سازی هر فیلتر، اعتبارسنجی Regex و فایل ورودی، پیام‌های خطای خوانا و زمان آخرین اسکن.
+- **امنیت**: پیام‌های دراور فقط از فریم خود افزونه پذیرفته می‌شوند.
 
 ---
 

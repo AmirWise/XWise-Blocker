@@ -1,8 +1,9 @@
 {
   "manifest_version": 3,
   "name": "XWise Blocker",
-  "version": "3.1.1",
-  "description": "Ultimate content filter, timeline cleaner, ad blocker, pro video suite, and native moderation for X (Twitter).",
+  "version": "3.2.1",
+  "minimum_chrome_version": "105",
+  "description": "Content filter, timeline cleaner, ad blocker, video suite, and relationship tracker for X (Twitter).",
   "icons": {
     "16": "icons/icon16.png",
     "48": "icons/icon48.png",
@@ -15,13 +16,13 @@
       "48": "icons/icon48.png",
       "128": "icons/icon128.png"
     },
-    "default_title": "XWise Blocker v3.1.1 Pro"
+    "default_title": "XWise Blocker v3.2.1"
   },
   "background": {
     "service_worker": "background.js",
     "type": "module"
   },
-  "permissions": ["storage", "scripting", "downloads", "alarms", "cookies"],
+  "permissions": ["storage", "unlimitedStorage", "scripting", "downloads", "alarms", "cookies"],
   "host_permissions": [
     "*://*.x.com/*",
     "*://*.twitter.com/*",
@@ -43,18 +44,10 @@
   "web_accessible_resources": [
     {
       "resources": [
-        "modules/cache.js",
-        "modules/twitterApi.js",
-        "modules/relationshipTracker.js",
+        "popup.html",
         "fonts/vazirmatn-arabic.woff2",
         "fonts/vazirmatn-latin-ext.woff2",
-        "fonts/vazirmatn-latin.woff2",
-        "popup.html",
-        "popup.css",
-        "popup.js",
-        "icons/icon16.png",
-        "icons/icon48.png",
-        "icons/icon128.png"
+        "fonts/vazirmatn-latin.woff2"
       ],
       "matches": ["*://*.x.com/*", "*://*.twitter.com/*"]
     }

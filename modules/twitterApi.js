@@ -1,7 +1,7 @@
 'use strict';
 
 /**
- * XWise Blocker v3.0.1 — Native Twitter/X Client API
+ * XWise Blocker v3.2.1 — Native Twitter/X Client API
  * High-reliability REST/GraphQL client with automatic CSRF management,
  * multi-tier fallbacks, and rate-limit safety checks.
  */
@@ -323,6 +323,7 @@ class XWiseTwitterApiEngine {
     // Lookup user objects in batches of 100
     const users = [];
     const batchSize = 100;
+    let failedBatches = 0;
     for (let i = 0; i < ids.length; i += batchSize) {
       const slice = ids.slice(i, i + batchSize);
       try {
@@ -350,8 +351,15 @@ class XWiseTwitterApiEngine {
               followedBy: !!u.followed_by,
             });
           }
+        } else if (lookupRes.status === 429) {
+          throw new Error('RATE_LIMITED');
+        } else {
+          failedBatches++;
         }
-      } catch {}
+      } catch (err) {
+        if (String(err.message).startsWith('RATE_LIMITED')) throw err;
+        failedBatches++;
+      }
 
       if (typeof onProgress === 'function') {
         onProgress({ type, count: users.length, total: ids.length });
@@ -360,6 +368,10 @@ class XWiseTwitterApiEngine {
       if (i + batchSize < ids.length) {
         await new Promise((r) => setTimeout(r, 200));
       }
+    }
+
+    if (failedBatches > 0) {
+      throw new Error('LOOKUP_INCOMPLETE');
     }
 
     return users;
@@ -486,12 +498,41 @@ class XWiseTwitterApiEngine {
       }
     }
 
-    // Fallbacks
-    const fallbacks = {
-      Following: '2v9xYvsX8Y1Y8Z7q9Q1Y8Z',
-      Followers: '1v9xYvsX8Y1Y8Z7q9Q1Y8Z',
-    };
-    return fallbacks[operationName] || null;
+    return null;
+  }
+
+  /**
+   * Resolve downloadable MP4 variants for a tweet through the public syndication endpoint.
+   * Returns variants sorted by bitrate, highest first.
+   */
+  async fetchVideoVariants(tweetId) {
+    const id = String(tweetId || '').replace(/\D/g, '');
+    if (!id) throw new Error('INVALID_TWEET_ID');
+
+    const token = ((Number(id) / 1e15) * Math.PI).toString(36).replace(/(0+|\.)/g, '');
+    const res = await fetch(
+      `https://cdn.syndication.twimg.com/tweet-result?id=${id}&lang=en&token=${token}`
+    );
+    if (!res.ok) throw new Error(`SYNDICATION_${res.status}`);
+
+    const data = await res.json();
+    const media = [
+      ...(data.mediaDetails || []),
+      ...(data.quoted_tweet?.mediaDetails || []),
+    ];
+
+    const variants = media
+      .flatMap((item) => item.video_info?.variants || [])
+      .filter((v) => v.content_type === 'video/mp4' && v.url)
+      .map((v) => ({ url: v.url, bitrate: Number(v.bitrate) || 0 }));
+
+    if (variants.length === 0 && Array.isArray(data.video?.variants)) {
+      for (const v of data.video.variants) {
+        if (v.type === 'video/mp4' && v.src) variants.push({ url: v.src, bitrate: 0 });
+      }
+    }
+
+    return variants.sort((a, b) => b.bitrate - a.bitrate);
   }
 
   /**
@@ -533,6 +574,7 @@ class XWiseTwitterApiEngine {
     if (targetUserId) body.append('user_id', targetUserId);
     if (targetScreenName) body.append('screen_name', targetScreenName);
 
+    let rateLimited = false;
     try {
       const res = await fetch('https://x.com/i/api/1.1/followers/destroy.json', {
         method: 'POST',
@@ -541,12 +583,21 @@ class XWiseTwitterApiEngine {
         credentials: 'include',
       });
       if (res.ok) return await res.json();
+      if (res.status === 429) rateLimited = true;
     } catch {}
+    if (rateLimited) throw new Error('RATE_LIMITED');
 
-    // Fallback: Soft-block method (Block + Immediate Unblock to sever follower link)
-    await this.blockUser(targetUserId, targetScreenName);
+    // Fallback: soft-block (block, then immediately unblock) severs the follower link
+    const blocked = await this.blockUser(targetUserId, targetScreenName);
+    if (!blocked) throw new Error('REMOVE_FOLLOWER_FAILED');
+
     await new Promise((r) => setTimeout(r, 400));
-    await this.unblockUser(targetUserId, targetScreenName);
+    let unblocked = await this.unblockUser(targetUserId, targetScreenName);
+    if (!unblocked) {
+      await new Promise((r) => setTimeout(r, 1000));
+      unblocked = await this.unblockUser(targetUserId, targetScreenName);
+    }
+    if (!unblocked) throw new Error('UNBLOCK_FAILED');
     return { success: true, method: 'soft_block' };
   }
 

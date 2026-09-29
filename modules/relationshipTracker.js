@@ -1,35 +1,52 @@
 'use strict';
 
 /**
- * XWise Blocker v3.0.1 — Relationship Tracker & Safety Action Queue
- * Computes follower/following diffs (Non-followers, Fans, Mutuals, Unfollowers, New followers)
- * and executes account actions with strict jittered rate-limiting to prevent Twitter bans.
+ * XWise Blocker v3.2.1 - Relationship tracker and rate-limited action queue
+ * Computes follower/following diffs and executes account actions with jittered delays.
  */
+
+const XWISE_HISTORY_LIMIT = 500;
+const XWISE_ACTION_DELAY_MIN_MS = 3500;
+const XWISE_ACTION_DELAY_JITTER_MS = 2000;
+const XWISE_BIO_MAX_LENGTH = 160;
+
+const xwiseUserKey = (user) => (user && (user.id || String(user.handle || '').toLowerCase())) || '';
+
+function xwiseEmptyCategories() {
+  return {
+    nonFollowers: [],
+    fans: [],
+    mutuals: [],
+    unfollowers: [],
+    newFollowers: [],
+    newUnfollowerCount: 0,
+    isInitialScan: true,
+  };
+}
+
+function xwiseTrimUser(user) {
+  return { ...user, bio: String(user.bio || '').slice(0, XWISE_BIO_MAX_LENGTH) };
+}
 
 class XWiseRelationshipTrackerEngine {
   constructor() {
     this.latestSnapshot = null;
     this.previousSnapshot = null;
     this.unfollowerHistory = [];
-    this.categories = {
-      nonFollowers: [],
-      fans: [],
-      mutuals: [],
-      unfollowers: [],
-      newFollowers: [],
-    };
+    this.categories = xwiseEmptyCategories();
 
-    // Safety Queue State
     this.queueState = 'idle'; // 'idle' | 'running' | 'paused' | 'stopped'
-    this.abortController = null;
+    this.batchProgress = null;
+    this.syncPromise = null;
   }
 
-  /**
-   * Initialize and load saved snapshots
-   */
+  _hasStorage() {
+    return typeof chrome !== 'undefined' && !!chrome.storage && !!chrome.storage.local;
+  }
+
   async init() {
-    try {
-      if (typeof chrome !== 'undefined' && chrome.storage && chrome.storage.local) {
+    if (this._hasStorage()) {
+      try {
         const res = await chrome.storage.local.get([
           'xwise.tracker.latest',
           'xwise.tracker.previous',
@@ -38,301 +55,249 @@ class XWiseRelationshipTrackerEngine {
         this.latestSnapshot = res['xwise.tracker.latest'] || null;
         this.previousSnapshot = res['xwise.tracker.previous'] || null;
         this.unfollowerHistory = res['xwise.tracker.history'] || [];
-
-        if (this.latestSnapshot) {
-          this._computeCategories();
-        }
+      } catch {
+        // Storage unavailable
       }
-    } catch {
-      // Storage unavailable
     }
+    this._computeCategories();
     return this.categories;
   }
 
-  /**
-   * Run full relationship sync
-   */
-  async sync(onProgress) {
+  async _persist() {
+    if (!this.latestSnapshot || !this._hasStorage()) return;
+    await chrome.storage.local.set({
+      'xwise.tracker.latest': this.latestSnapshot,
+      'xwise.tracker.previous': this.previousSnapshot,
+      'xwise.tracker.history': this.unfollowerHistory,
+    });
+  }
+
+  sync(onProgress) {
+    if (!this.syncPromise) {
+      this.syncPromise = this._runSync(onProgress).finally(() => {
+        this.syncPromise = null;
+      });
+    }
+    return this.syncPromise;
+  }
+
+  async _runSync(onProgress) {
     if (typeof XWiseTwitterApi === 'undefined') {
       throw new Error('TWITTER_API_NOT_LOADED');
     }
+    const report = (payload) => {
+      if (typeof onProgress === 'function') onProgress(payload);
+    };
 
-    // 1. Get current logged in account
-    if (typeof onProgress === 'function') {
-      onProgress({ stage: 'account', message: 'در حال شناسایی اکانت لاگین‌شده...' });
-    }
+    report({ stage: 'account' });
     const account = await XWiseTwitterApi.getCurrentUser();
     if (!account || !account.handle) {
       throw new Error('NOT_LOGGED_IN');
     }
 
-    // 2. Fetch Following list
-    if (typeof onProgress === 'function') {
-      onProgress({ stage: 'following', message: 'در حال دریافت لیست دنبال‌شدگان (Following)...' });
-    }
+    report({ stage: 'following', count: 0 });
     const following = await XWiseTwitterApi.fetchFollowing(account.handle, (p) => {
-      if (typeof onProgress === 'function') {
-        onProgress({ stage: 'following', message: `دریافت دنبال‌شدگان: ${p.count} نفر`, count: p.count });
-      }
+      report({ stage: 'following', count: p.count });
     });
 
-    // 3. Fetch Followers list
-    if (typeof onProgress === 'function') {
-      onProgress({ stage: 'followers', message: 'در حال دریافت لیست دنبال‌کنندگان (Followers)...' });
-    }
+    report({ stage: 'followers', count: 0 });
     const followers = await XWiseTwitterApi.fetchFollowers(account.handle, (p) => {
-      if (typeof onProgress === 'function') {
-        onProgress({ stage: 'followers', message: `دریافت دنبال‌کنندگان: ${p.count} نفر`, count: p.count });
-      }
+      report({ stage: 'followers', count: p.count });
     });
 
-    // 4. Archive previous snapshot and save new
-    this.previousSnapshot = this.latestSnapshot;
+    const handleOf = (acc) => String(acc?.handle || '').toLowerCase();
+    const sameAccount = !!this.latestSnapshot && handleOf(this.latestSnapshot.account) === handleOf(account);
+
+    if (followers.length === 0 && sameAccount && (this.latestSnapshot.followerCount || 0) > 0) {
+      throw new Error('EMPTY_RESULT');
+    }
+
+    if (!sameAccount) {
+      this.unfollowerHistory = [];
+    }
+    this.previousSnapshot = sameAccount ? this.latestSnapshot : null;
     this.latestSnapshot = {
       timestamp: Date.now(),
       account,
       followerCount: followers.length,
       followingCount: following.length,
-      followers,
-      following,
+      followers: followers.map(xwiseTrimUser),
+      following: following.map(xwiseTrimUser),
     };
 
-    // 5. Compute diffs
     this._computeCategories();
+    await this._persist();
 
-    // 6. Persist to storage
-    if (typeof chrome !== 'undefined' && chrome.storage && chrome.storage.local) {
-      await chrome.storage.local.set({
-        'xwise.tracker.latest': this.latestSnapshot,
-        'xwise.tracker.previous': this.previousSnapshot,
-        'xwise.tracker.history': this.unfollowerHistory,
-      });
-
-      // Update badge if unfollowers detected
-      if (typeof chrome.action !== 'undefined' && chrome.action.setBadgeText) {
-        const unfollowCount = this.categories.unfollowers.length;
-        if (unfollowCount > 0) {
-          chrome.action.setBadgeText({ text: `-${unfollowCount}` });
-          chrome.action.setBadgeBackgroundColor({ color: '#f4212e' });
-        } else {
-          chrome.action.setBadgeText({ text: '' });
-        }
-      }
-    }
-
-    if (typeof onProgress === 'function') {
-      onProgress({ stage: 'complete', message: 'همگام‌سازی با موفقیت انجام شد.', categories: this.categories });
-    }
-
+    report({ stage: 'complete' });
     return this.categories;
   }
 
-  /**
-   * Calculate diffs between followers and following
-   */
   _computeCategories() {
-    if (!this.latestSnapshot) return;
+    const snapshot = this.latestSnapshot;
+    if (!snapshot) {
+      this.categories = xwiseEmptyCategories();
+      return;
+    }
 
-    const currentFollowers = this.latestSnapshot.followers || [];
-    const currentFollowing = this.latestSnapshot.following || [];
+    const followerMap = new Map((snapshot.followers || []).map((u) => [xwiseUserKey(u), u]));
+    const followingMap = new Map((snapshot.following || []).map((u) => [xwiseUserKey(u), u]));
 
-    const followerMap = new Map(currentFollowers.map((u) => [u.id || u.handle.toLowerCase(), u]));
-    const followingMap = new Map(currentFollowing.map((u) => [u.id || u.handle.toLowerCase(), u]));
-
-    // 1. Non-Followers: You follow them, they don't follow you
     const nonFollowers = [];
-    for (const [id, user] of followingMap.entries()) {
-      if (!followerMap.has(id)) {
-        nonFollowers.push(user);
-      }
-    }
-
-    // 2. Fans: They follow you, you don't follow them
-    const fans = [];
-    for (const [id, user] of followerMap.entries()) {
-      if (!followingMap.has(id)) {
-        fans.push(user);
-      }
-    }
-
-    // 3. Mutuals: Both follow each other
     const mutuals = [];
-    for (const [id, user] of followingMap.entries()) {
-      if (followerMap.has(id)) {
-        mutuals.push(user);
-      }
+    for (const [key, user] of followingMap) {
+      (followerMap.has(key) ? mutuals : nonFollowers).push(user);
     }
 
-    // 4. Lost followers (Unfollowers since previous snapshot)
-    const unfollowers = [];
-    if (this.previousSnapshot && Array.isArray(this.previousSnapshot.followers)) {
-      const prevFollowerMap = new Map(this.previousSnapshot.followers.map((u) => [u.id || u.handle.toLowerCase(), u]));
-      for (const [id, prevUser] of prevFollowerMap.entries()) {
-        if (!followerMap.has(id)) {
-          unfollowers.push({
-            ...prevUser,
-            lostAt: Date.now(),
-          });
-        }
-      }
-
-      // Merge into historical log without duplicates
-      const existingHistoryIds = new Set((this.unfollowerHistory || []).map((u) => u.id));
-      for (const lostUser of unfollowers) {
-        if (!existingHistoryIds.has(lostUser.id)) {
-          this.unfollowerHistory.unshift(lostUser);
-        }
-      }
-      if (this.unfollowerHistory.length > 500) {
-        this.unfollowerHistory = this.unfollowerHistory.slice(0, 500);
-      }
+    const fans = [];
+    for (const [key, user] of followerMap) {
+      if (!followingMap.has(key)) fans.push(user);
     }
 
-    // 5. New followers since previous snapshot
-    const newFollowers = [];
-    if (this.previousSnapshot && Array.isArray(this.previousSnapshot.followers)) {
-      const prevFollowerMap = new Map(this.previousSnapshot.followers.map((u) => [u.id || u.handle.toLowerCase(), u]));
-      for (const [id, currUser] of followerMap.entries()) {
-        if (!prevFollowerMap.has(id)) {
-          newFollowers.push({
-            ...currUser,
-            gainedAt: Date.now(),
-          });
-        }
+    const previous = this.previousSnapshot;
+    const hasBaseline = !!previous && Array.isArray(previous.followers) && previous.followers.length > 0;
+    const capturedAt = snapshot.timestamp || Date.now();
+
+    let freshlyLost = [];
+    let newFollowers = [];
+
+    if (hasBaseline) {
+      const previousMap = new Map(previous.followers.map((u) => [xwiseUserKey(u), u]));
+
+      for (const [key, user] of previousMap) {
+        if (!followerMap.has(key)) freshlyLost.push({ ...user, lostAt: capturedAt });
       }
+      for (const [key, user] of followerMap) {
+        if (!previousMap.has(key)) newFollowers.push({ ...user, gainedAt: capturedAt });
+      }
+
+      const freshKeys = new Set(freshlyLost.map(xwiseUserKey));
+      this.unfollowerHistory = [
+        ...freshlyLost,
+        ...this.unfollowerHistory.filter((u) => !freshKeys.has(xwiseUserKey(u))),
+      ].slice(0, XWISE_HISTORY_LIMIT);
     }
 
-    const isInitialScan = !this.previousSnapshot || !Array.isArray(this.previousSnapshot.followers) || this.previousSnapshot.followers.length === 0;
+    const unfollowers = this.unfollowerHistory.filter((u) => !followerMap.has(xwiseUserKey(u)));
 
     this.categories = {
       nonFollowers,
       fans,
       mutuals,
-      unfollowers: unfollowers.length > 0 ? unfollowers : (this.unfollowerHistory || []),
+      unfollowers,
       newFollowers,
-      isInitialScan,
+      newUnfollowerCount: freshlyLost.length,
+      isInitialScan: !hasBaseline,
     };
   }
 
-  /**
-   * Execute safe rate-limited batch queue for actions (Unfollow or Remove Follower)
-   */
   async executeBatchAction(targets, actionType, callbacks = {}) {
-    if (!targets || targets.length === 0) return { successful: 0, failed: 0 };
+    const result = { successful: 0, failed: 0, errors: [], rateLimited: false, total: 0 };
+    if (!Array.isArray(targets) || targets.length === 0) return result;
     if (typeof XWiseTwitterApi === 'undefined') throw new Error('TWITTER_API_NOT_LOADED');
-
-    this.queueState = 'running';
-    this.abortController = new AbortController();
+    if (!this.latestSnapshot) await this.init();
 
     const { onProgress, onSuccess, onError, onComplete } = callbacks;
-    let successful = 0;
-    let failed = 0;
+    result.total = targets.length;
+    this.queueState = 'running';
 
     for (let i = 0; i < targets.length; i++) {
       if (this.queueState === 'stopped') break;
-
-      while (this.queueState === 'paused') {
-        await new Promise((r) => setTimeout(r, 500));
-        if (this.queueState === 'stopped') break;
-      }
+      await this._waitWhilePaused();
       if (this.queueState === 'stopped') break;
 
       const user = targets[i];
+      const delayMs = XWISE_ACTION_DELAY_MIN_MS + Math.floor(Math.random() * XWISE_ACTION_DELAY_JITTER_MS);
 
-      // Jittered delay (3500ms + random 1000-2500ms) = 4.5s to 6s
-      const jitterMs = 3500 + Math.floor(Math.random() * 2000);
+      this.batchProgress = { current: i + 1, total: targets.length, user, delayMs, actionType };
+      if (typeof onProgress === 'function') onProgress(this.batchProgress);
 
-      if (typeof onProgress === 'function') {
-        onProgress({
-          current: i + 1,
-          total: targets.length,
-          user,
-          delayMs: jitterMs,
-          actionType,
-        });
-      }
-
-      // Execute action
       try {
         if (actionType === 'unfollow') {
           await XWiseTwitterApi.unfollowUser(user.id, user.handle);
         } else if (actionType === 'remove_follower') {
           await XWiseTwitterApi.removeFollower(user.id, user.handle);
+        } else {
+          throw new Error('UNKNOWN_ACTION');
         }
-        successful++;
 
-        // Remove from local categories
+        result.successful++;
         this._removeUserFromCategories(user.id, actionType);
-
-        if (typeof onSuccess === 'function') {
-          onSuccess({ user, index: i, actionType });
-        }
+        if (typeof onSuccess === 'function') onSuccess({ user, index: i, actionType });
       } catch (err) {
-        failed++;
-        if (typeof onError === 'function') {
-          onError({ user, error: err.message, index: i });
-        }
-        // If rate limited, pause queue automatically
-        if (String(err.message).includes('RATE_LIMITED')) {
-          this.queueState = 'paused';
+        result.failed++;
+        result.errors.push(err.message);
+        if (typeof onError === 'function') onError({ user, error: err.message, index: i });
+
+        if (String(err.message).startsWith('RATE_LIMITED')) {
+          result.rateLimited = true;
           break;
         }
       }
 
-      // Wait safety interval if not last item
-      if (i < targets.length - 1 && this.queueState === 'running') {
-        await new Promise((r) => setTimeout(r, jitterMs));
+      if (i < targets.length - 1) {
+        await this._sleep(delayMs);
       }
     }
 
     this.queueState = 'idle';
+    this.batchProgress = null;
 
-    if (typeof onComplete === 'function') {
-      onComplete({ successful, failed, total: targets.length });
+    try {
+      await this._persist();
+    } catch {
+      // The in-memory state stays consistent; the next sync rewrites the snapshot
     }
 
-    // Persist updated categories to storage
-    if (typeof chrome !== 'undefined' && chrome.storage && chrome.storage.local) {
-      await chrome.storage.local.set({
-        'xwise.tracker.latest': this.latestSnapshot,
-      });
-    }
+    if (typeof onComplete === 'function') onComplete(result);
+    return result;
+  }
 
-    return { successful, failed };
+  async _waitWhilePaused() {
+    while (this.queueState === 'paused') {
+      await new Promise((r) => setTimeout(r, 300));
+    }
+  }
+
+  async _sleep(ms) {
+    const end = Date.now() + ms;
+    while (Date.now() < end && this.queueState !== 'stopped') {
+      await new Promise((r) => setTimeout(r, Math.min(250, end - Date.now())));
+    }
   }
 
   _removeUserFromCategories(userId, actionType) {
-    if (!this.latestSnapshot) return;
+    if (!this.latestSnapshot || !userId) return;
 
     if (actionType === 'unfollow') {
       this.latestSnapshot.following = (this.latestSnapshot.following || []).filter((u) => u.id !== userId);
     } else if (actionType === 'remove_follower') {
       this.latestSnapshot.followers = (this.latestSnapshot.followers || []).filter((u) => u.id !== userId);
+      if (this.previousSnapshot && Array.isArray(this.previousSnapshot.followers)) {
+        this.previousSnapshot.followers = this.previousSnapshot.followers.filter((u) => u.id !== userId);
+      }
     }
     this._computeCategories();
   }
 
+  getBatchStatus() {
+    return { state: this.queueState, progress: this.batchProgress };
+  }
+
   pauseQueue() {
-    if (this.queueState === 'running') {
-      this.queueState = 'paused';
-    }
+    if (this.queueState === 'running') this.queueState = 'paused';
   }
 
   resumeQueue() {
-    if (this.queueState === 'paused') {
-      this.queueState = 'running';
-    }
+    if (this.queueState === 'paused') this.queueState = 'running';
   }
 
   stopQueue() {
-    this.queueState = 'stopped';
-    if (this.abortController) {
-      this.abortController.abort();
+    if (this.queueState === 'running' || this.queueState === 'paused') {
+      this.queueState = 'stopped';
     }
   }
 }
 
-// Global Singleton Instance
 const XWiseRelationshipTracker = new XWiseRelationshipTrackerEngine();
 
 if (typeof module !== 'undefined' && module.exports) {

@@ -1,9 +1,9 @@
 'use strict';
 
 /**
- * XWise Blocker v3.1.1 Masterpiece — Complete Controller
- * High-performance bilingual controller managing 5-tab suite,
- * real-time relationship tracking, safety action queue, and caching.
+ * XWise Blocker v3.2.1 — Popup Controller
+ * Bilingual controller for the dashboard, filters, relationship tracker,
+ * media settings and cache tabs.
  */
 
 // ============================================================================
@@ -74,7 +74,7 @@ const I18N = {
     trackerEmptyTitle: 'داده‌ای ثبت نشده است',
     trackerEmptySub: 'روی دکمه «بررسی و اسکن ارتباطات» کلیک کنید تا وضعیت فالورها تحلیل شود.',
     safetyRunningTitle: 'صف ایمن ضد لیمیت توییتر',
-    safetyRunningDesc: 'عملیات با فاصله زمانی تصادفی (۳ تا ۵ ثانیه) اجرا می‌شود تا حساب شما هرگز لیمیت نشود.',
+    safetyRunningDesc: 'عملیات با فاصله زمانی تصادفی (۳٫۵ تا ۵٫۵ ثانیه) اجرا می‌شود تا احتمال لیمیت شدن حساب کم شود.',
     btnPause: 'مکث',
     btnResume: 'ادامه',
     btnCancel: 'لغو و توقف',
@@ -158,6 +158,56 @@ const I18N = {
     syncSuccess: 'ارتباطات با موفقیت همگام‌سازی شد',
     syncFailed: 'خطا در همگام‌سازی. لطفاً لاگین بودن در توییتر را بررسی کنید.',
     actionComplete: 'عملیات با موفقیت پایان یافت',
+
+    storageError: 'ذخیره‌سازی ناموفق بود؛ احتمالاً حافظه همگام‌سازی پر است',
+    filterExists: 'این فیلتر قبلاً افزوده شده است',
+    filterAdded: 'فیلتر افزوده شد',
+    filterInvalidRegex: 'عبارت Regex نامعتبر است',
+    filtersAdded: '{n} فیلتر اضافه شد',
+    packAllExist: 'تمام فیلترهای این پک قبلاً افزوده شده‌اند',
+    confirmClearFilters: 'آیا از حذف تمام فیلترها اطمینان دارید؟',
+    filterToggleHint: 'کلیک برای فعال/غیرفعال کردن',
+    whitelistExists: 'کاربر در لیست سفید وجود دارد',
+    whitelistAdded: 'به لیست سفید افزوده شد',
+    invalidHandle: 'آیدی کاربری نامعتبر است',
+    shieldPaused: 'سپر محافظتی موقتاً غیرفعال شد',
+    connecting: 'در حال برقراری ارتباط با تب X...',
+    scanning: 'در حال اسکن دنبال‌کنندگان و دنبال‌شدگان...',
+    progressAccount: 'در حال شناسایی اکانت...',
+    progressFollowing: 'دریافت دنبال‌شدگان: {n} نفر',
+    progressFollowers: 'دریافت دنبال‌کنندگان: {n} نفر',
+    noXTab: 'هیچ تب فعالی از X باز نیست. تب X.com باز شود؟',
+    openXFirst: 'لطفاً X را باز کنید و وارد حساب خود شوید',
+    errNotLoggedIn: 'وارد حساب X نشده‌اید',
+    errRateLimited: 'محدودیت نرخ درخواست X فعال شد. حدود {n} دقیقه بعد دوباره تلاش کنید.',
+    errNoContent: 'ارتباط با صفحه X برقرار نشد. تب X را رفرش کنید.',
+    errEmptyResult: 'X لیست خالی برگرداند؛ نتیجه نادیده گرفته شد',
+    errGeneric: 'خطا: {msg}',
+    newUnfollowersNotice: '{n} نفر از آخرین بررسی شما را آنفالو کرده‌اند',
+    confirmAction: 'آیا از {action} کاربر @{handle} مطمئن هستید؟',
+    confirmBatch: 'آیا از اجرای {action} برای {n} اکانت در صف ایمن مطمئن هستید؟',
+    batchDone: 'عملیات پایان یافت: {ok} موفق، {fail} ناموفق',
+    batchRateLimited: 'محدودیت نرخ فعال شد؛ صف متوقف شد',
+    batchBusy: 'یک صف عملیات در حال اجراست',
+    actionFailed: 'عملیات ناموفق بود',
+    showMore: 'نمایش بیشتر ({n})',
+    nextActionIn: 'اقدام بعدی در {n} ثانیه...',
+    actionProgress: 'اقدام {current} از {total}',
+    importInvalid: 'فایل JSON نامعتبر است',
+    confirmReset: 'آیا از بازنشانی تمام تنظیمات به حالت اولیه اطمینان دارید؟',
+    profileTooltip: 'مشاهده پروفایل @{handle} در تب جدید',
+    unfollowedBadge: 'آنفالو کرده',
+    noBio: 'بدون بایو',
+    justNow: 'چند لحظه پیش',
+    minutesAgo: '{n} دقیقه پیش',
+    hoursAgo: '{n} ساعت پیش',
+    daysAgo: '{n} روز پیش',
+    notScannedYet: 'هنوز انجام نشده',
+    trackerNothingFound: 'موردی یافت نشد',
+    trackerEmptyScanned: 'در این دسته موردی وجود ندارد.',
+    actionBlock: 'بلاک',
+    actionMute: 'بی‌صدا',
+    actionFilter: 'فیلتر',
   },
   en: {
     appSubtitle: 'Smart Shield, Relationship Tracker & Clean Suite',
@@ -223,7 +273,7 @@ const I18N = {
     trackerEmptyTitle: 'No Data Recorded',
     trackerEmptySub: 'Click "Scan & Sync Relationships" to analyze your followers.',
     safetyRunningTitle: 'Twitter Anti-Limit Safety Queue',
-    safetyRunningDesc: 'Executing with random delays (3-5s) to protect your account from rate limits.',
+    safetyRunningDesc: 'Actions run with random delays (3.5-5.5s) to reduce the risk of rate limits.',
     btnPause: 'Pause',
     btnResume: 'Resume',
     btnCancel: 'Cancel',
@@ -307,26 +357,72 @@ const I18N = {
     syncSuccess: 'Relationships synced successfully',
     syncFailed: 'Sync failed. Please ensure you are logged into X.com',
     actionComplete: 'Actions completed successfully',
+
+    storageError: 'Saving failed. Sync storage may be full.',
+    filterExists: 'Filter already exists',
+    filterAdded: 'Filter added',
+    filterInvalidRegex: 'Invalid regular expression',
+    filtersAdded: '{n} filters added',
+    packAllExist: 'All pack filters already exist',
+    confirmClearFilters: 'Delete all filters?',
+    filterToggleHint: 'Click to enable/disable',
+    whitelistExists: 'User already in whitelist',
+    whitelistAdded: 'Added to whitelist',
+    invalidHandle: 'Invalid username',
+    shieldPaused: 'Protection shield paused',
+    connecting: 'Connecting to X tab...',
+    scanning: 'Scanning followers & following...',
+    progressAccount: 'Identifying account...',
+    progressFollowing: 'Fetching following: {n}',
+    progressFollowers: 'Fetching followers: {n}',
+    noXTab: 'No X tab found. Open X.com?',
+    openXFirst: 'Please open X and sign in',
+    errNotLoggedIn: 'You are not signed in to X',
+    errRateLimited: 'X rate limit reached. Try again in about {n} min.',
+    errNoContent: 'Could not reach the X page. Reload the X tab.',
+    errEmptyResult: 'X returned an empty list; the result was discarded',
+    errGeneric: 'Error: {msg}',
+    newUnfollowersNotice: '{n} accounts unfollowed you since the last scan',
+    confirmAction: 'Confirm {action} @{handle}?',
+    confirmBatch: 'Run safe {action} on {n} accounts?',
+    batchDone: 'Complete: {ok} succeeded, {fail} failed',
+    batchRateLimited: 'Rate limit reached; queue stopped',
+    batchBusy: 'An action queue is already running',
+    actionFailed: 'Action failed',
+    showMore: 'Show more ({n})',
+    nextActionIn: 'Next action in {n}s...',
+    actionProgress: 'Action {current} of {total}',
+    importInvalid: 'Invalid JSON file',
+    confirmReset: 'Reset all settings?',
+    profileTooltip: 'View @{handle} on X',
+    unfollowedBadge: 'Unfollowed',
+    noBio: 'No bio',
+    justNow: 'Just now',
+    minutesAgo: '{n}m ago',
+    hoursAgo: '{n}h ago',
+    daysAgo: '{n}d ago',
+    notScannedYet: 'Not scanned yet',
+    trackerNothingFound: 'Nothing found',
+    trackerEmptyScanned: 'Nothing in this category.',
+    actionBlock: 'Block',
+    actionMute: 'Mute',
+    actionFilter: 'Filter',
   },
 };
 
 // ============================================================================
-// State & Variables
+// State
 // ============================================================================
-let currentSettings = {};
-let currentLang = 'fa';
-let activeCategory = 'unfollowers';
-let trackerCategories = {
-  unfollowers: [],
-  nonFollowers: [],
-  fans: [],
-  mutuals: [],
-  newFollowers: [],
-};
-const selectedUserIds = new Set();
-let safetyCountdownInterval = null;
+const STATS_KEY = 'xwise.stats';
+const ACTIVITY_KEY = 'xwise.activityLog';
+const RENDER_PAGE_SIZE = 100;
+const SYNC_INJECT_FILES = [
+  'modules/cache.js',
+  'modules/twitterApi.js',
+  'modules/relationshipTracker.js',
+  'content.js',
+];
 
-// Preset Packs
 const PRESET_PACKS = {
   gov: ['🇵🇸', '🇱🇧', '🍉', '🎒', '☫', 'ارزشی', 'ولایی', 'ساندیس', 'سایبری', 'حجاب'],
   bait: ['follow + rt', 'rt + follow', 'فالو + ریت', 'بک میدم', 'فالو = بک', 'ایردراپ قطعی', 'drop your wallet'],
@@ -334,89 +430,182 @@ const PRESET_PACKS = {
   crypto: ['airdrop', 'giveaway', 'presale', 'crypto', 'web3', 'minting', 'free mint', 'claim now', 'memecoin'],
 };
 
+const MEDIA_TOGGLES = [
+  'volumeSliderEnabled', 'rememberVolume', 'videoDownloadEnabled', 'videoLoopEnabled',
+  'adBlockerEnabled', 'zenModeEnabled', 'zenKeepSearch', 'hideWhoToFollow', 'hideProfileWhoToFollow',
+  'hideGrokDrawer', 'hidePremiumUpsell', 'hideViewCounts', 'filterDefaultAvatars',
+  'filterEngagementBait', 'hideBoysMode',
+];
+
+const BOOLEAN_SETTINGS = [
+  'shieldEnabled', 'trackerEnabled', 'trackerBadgeAlerts', 'volumeSliderEnabled', 'rememberVolume',
+  'videoLoopEnabled', 'videoDownloadEnabled', 'cleanTimelineEnabled', 'hideWhoToFollow',
+  'hideProfileWhoToFollow', 'hideGrokDrawer', 'hidePremiumUpsell', 'hideViewCounts', 'zenModeEnabled',
+  'zenKeepSearch', 'scrollToTopEnabled', 'highResImagesEnabled', 'filterEngineEnabled',
+  'filterCaseSensitive', 'filterWholeWord', 'filterDefaultAvatars', 'filterEngagementBait',
+  'hideBoysMode', 'adBlockerEnabled', 'blockButtonEnabled', 'quickMenuEnabled', 'shortcutEnabled',
+  'shortcutCtrl', 'shortcutAlt', 'shortcutShift', 'confirmDelayOnShortcut', 'showMatchBadges',
+  'showBlockToasts',
+];
+const ENUM_SETTINGS = {
+  filterMode: ['hide', 'auto-mute', 'auto-block', 'dry-run'],
+  blueCheckFilter: ['off', 'replies-only', 'all'],
+  blueCheckAction: ['hide', 'mute', 'block'],
+  language: ['fa', 'en'],
+};
+const TRACKER_INTERVALS = [0, 120, 240, 720, 1440];
+const PLAYBACK_RATES = [0.5, 0.75, 1, 1.25, 1.5, 2];
+const FILTER_ACTIONS = ['default', 'dry-run', 'hide', 'auto-mute', 'auto-block'];
+const HANDLE_PATTERN = /^[A-Za-z0-9_]{1,15}$/;
+
+const isEmbedded = window !== window.top;
+
+let currentSettings = {};
+let currentLang = 'fa';
+let activeCategory = 'unfollowers';
+let trackerCategories = emptyCategories();
+let trackerQuery = '';
+let filterQuery = '';
+let visibleLimit = RENDER_PAGE_SIZE;
+let activeBatchAction = null;
+let batchPaused = false;
+let syncInFlight = false;
+let awaitingDrawerSync = false;
+let safetyCountdownInterval = null;
+let trackerRenderTimer = null;
+let toastTimer = null;
+const selectedUserIds = new Set();
+
+function emptyCategories() {
+  return {
+    nonFollowers: [], fans: [], mutuals: [], unfollowers: [], newFollowers: [],
+    newUnfollowerCount: 0, isInitialScan: true,
+  };
+}
+
+const userId = (user) => user.id || String(user.handle || '').toLowerCase();
+const $ = (id) => document.getElementById(id);
+
+function t(key, vars) {
+  const dict = I18N[currentLang] || I18N.fa;
+  let text = dict[key] ?? I18N.fa[key] ?? key;
+  if (vars) {
+    for (const [name, value] of Object.entries(vars)) {
+      text = text.split(`{${name}}`).join(String(value));
+    }
+  }
+  return text;
+}
+
 // ============================================================================
 // Initialization
 // ============================================================================
 document.addEventListener('DOMContentLoaded', async () => {
-  // Check if running inside iframe drawer
-  if (window !== window.top) {
-    const closeBtn = document.getElementById('iframeCloseBtn');
-    if (closeBtn) {
-      closeBtn.style.display = 'flex';
-      closeBtn.addEventListener('click', () => {
-        window.parent.postMessage({ type: 'XWISE_CLOSE_DRAWER' }, '*');
-      });
-    }
+  if (isEmbedded) setupEmbeddedMode();
 
-    window.addEventListener('message', (event) => {
-      if (event.data?.type === 'XWISE_DRAWER_SYNC_RESULT') {
-        const statusEl = document.getElementById('trackerSyncStatus');
-        const syncBtn = document.getElementById('trackerSyncBtn');
-        if (statusEl) statusEl.style.display = 'none';
-        if (syncBtn) syncBtn.disabled = false;
-
-        if (event.data.success) {
-          handleSyncSuccess(event.data.categories, event.data.snapshot);
-        } else {
-          showPopupToast(event.data.error || 'Sync failed');
-        }
-      }
-    });
-  }
-
-  // Load Settings
   let loaded = await sendMessageAsync({ type: 'XWISE_GET_SETTINGS' });
-  if (!loaded || Object.keys(loaded).length === 0) {
-    if (typeof chrome !== 'undefined' && chrome.storage && chrome.storage.sync) {
-      loaded = await chrome.storage.sync.get(null);
-    }
+  if ((!loaded || Object.keys(loaded).length === 0) && chrome?.storage?.sync) {
+    loaded = await chrome.storage.sync.get(null);
   }
   currentSettings = {
+    shieldEnabled: true,
     filterEngineEnabled: true,
     filterMode: 'hide',
     filterScopes: { displayName: true, bio: true, tweetText: false },
     filters: [],
     whitelist: [],
     language: 'fa',
-    zenModeEnabled: false,
     zenKeepSearch: true,
-    hideBoysMode: false,
     boysWhitelist: [],
     ...loaded,
   };
   currentLang = currentSettings.language || 'fa';
   applyLocalization(currentLang);
 
-  // Initialize Modules & Tracker
   if (globalThis.XWiseRelationshipTracker) {
     trackerCategories = await globalThis.XWiseRelationshipTracker.init();
   }
 
-  // Bind All Event Handlers
   setupTabs();
   setupDashboard();
   setupFiltersTab();
   setupTrackerTab();
   setupMediaTab();
   setupSettingsTab();
+  syncControlsFromSettings();
 
-  // Load Initial UI States
   renderDashboard();
   renderTrackerCounts();
   renderTrackerList();
+  renderLastSync();
   updateCacheStats();
 
-  // Clear extension badge on open
+  listenForExternalChanges();
   sendMessageAsync({ type: 'XWISE_CLEAR_BADGE' });
+  resumeBatchIfRunning();
 });
 
+function setupEmbeddedMode() {
+  const closeBtn = $('iframeCloseBtn');
+  if (closeBtn) {
+    closeBtn.style.display = 'flex';
+    closeBtn.addEventListener('click', () => postToParent({ type: 'XWISE_CLOSE_DRAWER' }));
+  }
+
+  window.addEventListener('message', async (event) => {
+    if (event.source !== window.parent) return;
+    const data = event.data || {};
+
+    if (data.type === 'XWISE_DRAWER_SYNC_RESULT') {
+      awaitingDrawerSync = false;
+      finishSyncUi();
+      if (data.success) await handleSyncSuccess(data.meta);
+      else showPopupToast(humanizeSyncError(data.error));
+    } else if (data.type === 'XWISE_DRAWER_SYNC_PROGRESS') {
+      updateSyncProgress(data.payload);
+    } else if (data.type === 'XWISE_DRAWER_BATCH_EVENT') {
+      handleBatchEvent(data.payload);
+    }
+  });
+}
+
+function postToParent(message) {
+  const origin = (location.ancestorOrigins && location.ancestorOrigins[0]) || '*';
+  window.parent.postMessage(message, origin);
+}
+
+function listenForExternalChanges() {
+  chrome.storage.onChanged.addListener((changes, area) => {
+    if (area === 'sync') {
+      let touched = false;
+      for (const [key, change] of Object.entries(changes)) {
+        if (JSON.stringify(currentSettings[key]) === JSON.stringify(change.newValue)) continue;
+        currentSettings[key] = change.newValue;
+        touched = true;
+        if (key === 'language' && change.newValue && change.newValue !== currentLang) {
+          applyLocalization(change.newValue);
+        }
+      }
+      if (touched) syncControlsFromSettings();
+    } else if (area === 'local' && (changes[STATS_KEY] || changes[ACTIVITY_KEY])) {
+      renderDashboard();
+    }
+  });
+
+  chrome.runtime.onMessage.addListener((message) => {
+    if (message?.type === 'XWISE_SYNC_PROGRESS') updateSyncProgress(message.payload);
+    else if (message?.type === 'XWISE_BATCH_EVENT') handleBatchEvent(message.payload);
+  });
+}
+
 // ============================================================================
-// Messaging Helper
+// Messaging and storage helpers
 // ============================================================================
 function sendMessageAsync(msg) {
   return new Promise((resolve) => {
     if (typeof chrome !== 'undefined' && chrome.runtime && chrome.runtime.sendMessage) {
       chrome.runtime.sendMessage(msg, (response) => {
+        void chrome.runtime.lastError;
         resolve(response || {});
       });
     } else {
@@ -425,16 +614,44 @@ function sendMessageAsync(msg) {
   });
 }
 
+function sendToTab(tabId, message) {
+  return new Promise((resolve, reject) => {
+    chrome.tabs.sendMessage(tabId, message, (response) => {
+      const err = chrome.runtime.lastError;
+      if (err) reject(new Error(err.message));
+      else resolve(response);
+    });
+  });
+}
+
 async function saveSettings(updates) {
+  const previous = {};
+  for (const key of Object.keys(updates)) previous[key] = currentSettings[key];
   currentSettings = { ...currentSettings, ...updates };
-  if (typeof chrome !== 'undefined' && chrome.storage && chrome.storage.sync) {
-    await chrome.storage.sync.set(currentSettings);
+
+  if (!chrome?.storage?.sync) return true;
+  try {
+    await chrome.storage.sync.set(updates);
+    return true;
+  } catch {
+    currentSettings = { ...currentSettings, ...previous };
+    showPopupToast(t('storageError'), 3200);
+    return false;
   }
-  await sendMessageAsync({ type: 'XWISE_SAVE_SETTINGS', settings: currentSettings });
+}
+
+function readLocal(keys) {
+  return new Promise((resolve) => {
+    if (!chrome?.storage?.local) {
+      resolve({});
+      return;
+    }
+    chrome.storage.local.get(keys, (res) => resolve(res || {}));
+  });
 }
 
 // ============================================================================
-// Localization (i18n) Engine
+// Localization
 // ============================================================================
 function applyLocalization(lang) {
   currentLang = lang;
@@ -443,174 +660,179 @@ function applyLocalization(lang) {
   document.documentElement.lang = lang;
   document.documentElement.dir = lang === 'fa' ? 'rtl' : 'ltr';
 
-  const langTextEl = document.getElementById('langText');
-  if (langTextEl) {
-    langTextEl.textContent = lang === 'fa' ? 'EN' : 'فا';
-  }
+  const langTextEl = $('langText');
+  if (langTextEl) langTextEl.textContent = lang === 'fa' ? 'EN' : 'فا';
 
-  // Translate all text elements
   document.querySelectorAll('[data-i18n]').forEach((el) => {
     const key = el.getAttribute('data-i18n');
-    if (dict[key]) {
-      el.textContent = dict[key];
-    }
+    if (dict[key]) el.textContent = dict[key];
   });
-
-  // Translate placeholders
   document.querySelectorAll('[data-i18n-placeholder]').forEach((el) => {
     const key = el.getAttribute('data-i18n-placeholder');
-    if (dict[key]) {
-      el.placeholder = dict[key];
-    }
+    if (dict[key]) el.placeholder = dict[key];
   });
+
+  const langSelect = $('settingLanguage');
+  if (langSelect) langSelect.value = lang;
+
+  renderLastSync();
+}
+
+async function changeLanguage(lang) {
+  applyLocalization(lang);
+  syncControlsFromSettings();
+  renderTrackerList();
+  renderDashboard();
+  await saveSettings({ language: lang });
+  showPopupToast(t('settingsSaved'));
 }
 
 // ============================================================================
-// Navigation Tabs
+// Controls synchronisation
 // ============================================================================
-function setupTabs() {
-  const tabs = document.querySelectorAll('.xe-tab');
-  const panes = document.querySelectorAll('.xe-tab-pane');
-
-  tabs.forEach((tab) => {
-    tab.addEventListener('click', () => {
-      const targetTab = tab.getAttribute('data-tab');
-
-      tabs.forEach((t) => t.classList.remove('active'));
-      panes.forEach((p) => p.classList.remove('active'));
-
-      tab.classList.add('active');
-      const targetPane = document.getElementById(`tab-${targetTab}`);
-      if (targetPane) {
-        targetPane.classList.add('active');
-      }
-
-      if (targetTab === 'settings') {
-        updateCacheStats();
-      }
-    });
-  });
-
-  // Language switcher in header
-  const langToggle = document.getElementById('langToggle');
-  if (langToggle) {
-    langToggle.addEventListener('click', async () => {
-      const newLang = currentLang === 'fa' ? 'en' : 'fa';
-      applyLocalization(newLang);
-      await saveSettings({ language: newLang });
-      showPopupToast(I18N[newLang].settingsSaved);
-    });
-  }
+function setChecked(id, value) {
+  const el = $(id);
+  if (el) el.checked = !!value;
 }
 
-// ============================================================================
-// TAB 1: DASHBOARD
-// ============================================================================
-async function setupDashboard() {
-  const masterToggle = document.getElementById('dashMasterToggle');
-  if (masterToggle) {
-    masterToggle.checked = !!currentSettings.filterEngineEnabled;
-    masterToggle.addEventListener('change', async () => {
-      const isEnabled = masterToggle.checked;
-      await saveSettings({
-        filterEngineEnabled: isEnabled,
-        adBlockerEnabled: isEnabled,
-      });
+function syncControlsFromSettings() {
+  const s = currentSettings;
+  const shieldOn = s.shieldEnabled !== false;
 
-      const dot = document.getElementById('dashShieldDot');
-      if (dot) dot.classList.toggle('active', isEnabled);
+  setChecked('dashMasterToggle', shieldOn);
+  $('dashShieldDot')?.classList.toggle('active', shieldOn);
+  const desc = $('dashShieldDesc');
+  if (desc) desc.textContent = shieldOn ? t('shieldMasterDesc') : t('shieldPaused');
 
-      const desc = document.getElementById('dashShieldDesc');
-      if (desc) {
-        desc.textContent = isEnabled
-          ? (I18N[currentLang].shieldMasterDesc || 'فیلتر هوشمند و پاک‌سازی فعال است')
-          : (currentLang === 'fa' ? 'سپر محافظتی موقتاً غیرفعال شد' : 'Protection shield paused');
-      }
-    });
-  }
+  setChecked('filterEngineEnabled', s.filterEngineEnabled);
+  document.querySelectorAll('.xe-seg-btn').forEach((btn) => {
+    btn.classList.toggle('active', btn.getAttribute('data-mode') === (s.filterMode || 'hide'));
+  });
 
-  // Quick sync button
-  const dashSyncBtn = document.getElementById('dashSyncBtn');
-  if (dashSyncBtn) {
-    dashSyncBtn.addEventListener('click', performSync);
-  }
+  const scopes = s.filterScopes || {};
+  setChecked('scopeDisplayName', scopes.displayName !== false);
+  setChecked('scopeBio', scopes.bio !== false);
+  setChecked('scopeTweetText', scopes.tweetText);
 
-  // Click on account avatar/handle opens profile
-  const dashAvatar = document.getElementById('dashAvatar');
-  const dashHandle = document.getElementById('dashHandle');
-  const openMyProfile = () => {
-    const handle = dashHandle?.textContent?.replace(/^@/, '');
-    if (handle && handle !== 'unknown') {
-      if (typeof chrome !== 'undefined' && chrome.tabs && chrome.tabs.create) {
-        chrome.tabs.create({ url: `https://x.com/${handle}` });
-      } else {
-        window.open(`https://x.com/${handle}`, '_blank');
-      }
-    }
+  MEDIA_TOGGLES.forEach((key) => setChecked(key, s[key]));
+  const zenSub = $('zenSubOptions');
+  if (zenSub) zenSub.style.display = s.zenModeEnabled ? 'flex' : 'none';
+
+  const setValue = (id, value) => {
+    const el = $(id);
+    if (el) el.value = String(value);
   };
-  dashAvatar?.addEventListener('click', openMyProfile);
-  dashHandle?.addEventListener('click', openMyProfile);
-  if (dashAvatar) dashAvatar.style.cursor = 'pointer';
-  if (dashHandle) dashHandle.style.cursor = 'pointer';
+  setValue('defaultPlaybackRate', s.defaultPlaybackRate || 1);
+  setValue('blueCheckFilter', s.blueCheckFilter || 'off');
+  setValue('trackerCheckInterval', s.trackerCheckInterval ?? 240);
+  setValue('settingLanguage', currentLang);
 
-  // Clear Activity
-  const btnClearActivity = document.getElementById('btnClearActivity');
-  if (btnClearActivity) {
-    btnClearActivity.addEventListener('click', async () => {
-      if (chrome?.storage?.local) {
-        await chrome.storage.local.set({ 'xwise.activityLog': [] });
-        renderActivityLog([]);
-      }
-    });
+  const keyDisplay = $('shortcutKeyDisplay');
+  if (keyDisplay) keyDisplay.textContent = String(s.shortcutKey || 'b').toUpperCase();
+
+  renderFilterChips();
+  renderWhitelistChips();
+  renderBoysWhitelistChips();
+}
+
+// ============================================================================
+// Tabs
+// ============================================================================
+function activateTab(name) {
+  document.querySelectorAll('.xe-tab').forEach((tab) => {
+    tab.classList.toggle('active', tab.getAttribute('data-tab') === name);
+  });
+  document.querySelectorAll('.xe-tab-pane').forEach((pane) => {
+    pane.classList.toggle('active', pane.id === `tab-${name}`);
+  });
+  if (name === 'settings') updateCacheStats();
+}
+
+function setupTabs() {
+  document.querySelectorAll('.xe-tab').forEach((tab) => {
+    tab.addEventListener('click', () => activateTab(tab.getAttribute('data-tab')));
+  });
+
+  $('langToggle')?.addEventListener('click', () => {
+    changeLanguage(currentLang === 'fa' ? 'en' : 'fa');
+  });
+}
+
+// ============================================================================
+// Dashboard
+// ============================================================================
+function setupDashboard() {
+  $('dashMasterToggle')?.addEventListener('change', async (e) => {
+    await saveSettings({ shieldEnabled: e.target.checked });
+    syncControlsFromSettings();
+  });
+
+  $('dashSyncBtn')?.addEventListener('click', () => performSync({ fromDashboard: true }));
+
+  const openMyProfile = () => {
+    const handle = $('dashHandle')?.textContent?.replace(/^@/, '');
+    if (handle && handle !== 'unknown') openProfile(handle);
+  };
+  for (const id of ['dashAvatar', 'dashHandle']) {
+    const el = $(id);
+    if (!el) continue;
+    el.style.cursor = 'pointer';
+    el.addEventListener('click', openMyProfile);
   }
+
+  $('btnClearActivity')?.addEventListener('click', async () => {
+    if (!chrome?.storage?.local) return;
+    await chrome.storage.local.set({ [ACTIVITY_KEY]: [] });
+    renderActivityLog([]);
+  });
+}
+
+function openProfile(handle) {
+  const url = `https://x.com/${handle}`;
+  if (chrome?.tabs?.create) chrome.tabs.create({ url });
+  else window.open(url, '_blank');
+}
+
+function formatCount(value) {
+  return Number(value || 0).toLocaleString(currentLang === 'fa' ? 'fa-IR' : 'en-US');
 }
 
 async function renderDashboard() {
-  // Update stats (Total blocked = manual block + auto filter blocks)
-  const totalBlocked = (currentSettings.blockCount || 0) + (currentSettings.filterBlockCount || 0);
-  document.getElementById('statAdBlockCount').textContent = currentSettings.adBlockCount || 0;
-  document.getElementById('statHideCount').textContent = currentSettings.hideCount || 0;
-  document.getElementById('statBlockCount').textContent = totalBlocked;
-  document.getElementById('statUnfollowCount').textContent = trackerCategories.unfollowers?.length || 0;
+  const local = await readLocal([STATS_KEY, ACTIVITY_KEY]);
+  const stats = local[STATS_KEY] || {};
 
-  // Update account card if latest snapshot exists
+  $('statAdBlockCount').textContent = formatCount(stats.adBlockCount);
+  $('statHideCount').textContent = formatCount(stats.hideCount);
+  $('statBlockCount').textContent = formatCount((stats.blockCount || 0) + (stats.filterBlockCount || 0));
+  $('statUnfollowCount').textContent = formatCount(trackerCategories.unfollowers?.length);
+
   const snapshot = globalThis.XWiseRelationshipTracker?.latestSnapshot;
-  if (snapshot && snapshot.account) {
+  if (snapshot?.account) {
     const acc = snapshot.account;
-    if (acc.avatar) document.getElementById('dashAvatar').src = acc.avatar;
-    if (acc.name) document.getElementById('dashName').textContent = acc.name;
-    if (acc.handle) document.getElementById('dashHandle').textContent = `@${acc.handle}`;
-    document.getElementById('dashFollowersCount').textContent = snapshot.followerCount || (snapshot.followers?.length || 0);
-    document.getElementById('dashFollowingCount').textContent = snapshot.followingCount || (snapshot.following?.length || 0);
-  } else if (globalThis.XWiseTwitterApi) {
-    // Try to detect user live
-    globalThis.XWiseTwitterApi.getCurrentUser().then((user) => {
-      if (user && user.handle) {
-        if (user.avatar) document.getElementById('dashAvatar').src = user.avatar;
-        if (user.name) document.getElementById('dashName').textContent = user.name;
-        document.getElementById('dashHandle').textContent = `@${user.handle}`;
-      }
-    });
+    if (acc.avatar) $('dashAvatar').src = acc.avatar.replace('_normal', '_bigger');
+    if (acc.name) $('dashName').textContent = acc.name;
+    if (acc.handle) $('dashHandle').textContent = `@${acc.handle}`;
+    $('dashFollowersCount').textContent = formatCount(snapshot.followerCount ?? snapshot.followers?.length);
+    $('dashFollowingCount').textContent = formatCount(snapshot.followingCount ?? snapshot.following?.length);
   }
 
-  // Render recent activity log
-  if (chrome?.storage?.local) {
-    const res = await chrome.storage.local.get(['xwise.activityLog']);
-    const list = res['xwise.activityLog'] || [];
-    renderActivityLog(list);
-  }
+  renderActivityLog(local[ACTIVITY_KEY] || []);
 }
 
 function renderActivityLog(list) {
-  const container = document.getElementById('dashActivityList');
+  const container = $('dashActivityList');
   if (!container) return;
+  container.textContent = '';
 
   if (!list || list.length === 0) {
-    container.innerHTML = `<div class="xe-empty-text">${I18N[currentLang].noActivityYet}</div>`;
+    const empty = document.createElement('div');
+    empty.className = 'xe-empty-text';
+    empty.textContent = t('noActivityYet');
+    container.appendChild(empty);
     return;
   }
 
-  container.innerHTML = '';
+  const labels = { block: 'actionBlock', mute: 'actionMute' };
   list.slice(0, 15).forEach((item) => {
     const row = document.createElement('div');
     row.className = 'xe-activity-item';
@@ -619,241 +841,232 @@ function renderActivityLog(list) {
     handleSpan.className = 'xe-activity-handle';
     handleSpan.textContent = `@${item.handle}`;
 
+    const ruleSpan = document.createElement('span');
+    ruleSpan.className = 'xe-activity-rule';
+    ruleSpan.textContent = item.rule || '';
+
     const badge = document.createElement('span');
     badge.className = `xe-activity-badge xe-act-${item.action}`;
-    badge.textContent = item.action === 'block' ? (currentLang === 'fa' ? 'بلاک' : 'Block')
-      : item.action === 'mute' ? (currentLang === 'fa' ? 'بی‌صدا' : 'Mute')
-      : (currentLang === 'fa' ? 'فیلتر' : 'Filter');
+    badge.textContent = t(labels[item.action] || 'actionFilter');
 
-    row.appendChild(handleSpan);
-    row.appendChild(badge);
+    row.append(handleSpan, ruleSpan, badge);
     container.appendChild(row);
   });
 }
 
 // ============================================================================
-// TAB 2: FILTERS & MODERATION
+// Filters tab
 // ============================================================================
-function setupFiltersTab() {
-  const filterEngineToggle = document.getElementById('filterEngineEnabled');
-  if (filterEngineToggle) {
-    filterEngineToggle.checked = !!currentSettings.filterEngineEnabled;
-    filterEngineToggle.addEventListener('change', async () => {
-      await saveSettings({ filterEngineEnabled: filterEngineToggle.checked });
-    });
+function validateRegexPattern(raw) {
+  const match = raw.match(/^\/(.*)\/([a-z]*)$/i);
+  try {
+    if (match) new RegExp(match[1], match[2].includes('u') ? match[2] : match[2] + 'u');
+    else new RegExp(raw, 'u');
+    return true;
+  } catch {
+    return false;
   }
-
-  // Mode buttons
-  const modeButtons = document.querySelectorAll('.xe-seg-btn');
-  const currentMode = currentSettings.filterMode || 'hide';
-  modeButtons.forEach((btn) => {
-    const mode = btn.getAttribute('data-mode');
-    btn.classList.toggle('active', mode === currentMode);
-    btn.addEventListener('click', async () => {
-      const selectedMode = btn.getAttribute('data-mode');
-      modeButtons.forEach((b) => b.classList.remove('active'));
-      btn.classList.add('active');
-      await saveSettings({ filterMode: selectedMode });
-    });
-  });
-
-  // Filter Scopes
-  const scopes = currentSettings.filterScopes || { displayName: true, bio: true, tweetText: false };
-  const scopeDisplayName = document.getElementById('scopeDisplayName');
-  const scopeBio = document.getElementById('scopeBio');
-  const scopeTweetText = document.getElementById('scopeTweetText');
-
-  if (scopeDisplayName) {
-    scopeDisplayName.checked = scopes.displayName !== false;
-    scopeDisplayName.addEventListener('change', async () => {
-      scopes.displayName = scopeDisplayName.checked;
-      await saveSettings({ filterScopes: { ...scopes } });
-    });
-  }
-
-  if (scopeBio) {
-    scopeBio.checked = scopes.bio !== false;
-    scopeBio.addEventListener('change', async () => {
-      scopes.bio = scopeBio.checked;
-      await saveSettings({ filterScopes: { ...scopes } });
-    });
-  }
-
-  if (scopeTweetText) {
-    scopeTweetText.checked = !!scopes.tweetText;
-    scopeTweetText.addEventListener('change', async () => {
-      scopes.tweetText = scopeTweetText.checked;
-      await saveSettings({ filterScopes: { ...scopes } });
-    });
-  }
-
-  // Add filter
-  const btnAddFilter = document.getElementById('btnAddFilter');
-  const filterInput = document.getElementById('filterInput');
-  if (btnAddFilter && filterInput) {
-    btnAddFilter.addEventListener('click', async () => {
-      const raw = filterInput.value.trim();
-      if (!raw) return;
-
-      const isRegex = raw.startsWith('/') && raw.lastIndexOf('/') > 0;
-      const filters = Array.isArray(currentSettings.filters) ? [...currentSettings.filters] : [];
-
-      if (filters.some((f) => f.pattern.toLowerCase() === raw.toLowerCase())) {
-        showPopupToast(currentLang === 'fa' ? 'این فیلتر قبلاً افزوده شده است' : 'Filter already exists');
-        return;
-      }
-
-      filters.unshift({
-        id: 'f_' + Date.now(),
-        pattern: raw,
-        isRegex,
-        action: 'default',
-        enabled: true,
-        createdAt: Date.now(),
-      });
-
-      await saveSettings({ filters });
-      filterInput.value = '';
-      renderFilterChips();
-      showPopupToast(currentLang === 'fa' ? 'فیلتر افزوده شد' : 'Filter added');
-    });
-
-    filterInput.addEventListener('keydown', (e) => {
-      if (e.key === 'Enter') btnAddFilter.click();
-    });
-  }
-
-  // Clear all filters
-  const btnClearAllFilters = document.getElementById('btnClearAllFilters');
-  if (btnClearAllFilters) {
-    btnClearAllFilters.addEventListener('click', async () => {
-      if (confirm(currentLang === 'fa' ? 'آیا از حذف تمام فیلترها اطمینان دارید؟' : 'Delete all filters?')) {
-        await saveSettings({ filters: [] });
-        renderFilterChips();
-      }
-    });
-  }
-
-  // Filter Search
-  const filterSearchInput = document.getElementById('filterSearchInput');
-  if (filterSearchInput) {
-    filterSearchInput.addEventListener('input', () => {
-      renderFilterChips(filterSearchInput.value.trim().toLowerCase());
-    });
-  }
-
-  // Preset packs
-  document.querySelectorAll('.xe-preset-btn').forEach((btn) => {
-    btn.addEventListener('click', async () => {
-      const packKey = btn.getAttribute('data-pack');
-      const keywords = PRESET_PACKS[packKey] || [];
-      const filters = Array.isArray(currentSettings.filters) ? [...currentSettings.filters] : [];
-
-      let added = 0;
-      for (const kw of keywords) {
-        if (!filters.some((f) => f.pattern.toLowerCase() === kw.toLowerCase())) {
-          filters.unshift({
-            id: 'f_' + Date.now() + '_' + Math.random().toString(36).substring(2, 5),
-            pattern: kw,
-            isRegex: false,
-            action: 'default',
-            enabled: true,
-            createdAt: Date.now(),
-          });
-          added++;
-        }
-      }
-
-      if (added > 0) {
-        await saveSettings({ filters });
-        renderFilterChips();
-        showPopupToast(currentLang === 'fa' ? `${added} فیلتر اضافه شد` : `${added} filters added`);
-      } else {
-        showPopupToast(currentLang === 'fa' ? 'تمام فیلترهای این پک قبلاً افزوده شده‌اند' : 'All pack filters already exist');
-      }
-    });
-  });
-
-  // Whitelist manager
-  const btnAddWhitelist = document.getElementById('btnAddWhitelist');
-  const whitelistInput = document.getElementById('whitelistInput');
-  if (btnAddWhitelist && whitelistInput) {
-    btnAddWhitelist.addEventListener('click', async () => {
-      const raw = whitelistInput.value.trim().replace(/^@/, '');
-      if (!raw) return;
-
-      const list = Array.isArray(currentSettings.whitelist) ? [...currentSettings.whitelist] : [];
-      if (list.some((h) => h.toLowerCase() === raw.toLowerCase())) {
-        showPopupToast(currentLang === 'fa' ? 'کاربر در لیست سفید وجود دارد' : 'User already in whitelist');
-        return;
-      }
-
-      list.unshift(raw);
-      await saveSettings({ whitelist: list });
-      whitelistInput.value = '';
-      renderWhitelistChips();
-      showPopupToast(currentLang === 'fa' ? 'به لیست سفید افزوده شد' : 'Added to whitelist');
-    });
-
-    whitelistInput.addEventListener('keydown', (e) => {
-      if (e.key === 'Enter') btnAddWhitelist.click();
-    });
-  }
-
-  renderFilterChips();
-  renderWhitelistChips();
 }
 
-function renderFilterChips(query = '') {
-  const container = document.getElementById('filterList');
-  const badge = document.getElementById('filterCountBadge');
+function makeFilter(pattern, isRegex) {
+  return {
+    id: 'f_' + Date.now() + '_' + Math.random().toString(36).substring(2, 5),
+    pattern,
+    isRegex,
+    action: 'default',
+    enabled: true,
+    createdAt: Date.now(),
+  };
+}
+
+function setupFiltersTab() {
+  $('filterEngineEnabled')?.addEventListener('change', (e) => {
+    saveSettings({ filterEngineEnabled: e.target.checked });
+  });
+
+  document.querySelectorAll('.xe-seg-btn').forEach((btn) => {
+    btn.addEventListener('click', async () => {
+      await saveSettings({ filterMode: btn.getAttribute('data-mode') });
+      syncControlsFromSettings();
+    });
+  });
+
+  const scopeControls = { scopeDisplayName: 'displayName', scopeBio: 'bio', scopeTweetText: 'tweetText' };
+  for (const [id, scopeKey] of Object.entries(scopeControls)) {
+    $(id)?.addEventListener('change', (e) => {
+      const scopes = { ...(currentSettings.filterScopes || {}), [scopeKey]: e.target.checked };
+      saveSettings({ filterScopes: scopes });
+    });
+  }
+
+  const addBtn = $('btnAddFilter');
+  const input = $('filterInput');
+  addBtn?.addEventListener('click', async () => {
+    const raw = input.value.trim();
+    if (!raw) return;
+
+    const isRegex = raw.startsWith('/') && raw.lastIndexOf('/') > 0;
+    if (isRegex && !validateRegexPattern(raw)) {
+      showPopupToast(t('filterInvalidRegex'));
+      return;
+    }
+
+    const filters = [...(currentSettings.filters || [])];
+    if (filters.some((f) => f.pattern.toLowerCase() === raw.toLowerCase())) {
+      showPopupToast(t('filterExists'));
+      return;
+    }
+
+    filters.unshift(makeFilter(raw, isRegex));
+    if (await saveSettings({ filters })) {
+      input.value = '';
+      renderFilterChips();
+      showPopupToast(t('filterAdded'));
+    }
+  });
+  input?.addEventListener('keydown', (e) => {
+    if (e.key === 'Enter') addBtn.click();
+  });
+
+  $('btnClearAllFilters')?.addEventListener('click', async () => {
+    if (!confirm(t('confirmClearFilters'))) return;
+    await saveSettings({ filters: [] });
+    renderFilterChips();
+  });
+
+  $('filterSearchInput')?.addEventListener('input', (e) => {
+    filterQuery = e.target.value.trim().toLowerCase();
+    renderFilterChips();
+  });
+
+  document.querySelectorAll('.xe-preset-btn').forEach((btn) => {
+    btn.addEventListener('click', async () => {
+      const keywords = PRESET_PACKS[btn.getAttribute('data-pack')] || [];
+      const filters = [...(currentSettings.filters || [])];
+      let added = 0;
+
+      for (const keyword of keywords) {
+        if (filters.some((f) => f.pattern.toLowerCase() === keyword.toLowerCase())) continue;
+        filters.unshift(makeFilter(keyword, false));
+        added++;
+      }
+
+      if (added === 0) {
+        showPopupToast(t('packAllExist'));
+      } else if (await saveSettings({ filters })) {
+        renderFilterChips();
+        showPopupToast(t('filtersAdded', { n: added }));
+      }
+    });
+  });
+
+  setupHandleList({
+    inputId: 'whitelistInput',
+    buttonId: 'btnAddWhitelist',
+    key: 'whitelist',
+    render: renderWhitelistChips,
+    existsMessage: 'whitelistExists',
+    addedMessage: 'whitelistAdded',
+  });
+}
+
+function normalizeHandle(raw) {
+  const handle = String(raw || '').trim().replace(/^@+|@+$/g, '');
+  return HANDLE_PATTERN.test(handle) ? handle : '';
+}
+
+function setupHandleList({ inputId, buttonId, key, render, existsMessage, addedMessage }) {
+  const input = $(inputId);
+  const button = $(buttonId);
+  if (!input || !button) return;
+
+  button.addEventListener('click', async () => {
+    if (!input.value.trim()) return;
+    const handle = normalizeHandle(input.value);
+    if (!handle) {
+      showPopupToast(t('invalidHandle'));
+      return;
+    }
+
+    const list = [...(currentSettings[key] || [])];
+    if (list.some((h) => h.toLowerCase() === handle.toLowerCase())) {
+      showPopupToast(t(existsMessage));
+      return;
+    }
+
+    list.unshift(handle);
+    if (await saveSettings({ [key]: list })) {
+      input.value = '';
+      render();
+      showPopupToast(t(addedMessage));
+    }
+  });
+  input.addEventListener('keydown', (e) => {
+    if (e.key === 'Enter') button.click();
+  });
+}
+
+function renderFilterChips() {
+  const container = $('filterList');
+  const badge = $('filterCountBadge');
   if (!container) return;
 
   const filters = Array.isArray(currentSettings.filters) ? currentSettings.filters : [];
   if (badge) badge.textContent = filters.length;
 
-  const filtered = query
-    ? filters.filter((f) => f.pattern.toLowerCase().includes(query))
+  const visible = filterQuery
+    ? filters.filter((f) => f.pattern.toLowerCase().includes(filterQuery))
     : filters;
 
-  if (filtered.length === 0) {
-    container.innerHTML = `<div class="xe-empty-text">${I18N[currentLang].noFiltersYet}</div>`;
+  container.textContent = '';
+  if (visible.length === 0) {
+    const empty = document.createElement('div');
+    empty.className = 'xe-empty-text';
+    empty.textContent = t('noFiltersYet');
+    container.appendChild(empty);
     return;
   }
 
-  container.innerHTML = '';
-  filtered.forEach((f) => {
+  visible.forEach((f) => {
     const chip = document.createElement('div');
-    chip.className = 'xe-chip';
+    chip.className = 'xe-chip' + (f.enabled === false ? ' xe-chip-off' : '') + (f.isRegex ? ' xe-chip-regex' : '');
 
     const text = document.createElement('span');
+    text.className = 'xe-chip-text';
     text.textContent = f.pattern;
+    text.title = t('filterToggleHint');
+    text.addEventListener('click', async () => {
+      const updated = (currentSettings.filters || []).map((item) =>
+        item.id === f.id ? { ...item, enabled: item.enabled === false } : item
+      );
+      await saveSettings({ filters: updated });
+      renderFilterChips();
+    });
 
     const del = document.createElement('button');
     del.type = 'button';
     del.className = 'xe-chip-del';
-    del.innerHTML = '&times;';
+    del.textContent = '×';
     del.addEventListener('click', async () => {
-      const updated = filters.filter((item) => item.id !== f.id);
+      const updated = (currentSettings.filters || []).filter((item) => item.id !== f.id);
       await saveSettings({ filters: updated });
-      renderFilterChips(query);
+      renderFilterChips();
     });
 
-    chip.appendChild(text);
-    chip.appendChild(del);
+    chip.append(text, del);
     container.appendChild(chip);
   });
 }
 
-function renderWhitelistChips() {
-  const container = document.getElementById('whitelistContainer');
-  const badge = document.getElementById('whitelistCountBadge');
+function renderHandleChips(containerId, badgeId, key, render) {
+  const container = $(containerId);
+  const badge = $(badgeId);
   if (!container) return;
 
-  const list = Array.isArray(currentSettings.whitelist) ? currentSettings.whitelist : [];
+  const list = Array.isArray(currentSettings[key]) ? currentSettings[key] : [];
   if (badge) badge.textContent = list.length;
 
-  container.innerHTML = '';
+  container.textContent = '';
   list.forEach((handle) => {
     const chip = document.createElement('div');
     chip.className = 'xe-chip';
@@ -864,210 +1077,144 @@ function renderWhitelistChips() {
     const del = document.createElement('button');
     del.type = 'button';
     del.className = 'xe-chip-del';
-    del.innerHTML = '&times;';
+    del.textContent = '×';
     del.addEventListener('click', async () => {
-      const updated = list.filter((h) => h.toLowerCase() !== handle.toLowerCase());
-      await saveSettings({ whitelist: updated });
-      renderWhitelistChips();
+      const updated = (currentSettings[key] || []).filter((h) => h.toLowerCase() !== handle.toLowerCase());
+      await saveSettings({ [key]: updated });
+      render();
     });
 
-    chip.appendChild(text);
-    chip.appendChild(del);
+    chip.append(text, del);
     container.appendChild(chip);
   });
 }
 
-// ============================================================================
-// TAB 3: RELATIONSHIP TRACKER & MANAGER (NEW MASTERPIECE)
-// ============================================================================
-function setupTrackerTab() {
-  const syncBtn = document.getElementById('trackerSyncBtn');
-  if (syncBtn) {
-    syncBtn.addEventListener('click', performSync);
-  }
-
-  // Category Pills
-  const catPills = document.querySelectorAll('.xe-cat-pill');
-  catPills.forEach((pill) => {
-    pill.addEventListener('click', () => {
-      const cat = pill.getAttribute('data-category');
-      catPills.forEach((p) => p.classList.remove('active'));
-      pill.classList.add('active');
-      activeCategory = cat;
-      selectedUserIds.clear();
-      renderTrackerList();
-    });
-  });
-
-  // Search input
-  const searchInput = document.getElementById('trackerSearchInput');
-  if (searchInput) {
-    searchInput.addEventListener('input', () => {
-      renderTrackerList(searchInput.value.trim().toLowerCase());
-    });
-  }
-
-  // Batch Select All
-  const btnSelectAll = document.getElementById('btnBatchSelectAll');
-  if (btnSelectAll) {
-    btnSelectAll.addEventListener('click', () => {
-      const currentList = getFilteredCategoryList();
-      if (selectedUserIds.size === currentList.length && currentList.length > 0) {
-        selectedUserIds.clear();
-        btnSelectAll.textContent = I18N[currentLang].selectAll;
-      } else {
-        currentList.forEach((u) => selectedUserIds.add(u.id));
-        btnSelectAll.textContent = I18N[currentLang].deselectAll;
-      }
-      updateBatchActionButton();
-      renderTrackerList();
-    });
-  }
-
-  // Batch Action Button (Unfollow or Remove Follower)
-  const btnBatchAction = document.getElementById('btnBatchAction');
-  if (btnBatchAction) {
-    btnBatchAction.addEventListener('click', startBatchAction);
-  }
-
-  // Safety Modal Controls
-  const btnSafetyPause = document.getElementById('btnSafetyPause');
-  if (btnSafetyPause) {
-    btnSafetyPause.addEventListener('click', () => {
-      if (globalThis.XWiseRelationshipTracker) {
-        if (globalThis.XWiseRelationshipTracker.queueState === 'running') {
-          globalThis.XWiseRelationshipTracker.pauseQueue();
-          btnSafetyPause.textContent = I18N[currentLang].btnResume;
-        } else if (globalThis.XWiseRelationshipTracker.queueState === 'paused') {
-          globalThis.XWiseRelationshipTracker.resumeQueue();
-          btnSafetyPause.textContent = I18N[currentLang].btnPause;
-        }
-      }
-    });
-  }
-
-  const btnSafetyStop = document.getElementById('btnSafetyStop');
-  if (btnSafetyStop) {
-    btnSafetyStop.addEventListener('click', () => {
-      if (globalThis.XWiseRelationshipTracker) {
-        globalThis.XWiseRelationshipTracker.stopQueue();
-      }
-      closeSafetyModal();
-    });
-  }
+function renderWhitelistChips() {
+  renderHandleChips('whitelistContainer', 'whitelistCountBadge', 'whitelist', renderWhitelistChips);
 }
 
-function formatRelativeTime(timestamp) {
-  if (!timestamp) return '';
-  const diffSec = Math.floor((Date.now() - timestamp) / 1000);
-  if (diffSec < 60) return currentLang === 'fa' ? 'چند لحظه پیش' : 'Just now';
-  const diffMin = Math.floor(diffSec / 60);
-  if (diffMin < 60) return currentLang === 'fa' ? `${diffMin} دقیقه پیش` : `${diffMin}m ago`;
-  const diffHours = Math.floor(diffMin / 60);
-  if (diffHours < 24) return currentLang === 'fa' ? `${diffHours} ساعت پیش` : `${diffHours}h ago`;
-  const diffDays = Math.floor(diffHours / 24);
-  return currentLang === 'fa' ? `${diffDays} روز پیش` : `${diffDays}d ago`;
+function renderBoysWhitelistChips() {
+  renderHandleChips('boysWhitelistContainer', 'boysWhitelistCountBadge', 'boysWhitelist', renderBoysWhitelistChips);
 }
 
-async function performSync() {
-  const statusEl = document.getElementById('trackerSyncStatus');
-  const msgEl = document.getElementById('trackerSyncMsg');
-  const syncBtn = document.getElementById('trackerSyncBtn');
-  const noticeEl = document.getElementById('trackerNotice');
+// ============================================================================
+// Relationship tracker: tab discovery
+// ============================================================================
+async function findXTab() {
+  const [activeTab] = await chrome.tabs.query({ active: true, currentWindow: true });
+  if (activeTab?.url && /^https?:\/\/([\w-]+\.)?(x|twitter)\.com\//.test(activeTab.url)) return activeTab;
 
-  if (statusEl) statusEl.style.display = 'flex';
-  if (syncBtn) syncBtn.disabled = true;
-  if (noticeEl) noticeEl.style.display = 'none';
+  const tabs = await chrome.tabs.query({ url: ['*://*.x.com/*', '*://*.twitter.com/*'] });
+  return tabs[0] || null;
+}
+
+async function ensureContentScript(tab) {
+  try {
+    await sendToTab(tab.id, { type: 'XWISE_PING' });
+    return;
+  } catch {
+    // Not injected yet (tab opened before install or reload)
+  }
+  await chrome.scripting.executeScript({ target: { tabId: tab.id }, files: SYNC_INJECT_FILES });
+  await sendToTab(tab.id, { type: 'XWISE_PING' });
+}
+
+async function requireXTab() {
+  const tab = await findXTab();
+  if (!tab) {
+    if (confirm(t('noXTab'))) chrome.tabs.create({ url: 'https://x.com' });
+    throw new Error('NO_X_TAB');
+  }
+  await ensureContentScript(tab);
+  return tab;
+}
+
+function humanizeError(message = '') {
+  if (message === 'NO_X_TAB') return t('openXFirst');
+  if (message === 'NOT_LOGGED_IN') return t('errNotLoggedIn');
+  if (message === 'EMPTY_RESULT') return t('errEmptyResult');
+  if (message === 'BATCH_BUSY') return t('batchBusy');
+  if (message.startsWith('RATE_LIMITED')) {
+    const seconds = parseInt(message.split(':')[1], 10) || 900;
+    return t('errRateLimited', { n: Math.max(1, Math.ceil(seconds / 60)) });
+  }
+  if (/Receiving end does not exist|Could not establish connection|TWITTER_API_NOT_LOADED|TRACKER_NOT_LOADED|Cannot access|context invalidated/i.test(message)) {
+    return t('errNoContent');
+  }
+  return t('errGeneric', { msg: message });
+}
+const humanizeSyncError = humanizeError;
+
+// ============================================================================
+// Relationship tracker: sync
+// ============================================================================
+function setSyncUi(active, message) {
+  const statusEl = $('trackerSyncStatus');
+  const msgEl = $('trackerSyncMsg');
+  const syncBtn = $('trackerSyncBtn');
+  const dashBtn = $('dashSyncBtn');
+
+  if (statusEl) statusEl.style.display = active ? 'flex' : 'none';
+  if (msgEl && message) msgEl.textContent = message;
+  if (syncBtn) syncBtn.disabled = active;
+  if (dashBtn) dashBtn.disabled = active;
+  if (active && $('trackerNotice')) $('trackerNotice').style.display = 'none';
+}
+
+function finishSyncUi() {
+  syncInFlight = false;
+  setSyncUi(false);
+}
+
+function updateSyncProgress(progress) {
+  const msgEl = $('trackerSyncMsg');
+  if (!progress || !msgEl) return;
+  const keys = { account: 'progressAccount', following: 'progressFollowing', followers: 'progressFollowers' };
+  const key = keys[progress.stage];
+  if (key) msgEl.textContent = t(key, { n: formatCount(progress.count) });
+}
+
+async function performSync({ fromDashboard = false } = {}) {
+  if (syncInFlight) return;
+  syncInFlight = true;
+  if (fromDashboard) activateTab('tracker');
+  setSyncUi(true, t('connecting'));
 
   try {
-    if (msgEl) msgEl.textContent = currentLang === 'fa' ? 'در حال برقراری ارتباط با تب X...' : 'Connecting to X tab...';
-
-    // 1. If running inside in-page drawer iframe
-    if (window !== window.top) {
-      window.parent.postMessage({ type: 'XWISE_DRAWER_RUN_SYNC' }, '*');
+    if (isEmbedded) {
+      awaitingDrawerSync = true;
+      postToParent({ type: 'XWISE_DRAWER_RUN_SYNC' });
       return;
     }
 
-    // 2. Find an active or open X.com tab
-    let [activeTab] = await chrome.tabs.query({ active: true, currentWindow: true });
-    let targetTab = null;
+    const tab = await requireXTab();
+    setSyncUi(true, t('scanning'));
 
-    if (activeTab && activeTab.url && (activeTab.url.includes('x.com') || activeTab.url.includes('twitter.com'))) {
-      targetTab = activeTab;
-    } else {
-      const allTabs = await chrome.tabs.query({ url: ['*://*.x.com/*', '*://*.twitter.com/*'] });
-      if (allTabs && allTabs.length > 0) {
-        targetTab = allTabs[0];
-      }
-    }
-
-    if (!targetTab) {
-      const openConfirm = confirm(
-        currentLang === 'fa'
-          ? 'هیچ تب فعالی از X (Twitter) باز نیست. برای اسکن ارتباطات، آیا می‌خواهید تب X.com باز شود؟'
-          : 'No active X (Twitter) tab found. Open X.com to sync?'
-      );
-      if (openConfirm) {
-        await chrome.tabs.create({ url: 'https://x.com' });
-      }
-      throw new Error(currentLang === 'fa' ? 'لطفاً وارد حساب خود در X شوید' : 'Please open and log into X.com');
-    }
-
-    // Ensure content script is injected
-    try {
-      await chrome.scripting.executeScript({
-        target: { tabId: targetTab.id },
-        files: [
-          'modules/cache.js',
-          'modules/twitterApi.js',
-          'modules/relationshipTracker.js',
-          'content.js',
-        ],
-      });
-    } catch {}
-
-    if (msgEl) msgEl.textContent = currentLang === 'fa' ? 'در حال اسکن دنبال‌کنندگان و دنبال‌شدگان...' : 'Scanning followers & following...';
-
-    const response = await new Promise((resolve, reject) => {
-      chrome.tabs.sendMessage(targetTab.id, { type: 'XWISE_RUN_RELATIONSHIP_SYNC' }, (res) => {
-        if (chrome.runtime.lastError) {
-          reject(new Error(chrome.runtime.lastError.message));
-        } else {
-          resolve(res);
-        }
-      });
-    });
-
-    if (!response || !response.success) {
-      throw new Error(response?.error || (currentLang === 'fa' ? 'خطا در دریافت اطلاعات از توییتر' : 'Failed to fetch relationship data'));
-    }
-
-    handleSyncSuccess(response.categories, response.snapshot);
+    const response = await sendToTab(tab.id, { type: 'XWISE_RUN_RELATIONSHIP_SYNC' });
+    if (!response?.success) throw new Error(response?.error || 'SYNC_FAILED');
+    await handleSyncSuccess(response.meta);
   } catch (err) {
     console.error('[XWise] Sync failed:', err);
-    showPopupToast(currentLang === 'fa' ? `خطا: ${err.message}` : `Error: ${err.message}`);
-    if (msgEl) msgEl.textContent = err.message;
+    showPopupToast(humanizeError(err.message), 3200);
   } finally {
-    if (statusEl) statusEl.style.display = 'none';
-    if (syncBtn) syncBtn.disabled = false;
+    if (!awaitingDrawerSync) finishSyncUi();
   }
 }
 
-function handleSyncSuccess(categories, snapshot) {
-  trackerCategories = categories || {};
-  if (globalThis.XWiseRelationshipTracker) {
-    globalThis.XWiseRelationshipTracker.categories = trackerCategories;
-    if (snapshot) globalThis.XWiseRelationshipTracker.latestSnapshot = snapshot;
-  }
+async function handleSyncSuccess(meta) {
+  const tracker = globalThis.XWiseRelationshipTracker;
+  if (tracker) trackerCategories = await tracker.init();
+  selectedUserIds.clear();
+  visibleLimit = RENDER_PAGE_SIZE;
 
-  const noticeEl = document.getElementById('trackerNotice');
+  const noticeEl = $('trackerNotice');
   if (noticeEl) {
-    if (categories?.isInitialScan) {
+    if (meta?.isInitialScan) {
       noticeEl.style.display = 'block';
-      noticeEl.textContent = I18N[currentLang].initialScanNotice;
-    } else if (categories?.unfollowers?.length > 0) {
+      noticeEl.textContent = t('initialScanNotice');
+    } else if (meta?.newUnfollowerCount > 0) {
       noticeEl.style.display = 'block';
-      noticeEl.textContent = `${I18N[currentLang].unfollowersNotice} (${categories.unfollowers.length} نفر)`;
+      noticeEl.textContent = t('newUnfollowersNotice', { n: meta.newUnfollowerCount });
     } else {
       noticeEl.style.display = 'none';
     }
@@ -1076,517 +1223,623 @@ function handleSyncSuccess(categories, snapshot) {
   renderDashboard();
   renderTrackerCounts();
   renderTrackerList();
-  showPopupToast(I18N[currentLang].syncSuccess);
+  renderLastSync();
+  showPopupToast(t('syncSuccess'));
+}
 
-  const timeEl = document.getElementById('trackerLastSyncTime');
-  if (timeEl) {
-    timeEl.textContent = new Date().toLocaleTimeString(currentLang === 'fa' ? 'fa-IR' : 'en-US');
-  }
+function renderLastSync() {
+  const el = $('trackerLastSyncTime');
+  if (!el) return;
+  const timestamp = globalThis.XWiseRelationshipTracker?.latestSnapshot?.timestamp;
+  el.textContent = timestamp
+    ? new Date(timestamp).toLocaleString(currentLang === 'fa' ? 'fa-IR' : 'en-US', { dateStyle: 'short', timeStyle: 'short' })
+    : t('notScannedYet');
+}
+
+// ============================================================================
+// Relationship tracker: list
+// ============================================================================
+function setupTrackerTab() {
+  $('trackerSyncBtn')?.addEventListener('click', () => performSync());
+
+  const pills = document.querySelectorAll('.xe-cat-pill');
+  pills.forEach((pill) => {
+    pill.addEventListener('click', () => {
+      pills.forEach((p) => p.classList.remove('active'));
+      pill.classList.add('active');
+      activeCategory = pill.getAttribute('data-category');
+      selectedUserIds.clear();
+      visibleLimit = RENDER_PAGE_SIZE;
+      renderTrackerList();
+    });
+  });
+
+  $('trackerSearchInput')?.addEventListener('input', (e) => {
+    trackerQuery = e.target.value.trim().toLowerCase();
+    visibleLimit = RENDER_PAGE_SIZE;
+    renderTrackerList();
+  });
+
+  $('btnBatchSelectAll')?.addEventListener('click', () => {
+    const selectable = getSelectableUsers();
+    const allSelected = selectable.length > 0 && selectable.every((u) => selectedUserIds.has(userId(u)));
+    selectable.forEach((u) => {
+      if (allSelected) selectedUserIds.delete(userId(u));
+      else selectedUserIds.add(userId(u));
+    });
+    renderTrackerList();
+  });
+
+  $('btnBatchAction')?.addEventListener('click', startBatchAction);
+
+  $('btnSafetyPause')?.addEventListener('click', () => {
+    sendBatchControl(batchPaused ? 'resume' : 'pause');
+  });
+  $('btnSafetyStop')?.addEventListener('click', () => {
+    sendBatchControl('stop');
+    closeSafetyModal();
+  });
 }
 
 function renderTrackerCounts() {
-  const un = trackerCategories.unfollowers?.length || 0;
-  const nf = trackerCategories.nonFollowers?.length || 0;
-  const fa = trackerCategories.fans?.length || 0;
-  const mu = trackerCategories.mutuals?.length || 0;
-  const nw = trackerCategories.newFollowers?.length || 0;
+  const counts = {
+    catCountUnfollowers: trackerCategories.unfollowers,
+    catCountNonFollowers: trackerCategories.nonFollowers,
+    catCountFans: trackerCategories.fans,
+    catCountMutuals: trackerCategories.mutuals,
+    catCountNewFollowers: trackerCategories.newFollowers,
+  };
+  for (const [id, list] of Object.entries(counts)) {
+    const el = $(id);
+    if (el) el.textContent = formatCount(list?.length);
+  }
 
-  document.getElementById('catCountUnfollowers').textContent = un;
-  document.getElementById('catCountNonFollowers').textContent = nf;
-  document.getElementById('catCountFans').textContent = fa;
-  document.getElementById('catCountMutuals').textContent = mu;
-  document.getElementById('catCountNewFollowers').textContent = nw;
-
-  const navBadge = document.getElementById('navTrackerBadge');
+  const navBadge = $('navTrackerBadge');
   if (navBadge) {
-    if (un > 0) {
-      navBadge.style.display = 'block';
-      navBadge.textContent = un;
-    } else {
-      navBadge.style.display = 'none';
-    }
+    const fresh = trackerCategories.newUnfollowerCount || 0;
+    navBadge.style.display = fresh > 0 ? 'block' : 'none';
+    navBadge.textContent = fresh;
   }
 }
 
-function getFilteredCategoryList(query = '') {
+function getFilteredCategoryList(query = trackerQuery) {
   const list = trackerCategories[activeCategory] || [];
   if (!query) return list;
   return list.filter(
     (u) =>
-      u.handle.toLowerCase().includes(query) ||
-      u.name.toLowerCase().includes(query) ||
-      (u.bio && u.bio.toLowerCase().includes(query))
+      String(u.handle || '').toLowerCase().includes(query) ||
+      String(u.name || '').toLowerCase().includes(query) ||
+      String(u.bio || '').toLowerCase().includes(query)
   );
 }
 
-function renderTrackerList(query = '') {
-  const container = document.getElementById('trackerUserList');
+function followingKeys() {
+  const following = globalThis.XWiseRelationshipTracker?.latestSnapshot?.following || [];
+  return new Set(following.map(userId));
+}
+
+function actionForUser(user, following = followingKeys()) {
+  if (activeCategory === 'fans') return 'remove_follower';
+  if (activeCategory === 'nonFollowers' || activeCategory === 'mutuals') return 'unfollow';
+  if (activeCategory === 'unfollowers' || activeCategory === 'newFollowers') {
+    return following.has(userId(user)) ? 'unfollow' : null;
+  }
+  return null;
+}
+
+function getSelectableUsers() {
+  const following = followingKeys();
+  return getFilteredCategoryList().filter((u) => actionForUser(u, following));
+}
+
+function formatRelativeTime(timestamp) {
+  if (!timestamp) return '';
+  const seconds = Math.floor((Date.now() - timestamp) / 1000);
+  if (seconds < 60) return t('justNow');
+  const minutes = Math.floor(seconds / 60);
+  if (minutes < 60) return t('minutesAgo', { n: minutes });
+  const hours = Math.floor(minutes / 60);
+  if (hours < 24) return t('hoursAgo', { n: hours });
+  return t('daysAgo', { n: Math.floor(hours / 24) });
+}
+
+function scheduleTrackerRender() {
+  clearTimeout(trackerRenderTimer);
+  trackerRenderTimer = setTimeout(() => {
+    renderTrackerCounts();
+    renderTrackerList();
+  }, 300);
+}
+
+function createUserCard(user, following) {
+  const action = actionForUser(user, following);
+  const card = document.createElement('div');
+  card.className = 'xe-user-card';
+
+  const left = document.createElement('div');
+  left.className = 'xe-user-card-left';
+
+  if (action) {
+    const checkbox = document.createElement('input');
+    checkbox.type = 'checkbox';
+    checkbox.className = 'xe-user-card-checkbox';
+    checkbox.checked = selectedUserIds.has(userId(user));
+    checkbox.addEventListener('change', () => {
+      if (checkbox.checked) selectedUserIds.add(userId(user));
+      else selectedUserIds.delete(userId(user));
+      updateBatchActionButton();
+    });
+    left.appendChild(checkbox);
+  } else {
+    const spacer = document.createElement('span');
+    spacer.className = 'xe-user-card-spacer';
+    left.appendChild(spacer);
+  }
+
+  const link = document.createElement('a');
+  link.className = 'xe-user-card-link';
+  link.href = `https://x.com/${user.handle}`;
+  link.target = '_blank';
+  link.rel = 'noopener noreferrer';
+  link.title = t('profileTooltip', { handle: user.handle });
+  link.addEventListener('click', (e) => {
+    e.preventDefault();
+    openProfile(user.handle);
+  });
+
+  const avatar = document.createElement('img');
+  avatar.className = 'xe-user-card-avatar';
+  avatar.loading = 'lazy';
+  avatar.src = user.avatar ? user.avatar.replace('_normal', '_bigger') : 'icons/icon48.png';
+
+  const textWrap = document.createElement('div');
+  textWrap.className = 'xe-user-card-text';
+
+  const nameRow = document.createElement('div');
+  nameRow.className = 'xe-user-card-name-row';
+
+  const nameSpan = document.createElement('span');
+  nameSpan.className = 'xe-user-card-name';
+  nameSpan.textContent = user.name || user.handle;
+
+  const handleSpan = document.createElement('span');
+  handleSpan.className = 'xe-user-card-handle';
+  handleSpan.textContent = `@${user.handle}`;
+  nameRow.append(nameSpan, handleSpan);
+
+  if (activeCategory === 'unfollowers') {
+    const lostBadge = document.createElement('span');
+    lostBadge.className = 'xe-activity-badge xe-act-block';
+    lostBadge.textContent = t('unfollowedBadge');
+    nameRow.appendChild(lostBadge);
+
+    if (user.lostAt) {
+      const timeSpan = document.createElement('span');
+      timeSpan.className = 'xe-stat-lbl';
+      timeSpan.textContent = formatRelativeTime(user.lostAt);
+      nameRow.appendChild(timeSpan);
+    }
+  }
+
+  const bioSpan = document.createElement('span');
+  bioSpan.className = 'xe-user-card-bio';
+  bioSpan.textContent = user.bio || t('noBio');
+
+  textWrap.append(nameRow, bioSpan);
+  link.append(avatar, textWrap);
+  left.appendChild(link);
+
+  const actions = document.createElement('div');
+  actions.className = 'xe-user-card-actions';
+  if (action) {
+    const btn = document.createElement('button');
+    btn.type = 'button';
+    btn.className = action === 'unfollow' ? 'xe-btn-danger xe-btn-compact' : 'xe-btn-secondary xe-btn-compact';
+    btn.textContent = action === 'unfollow' ? t('unfollowAction') : t('removeFollowerAction');
+    btn.addEventListener('click', () => singleAction(user, action));
+    actions.appendChild(btn);
+  }
+
+  card.append(left, actions);
+  return card;
+}
+
+function renderTrackerList() {
+  const container = $('trackerUserList');
   if (!container) return;
 
-  const users = getFilteredCategoryList(query);
+  const users = getFilteredCategoryList();
+  container.textContent = '';
 
   if (users.length === 0) {
-    container.innerHTML = `
-      <div class="xe-empty-state">
-        <div class="xe-empty-icon">${activeCategory === 'unfollowers' ? '💔' : '👥'}</div>
-        <p class="xe-empty-title">${I18N[currentLang].trackerEmptyTitle}</p>
-        <p class="xe-empty-sub">${I18N[currentLang].trackerEmptySub}</p>
-      </div>`;
+    const scanned = !!globalThis.XWiseRelationshipTracker?.latestSnapshot;
+    const empty = document.createElement('div');
+    empty.className = 'xe-empty-state';
+    empty.innerHTML = '<div class="xe-empty-icon"></div><p class="xe-empty-title"></p><p class="xe-empty-sub"></p>';
+    empty.querySelector('.xe-empty-icon').textContent = activeCategory === 'unfollowers' ? '💔' : '👥';
+    empty.querySelector('.xe-empty-title').textContent = t(scanned ? 'trackerNothingFound' : 'trackerEmptyTitle');
+    empty.querySelector('.xe-empty-sub').textContent = t(scanned ? 'trackerEmptyScanned' : 'trackerEmptySub');
+    container.appendChild(empty);
     updateBatchActionButton();
     return;
   }
 
-  container.innerHTML = '';
-  users.forEach((user) => {
-    const card = document.createElement('div');
-    card.className = 'xe-user-card';
+  const following = followingKeys();
+  const fragment = document.createDocumentFragment();
+  users.slice(0, visibleLimit).forEach((user) => fragment.appendChild(createUserCard(user, following)));
+  container.appendChild(fragment);
 
-    // Left info
-    const left = document.createElement('div');
-    left.className = 'xe-user-card-left';
-
-    const checkbox = document.createElement('input');
-    checkbox.type = 'checkbox';
-    checkbox.className = 'xe-user-card-checkbox';
-    checkbox.checked = selectedUserIds.has(user.id);
-    checkbox.addEventListener('change', () => {
-      if (checkbox.checked) selectedUserIds.add(user.id);
-      else selectedUserIds.delete(user.id);
-      updateBatchActionButton();
+  if (users.length > visibleLimit) {
+    const more = document.createElement('button');
+    more.type = 'button';
+    more.className = 'xe-btn-secondary xe-show-more';
+    more.textContent = t('showMore', { n: formatCount(users.length - visibleLimit) });
+    more.addEventListener('click', () => {
+      visibleLimit += RENDER_PAGE_SIZE;
+      renderTrackerList();
     });
-
-    // Clickable profile container
-    const profileLink = document.createElement('a');
-    profileLink.className = 'xe-user-card-link';
-    profileLink.href = `https://x.com/${user.handle}`;
-    profileLink.target = '_blank';
-    profileLink.rel = 'noopener noreferrer';
-    profileLink.title = currentLang === 'fa' ? `مشاهده پروفایل @${user.handle} در تب جدید` : `View @${user.handle} on X`;
-    profileLink.addEventListener('click', (e) => {
-      e.preventDefault();
-      if (typeof chrome !== 'undefined' && chrome.tabs && chrome.tabs.create) {
-        chrome.tabs.create({ url: `https://x.com/${user.handle}` });
-      } else {
-        window.open(`https://x.com/${user.handle}`, '_blank');
-      }
-    });
-
-    const avatar = document.createElement('img');
-    avatar.className = 'xe-user-card-avatar';
-    avatar.src = user.avatar || 'icons/icon48.png';
-
-    const textWrap = document.createElement('div');
-    textWrap.className = 'xe-user-card-text';
-
-    const nameRow = document.createElement('div');
-    nameRow.className = 'xe-user-card-name-row';
-
-    const nameSpan = document.createElement('span');
-    nameSpan.className = 'xe-user-card-name';
-    nameSpan.textContent = user.name;
-
-    const handleSpan = document.createElement('span');
-    handleSpan.className = 'xe-user-card-handle';
-    handleSpan.textContent = `@${user.handle}`;
-
-    nameRow.appendChild(nameSpan);
-    nameRow.appendChild(handleSpan);
-
-    if (activeCategory === 'unfollowers') {
-      const lostBadge = document.createElement('span');
-      lostBadge.className = 'xe-activity-badge xe-act-block';
-      lostBadge.textContent = currentLang === 'fa' ? 'آنفالو کرده' : 'Unfollowed';
-      nameRow.appendChild(lostBadge);
-
-      if (user.lostAt) {
-        const timeSpan = document.createElement('span');
-        timeSpan.className = 'xe-stat-lbl';
-        timeSpan.textContent = formatRelativeTime(user.lostAt);
-        nameRow.appendChild(timeSpan);
-      }
-    }
-
-    const bioSpan = document.createElement('span');
-    bioSpan.className = 'xe-user-card-bio';
-    bioSpan.textContent = user.bio || (currentLang === 'fa' ? 'بدون بایو' : 'No bio');
-
-    textWrap.appendChild(nameRow);
-    textWrap.appendChild(bioSpan);
-
-    profileLink.appendChild(avatar);
-    profileLink.appendChild(textWrap);
-
-    left.appendChild(checkbox);
-    left.appendChild(profileLink);
-
-    // Right actions
-    const actions = document.createElement('div');
-    actions.className = 'xe-user-card-actions';
-
-    if (activeCategory === 'fans') {
-      const removeBtn = document.createElement('button');
-      removeBtn.className = 'xe-btn-secondary xe-btn-compact';
-      removeBtn.textContent = I18N[currentLang].removeFollowerAction;
-      removeBtn.addEventListener('click', () => singleAction(user, 'remove_follower'));
-      actions.appendChild(removeBtn);
-    } else {
-      const unfollowBtn = document.createElement('button');
-      unfollowBtn.className = 'xe-btn-danger xe-btn-compact';
-      unfollowBtn.textContent = I18N[currentLang].unfollowAction;
-      unfollowBtn.addEventListener('click', () => singleAction(user, 'unfollow'));
-      actions.appendChild(unfollowBtn);
-    }
-
-    card.appendChild(left);
-    card.appendChild(actions);
-    container.appendChild(card);
-  });
+    container.appendChild(more);
+  }
 
   updateBatchActionButton();
 }
 
 function updateBatchActionButton() {
-  const btn = document.getElementById('btnBatchAction');
-  const lbl = document.getElementById('batchActionLabel');
-  if (!btn || !lbl) return;
+  const btn = $('btnBatchAction');
+  const label = $('batchActionLabel');
+  const selectAll = $('btnBatchSelectAll');
+  if (!btn || !label) return;
 
-  const count = selectedUserIds.size;
-  if (count === 0) {
-    btn.style.display = 'none';
-    return;
+  const selectable = getSelectableUsers();
+  const allSelected = selectable.length > 0 && selectable.every((u) => selectedUserIds.has(userId(u)));
+  if (selectAll) {
+    selectAll.style.display = selectable.length > 0 ? '' : 'none';
+    selectAll.textContent = allSelected ? t('deselectAll') : t('selectAll');
   }
 
-  btn.style.display = 'inline-flex';
-  const actionText = activeCategory === 'fans'
-    ? I18N[currentLang].removeFollowerAction
-    : I18N[currentLang].unfollowAction;
+  const count = selectedUserIds.size;
+  btn.style.display = count === 0 ? 'none' : 'inline-flex';
+  if (count > 0) {
+    const actionText = activeCategory === 'fans' ? t('removeFollowerAction') : t('unfollowAction');
+    label.textContent = `${actionText} (${count})`;
+  }
+}
 
-  lbl.textContent = `${actionText} (${count})`;
+// ============================================================================
+// Relationship tracker: actions
+// ============================================================================
+function actionLabel(actionType) {
+  return actionType === 'unfollow' ? t('unfollowAction') : t('removeFollowerAction');
 }
 
 async function singleAction(user, actionType) {
-  const actionName = actionType === 'unfollow' ? I18N[currentLang].unfollowAction : I18N[currentLang].removeFollowerAction;
-  if (!confirm(currentLang === 'fa' ? `آیا از ${actionName} کاربر @${user.handle} مطمئن هستید؟` : `Confirm ${actionName} @${user.handle}?`)) {
+  if (!confirm(t('confirmAction', { action: actionLabel(actionType), handle: user.handle }))) return;
+
+  if (isEmbedded) {
+    activeBatchAction = actionType;
+    postToParent({ type: 'XWISE_DRAWER_RUN_BATCH', targets: [user], actionType });
     return;
   }
 
   try {
-    let [activeTab] = await chrome.tabs.query({ active: true, currentWindow: true });
-    let targetTab = (activeTab && activeTab.url && (activeTab.url.includes('x.com') || activeTab.url.includes('twitter.com'))) ? activeTab : null;
-    if (!targetTab) {
-      const allTabs = await chrome.tabs.query({ url: ['*://*.x.com/*', '*://*.twitter.com/*'] });
-      if (allTabs && allTabs.length > 0) targetTab = allTabs[0];
-    }
+    const tab = await requireXTab();
+    const res = await sendToTab(tab.id, { type: 'XWISE_RUN_BATCH_ACTION', targets: [user], actionType });
+    if (!res?.success) throw new Error(res?.error || 'ACTION_FAILED');
 
-    if (targetTab) {
-      await new Promise((resolve, reject) => {
-        chrome.tabs.sendMessage(targetTab.id, {
-          type: 'XWISE_RUN_BATCH_ACTION',
-          targets: [user],
-          actionType,
-        }, (res) => {
-          if (res?.success) resolve(res);
-          else reject(new Error(res?.error || 'Action failed'));
-        });
-      });
-    } else if (globalThis.XWiseRelationshipTracker) {
-      await globalThis.XWiseRelationshipTracker.executeBatchAction([user], actionType);
-    }
-
-    selectedUserIds.delete(user.id);
+    selectedUserIds.delete(userId(user));
     if (globalThis.XWiseRelationshipTracker) {
-      globalThis.XWiseRelationshipTracker._removeUserFromCategories(user.id, actionType);
-      trackerCategories = globalThis.XWiseRelationshipTracker.categories;
+      trackerCategories = await globalThis.XWiseRelationshipTracker.init();
     }
     renderTrackerCounts();
     renderTrackerList();
-    showPopupToast(I18N[currentLang].actionComplete);
+    showPopupToast(t('actionComplete'));
   } catch (err) {
-    showPopupToast(err.message);
+    showPopupToast(err.message === 'ACTION_FAILED' ? t('actionFailed') : humanizeError(err.message), 3200);
   }
 }
 
 async function startBatchAction() {
-  const count = selectedUserIds.size;
-  if (count === 0) return;
+  const following = followingKeys();
+  const targets = getFilteredCategoryList().filter(
+    (u) => selectedUserIds.has(userId(u)) && actionForUser(u, following)
+  );
+  if (targets.length === 0) return;
 
   const actionType = activeCategory === 'fans' ? 'remove_follower' : 'unfollow';
-  const actionName = actionType === 'unfollow' ? I18N[currentLang].unfollowAction : I18N[currentLang].removeFollowerAction;
+  if (!confirm(t('confirmBatch', { action: actionLabel(actionType), n: targets.length }))) return;
 
-  if (!confirm(currentLang === 'fa' ? `آیا از اجرای ${actionName} برای ${count} اکانت در صف ایمن مطمئن هستید؟` : `Run safe ${actionName} on ${count} accounts?`)) {
+  activeBatchAction = actionType;
+  const slimTargets = targets.map((u) => ({ id: u.id, handle: u.handle, name: u.name }));
+
+  if (isEmbedded) {
+    postToParent({ type: 'XWISE_DRAWER_RUN_BATCH', targets: slimTargets, actionType });
+    openSafetyModal();
     return;
   }
 
-  const allUsers = getFilteredCategoryList();
-  const targetUsers = allUsers.filter((u) => selectedUserIds.has(u.id));
+  try {
+    const tab = await requireXTab();
+    const res = await sendToTab(tab.id, { type: 'XWISE_START_BATCH', targets: slimTargets, actionType });
+    if (!res?.success) throw new Error(res?.error || 'ACTION_FAILED');
+    openSafetyModal();
+  } catch (err) {
+    showPopupToast(humanizeError(err.message), 3200);
+  }
+}
 
-  // Open Safety Modal
-  const modal = document.getElementById('safetyModal');
-  const progressFill = document.getElementById('safetyProgressFill');
-  const progressCurrent = document.getElementById('safetyProgressCurrent');
-  const nextCountdown = document.getElementById('safetyNextCountdown');
-  const currentTarget = document.getElementById('safetyCurrentTarget');
+async function sendBatchControl(command) {
+  if (isEmbedded) {
+    postToParent({ type: 'XWISE_DRAWER_BATCH_CONTROL', command });
+    return;
+  }
+  try {
+    const tab = await findXTab();
+    if (tab) await sendToTab(tab.id, { type: 'XWISE_BATCH_CONTROL', command });
+  } catch {
+    // Content script unavailable
+  }
+}
 
+async function resumeBatchIfRunning() {
+  if (isEmbedded) return;
+  try {
+    const tab = await findXTab();
+    if (!tab) return;
+    const status = await sendToTab(tab.id, { type: 'XWISE_BATCH_STATUS' });
+    if (status?.state === 'running' || status?.state === 'paused') {
+      activeBatchAction = status.progress?.actionType || null;
+      batchPaused = status.state === 'paused';
+      openSafetyModal();
+      if (status.progress) updateBatchProgress(status.progress);
+      updatePauseButton();
+    }
+  } catch {
+    // No content script in the tab
+  }
+}
+
+function openSafetyModal() {
+  const modal = $('safetyModal');
   if (modal) modal.style.display = 'flex';
-
-  await globalThis.XWiseRelationshipTracker.executeBatchAction(targetUsers, actionType, {
-    onProgress: (p) => {
-      const pct = Math.round((p.current / p.total) * 100);
-      if (progressFill) progressFill.style.width = `${pct}%`;
-      if (progressCurrent) progressCurrent.textContent = currentLang === 'fa' ? `اقدام ${p.current} از ${p.total}` : `Action ${p.current} of ${p.total}`;
-      if (currentTarget) currentTarget.textContent = `@${p.user.handle} (${p.user.name})`;
-
-      // Start Countdown Timer
-      let remainingSec = (p.delayMs / 1000).toFixed(1);
-      clearInterval(safetyCountdownInterval);
-      safetyCountdownInterval = setInterval(() => {
-        remainingSec = (remainingSec - 0.1).toFixed(1);
-        if (remainingSec <= 0) {
-          clearInterval(safetyCountdownInterval);
-          if (nextCountdown) nextCountdown.textContent = '';
-        } else {
-          if (nextCountdown) nextCountdown.textContent = currentLang === 'fa' ? `اقدام بعدی در ${remainingSec} ثانیه...` : `Next action in ${remainingSec}s...`;
-        }
-      }, 100);
-    },
-    onSuccess: ({ user }) => {
-      selectedUserIds.delete(user.id);
-    },
-    onComplete: ({ successful, failed }) => {
-      clearInterval(safetyCountdownInterval);
-      closeSafetyModal();
-      renderTrackerCounts();
-      renderTrackerList();
-      showPopupToast(currentLang === 'fa' ? `عملیات پایان یافت: ${successful} موفق، ${failed} ناموفق` : `Complete: ${successful} succeeded, ${failed} failed`);
-    },
-  });
 }
 
 function closeSafetyModal() {
-  const modal = document.getElementById('safetyModal');
+  const modal = $('safetyModal');
   if (modal) modal.style.display = 'none';
   clearInterval(safetyCountdownInterval);
+  batchPaused = false;
+  updatePauseButton();
+}
+
+function updatePauseButton() {
+  const btn = $('btnSafetyPause');
+  if (btn) btn.textContent = batchPaused ? t('btnResume') : t('btnPause');
+}
+
+function updateBatchProgress(p) {
+  const pct = Math.round((p.current / p.total) * 100);
+  const fill = $('safetyProgressFill');
+  if (fill) fill.style.width = `${pct}%`;
+  const current = $('safetyProgressCurrent');
+  if (current) current.textContent = t('actionProgress', { current: p.current, total: p.total });
+  const target = $('safetyCurrentTarget');
+  if (target && p.user) target.textContent = `@${p.user.handle} (${p.user.name || ''})`;
+
+  clearInterval(safetyCountdownInterval);
+  const countdown = $('safetyNextCountdown');
+  if (!countdown || !p.delayMs) return;
+
+  const deadline = Date.now() + p.delayMs;
+  const tick = () => {
+    const remaining = Math.max(0, (deadline - Date.now()) / 1000);
+    countdown.textContent = remaining > 0 && !batchPaused ? t('nextActionIn', { n: remaining.toFixed(1) }) : '';
+    if (remaining <= 0) clearInterval(safetyCountdownInterval);
+  };
+  tick();
+  safetyCountdownInterval = setInterval(tick, 100);
+}
+
+function handleBatchEvent(payload) {
+  switch (payload?.event) {
+    case 'progress':
+      openSafetyModal();
+      updateBatchProgress(payload);
+      break;
+
+    case 'success':
+      selectedUserIds.delete(payload.userId);
+      globalThis.XWiseRelationshipTracker?._removeUserFromCategories(
+        payload.userId,
+        payload.actionType || activeBatchAction
+      );
+      trackerCategories = globalThis.XWiseRelationshipTracker?.categories || trackerCategories;
+      scheduleTrackerRender();
+      break;
+
+    case 'state':
+      batchPaused = payload.state === 'paused';
+      updatePauseButton();
+      break;
+
+    case 'rejected':
+      closeSafetyModal();
+      showPopupToast(humanizeError(payload.error), 3200);
+      break;
+
+    case 'complete':
+      finishBatch(payload);
+      break;
+  }
+}
+
+async function finishBatch(result) {
+  closeSafetyModal();
+  clearTimeout(trackerRenderTimer);
+  if (globalThis.XWiseRelationshipTracker) {
+    trackerCategories = await globalThis.XWiseRelationshipTracker.init();
+  }
+  activeBatchAction = null;
+  renderDashboard();
+  renderTrackerCounts();
+  renderTrackerList();
+  showPopupToast(
+    result.rateLimited ? t('batchRateLimited') : t('batchDone', { ok: result.successful, fail: result.failed }),
+    3200
+  );
 }
 
 // ============================================================================
-// TAB 4: MEDIA & CLEANER
+// Media tab
 // ============================================================================
 function setupMediaTab() {
-  const toggles = [
-    'volumeSliderEnabled',
-    'rememberVolume',
-    'videoDownloadEnabled',
-    'videoLoopEnabled',
-    'adBlockerEnabled',
-    'zenModeEnabled',
-    'hideWhoToFollow',
-    'hideProfileWhoToFollow',
-    'hideGrokDrawer',
-    'hidePremiumUpsell',
-    'hideViewCounts',
-    'filterDefaultAvatars',
-    'filterEngagementBait',
-    'hideBoysMode',
-    'zenKeepSearch',
-  ];
-
-  const zenSubOptions = document.getElementById('zenSubOptions');
-  const zenToggle = document.getElementById('zenModeEnabled');
-  const updateZenSubVisibility = () => {
-    if (zenSubOptions && zenToggle) {
-      zenSubOptions.style.display = zenToggle.checked ? 'flex' : 'none';
-    }
-  };
-  updateZenSubVisibility();
-  if (zenToggle) zenToggle.addEventListener('change', updateZenSubVisibility);
-
-  toggles.forEach((key) => {
-    const el = document.getElementById(key);
-    if (el) {
-      el.checked = !!currentSettings[key];
-      el.addEventListener('change', async () => {
-        await saveSettings({ [key]: el.checked });
-      });
-    }
+  MEDIA_TOGGLES.forEach((key) => {
+    $(key)?.addEventListener('change', async (e) => {
+      await saveSettings({ [key]: e.target.checked });
+      if (key === 'zenModeEnabled') syncControlsFromSettings();
+    });
   });
 
-  const speedSelect = document.getElementById('defaultPlaybackRate');
-  if (speedSelect) {
-    speedSelect.value = String(currentSettings.defaultPlaybackRate || 1);
-    speedSelect.addEventListener('change', async () => {
-      await saveSettings({ defaultPlaybackRate: parseFloat(speedSelect.value) });
-    });
-  }
+  $('defaultPlaybackRate')?.addEventListener('change', (e) => {
+    saveSettings({ defaultPlaybackRate: parseFloat(e.target.value) });
+  });
+  $('blueCheckFilter')?.addEventListener('change', (e) => {
+    saveSettings({ blueCheckFilter: e.target.value });
+  });
 
-  const blueCheckSelect = document.getElementById('blueCheckFilter');
-  if (blueCheckSelect) {
-    blueCheckSelect.value = currentSettings.blueCheckFilter || 'off';
-    blueCheckSelect.addEventListener('change', async () => {
-      await saveSettings({ blueCheckFilter: blueCheckSelect.value });
-    });
-  }
-
-  // No-Boys Friends Whitelist
-  function renderBoysWhitelistChips() {
-    const container = document.getElementById('boysWhitelistContainer');
-    const badge = document.getElementById('boysWhitelistCountBadge');
-    if (!container) return;
-
-    const list = Array.isArray(currentSettings.boysWhitelist) ? currentSettings.boysWhitelist : [];
-    if (badge) badge.textContent = list.length;
-
-    container.innerHTML = '';
-    list.forEach((handle) => {
-      const chip = document.createElement('div');
-      chip.className = 'xe-chip';
-
-      const text = document.createElement('span');
-      text.textContent = `@${handle}`;
-
-      const del = document.createElement('button');
-      del.type = 'button';
-      del.className = 'xe-chip-del';
-      del.innerHTML = '&times;';
-      del.addEventListener('click', async () => {
-        const updated = list.filter((h) => h.toLowerCase() !== handle.toLowerCase());
-        await saveSettings({ boysWhitelist: updated });
-        renderBoysWhitelistChips();
-      });
-
-      chip.appendChild(text);
-      chip.appendChild(del);
-      container.appendChild(chip);
-    });
-  }
-
-  const btnAddBoysWhitelist = document.getElementById('btnAddBoysWhitelist');
-  const boysWhitelistInput = document.getElementById('boysWhitelistInput');
-  if (btnAddBoysWhitelist && boysWhitelistInput) {
-    btnAddBoysWhitelist.addEventListener('click', async () => {
-      const raw = boysWhitelistInput.value.trim().replace(/^@/, '');
-      if (!raw) return;
-
-      const list = Array.isArray(currentSettings.boysWhitelist) ? [...currentSettings.boysWhitelist] : [];
-      if (list.some((h) => h.toLowerCase() === raw.toLowerCase())) {
-        showPopupToast(currentLang === 'fa' ? 'این کاربر قبلاً در لیست دوستان وجود دارد' : 'User already in exempt list');
-        return;
-      }
-
-      list.unshift(raw);
-      await saveSettings({ boysWhitelist: list });
-      boysWhitelistInput.value = '';
-      renderBoysWhitelistChips();
-      showPopupToast(currentLang === 'fa' ? 'به لیست دوستان مصون افزوده شد' : 'Added to exempt friends list');
-    });
-
-    boysWhitelistInput.addEventListener('keydown', (e) => {
-      if (e.key === 'Enter') btnAddBoysWhitelist.click();
-    });
-  }
-
-  renderBoysWhitelistChips();
+  setupHandleList({
+    inputId: 'boysWhitelistInput',
+    buttonId: 'btnAddBoysWhitelist',
+    key: 'boysWhitelist',
+    render: renderBoysWhitelistChips,
+    existsMessage: 'boysWhitelistExists',
+    addedMessage: 'boysWhitelistAdded',
+  });
 }
 
 // ============================================================================
-// TAB 5: SETTINGS & CACHE
+// Settings tab
 // ============================================================================
+function sanitizeImportedSettings(raw) {
+  const clean = {};
+  if (!raw || typeof raw !== 'object') return clean;
+
+  for (const key of BOOLEAN_SETTINGS) {
+    if (typeof raw[key] === 'boolean') clean[key] = raw[key];
+  }
+  for (const [key, allowed] of Object.entries(ENUM_SETTINGS)) {
+    if (allowed.includes(raw[key])) clean[key] = raw[key];
+  }
+  if (TRACKER_INTERVALS.includes(Number(raw.trackerCheckInterval))) {
+    clean.trackerCheckInterval = Number(raw.trackerCheckInterval);
+  }
+  if (PLAYBACK_RATES.includes(Number(raw.defaultPlaybackRate))) {
+    clean.defaultPlaybackRate = Number(raw.defaultPlaybackRate);
+  }
+  const volume = Number(raw.lastVolume);
+  if (Number.isFinite(volume) && volume >= 0 && volume <= 1) clean.lastVolume = volume;
+  if (typeof raw.shortcutKey === 'string' && /^[a-z0-9]$/i.test(raw.shortcutKey)) {
+    clean.shortcutKey = raw.shortcutKey.toLowerCase();
+  }
+
+  if (raw.filterScopes && typeof raw.filterScopes === 'object') {
+    clean.filterScopes = {
+      displayName: raw.filterScopes.displayName !== false,
+      bio: raw.filterScopes.bio !== false,
+      tweetText: !!raw.filterScopes.tweetText,
+    };
+  }
+
+  if (Array.isArray(raw.filters)) {
+    clean.filters = raw.filters
+      .filter((f) => f && typeof f.pattern === 'string' && f.pattern.trim() && f.pattern.length <= 200)
+      .map((f) => {
+        const pattern = f.pattern.trim();
+        const isRegex = pattern.startsWith('/') && pattern.lastIndexOf('/') > 0;
+        return {
+          id: typeof f.id === 'string' ? f.id : 'f_' + Math.random().toString(36).substring(2, 9),
+          pattern,
+          isRegex: isRegex && validateRegexPattern(pattern),
+          action: FILTER_ACTIONS.includes(f.action) ? f.action : 'default',
+          enabled: f.enabled !== false,
+          createdAt: Number(f.createdAt) || Date.now(),
+        };
+      });
+  }
+
+  for (const key of ['whitelist', 'boysWhitelist']) {
+    if (Array.isArray(raw[key])) {
+      clean[key] = [...new Set(raw[key].map(normalizeHandle).filter(Boolean))];
+    }
+  }
+  return clean;
+}
+
 function setupSettingsTab() {
-  // Language Select
-  const settingLang = document.getElementById('settingLanguage');
-  if (settingLang) {
-    settingLang.value = currentLang;
-    settingLang.addEventListener('change', async () => {
-      const newLang = settingLang.value;
-      applyLocalization(newLang);
-      await saveSettings({ language: newLang });
-    });
-  }
+  $('settingLanguage')?.addEventListener('change', (e) => changeLanguage(e.target.value));
 
-  // Periodic Tracker Interval
-  const trackerInterval = document.getElementById('trackerCheckInterval');
-  if (trackerInterval) {
-    trackerInterval.value = String(currentSettings.trackerCheckInterval ?? 240);
-    trackerInterval.addEventListener('change', async () => {
-      await saveSettings({ trackerCheckInterval: parseInt(trackerInterval.value, 10) });
-      showPopupToast(I18N[currentLang].settingsSaved);
-    });
-  }
+  $('trackerCheckInterval')?.addEventListener('change', async (e) => {
+    await saveSettings({ trackerCheckInterval: parseInt(e.target.value, 10) });
+    showPopupToast(t('settingsSaved'));
+  });
 
-  // Cache Clear Button
-  const btnClearCache = document.getElementById('btnClearCache');
-  if (btnClearCache) {
-    btnClearCache.addEventListener('click', async () => {
-      await sendMessageAsync({ type: 'XWISE_CLEAR_CACHE' });
-      await updateCacheStats();
-      showPopupToast(I18N[currentLang].cacheCleared);
-    });
-  }
+  $('btnClearCache')?.addEventListener('click', async () => {
+    await sendMessageAsync({ type: 'XWISE_CLEAR_CACHE' });
+    await updateCacheStats();
+    showPopupToast(t('cacheCleared'));
+  });
 
-  // Export JSON
-  const btnExport = document.getElementById('btnExportSettings');
-  if (btnExport) {
-    btnExport.addEventListener('click', () => {
-      const dataStr = 'data:text/json;charset=utf-8,' + encodeURIComponent(JSON.stringify(currentSettings, null, 2));
-      const a = document.createElement('a');
-      a.setAttribute('href', dataStr);
-      a.setAttribute('download', `xwise-settings-${Date.now()}.json`);
-      document.body.appendChild(a);
-      a.click();
-      a.remove();
-    });
-  }
+  $('btnExportSettings')?.addEventListener('click', () => {
+    const blob = new Blob([JSON.stringify(currentSettings, null, 2)], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = `xwise-settings-${Date.now()}.json`;
+    document.body.appendChild(link);
+    link.click();
+    link.remove();
+    setTimeout(() => URL.revokeObjectURL(url), 1000);
+  });
 
-  // Import JSON
-  const importInput = document.getElementById('importFileInput');
-  if (importInput) {
-    importInput.addEventListener('change', (e) => {
-      const file = e.target.files?.[0];
-      if (!file) return;
+  $('importFileInput')?.addEventListener('change', (e) => {
+    const file = e.target.files?.[0];
+    e.target.value = '';
+    if (!file) return;
 
-      const reader = new FileReader();
-      reader.onload = async (evt) => {
-        try {
-          const imported = JSON.parse(evt.target.result);
-          if (typeof imported === 'object' && imported !== null) {
-            await saveSettings(imported);
-            location.reload();
-          }
-        } catch {
-          alert('Invalid JSON file');
-        }
-      };
-      reader.readAsText(file);
-    });
-  }
-
-  // Reset All
-  const btnResetSettings = document.getElementById('btnResetSettings');
-  if (btnResetSettings) {
-    btnResetSettings.addEventListener('click', async () => {
-      if (confirm(currentLang === 'fa' ? 'آیا از بازنشانی تمام تنظیمات به حالت اولیه اطمینان دارید؟' : 'Reset all settings?')) {
-        await chrome.storage.sync.clear();
-        location.reload();
+    const reader = new FileReader();
+    reader.onload = async (evt) => {
+      try {
+        const imported = sanitizeImportedSettings(JSON.parse(evt.target.result));
+        if (Object.keys(imported).length === 0) throw new Error('EMPTY');
+        if (await saveSettings(imported)) location.reload();
+      } catch {
+        showPopupToast(t('importInvalid'));
       }
-    });
-  }
+    };
+    reader.readAsText(file);
+  });
+
+  $('btnResetSettings')?.addEventListener('click', async () => {
+    if (!confirm(t('confirmReset'))) return;
+    await chrome.storage.sync.clear();
+    location.reload();
+  });
 }
 
 async function updateCacheStats() {
-  const totalEl = document.getElementById('cacheTotalItems');
-  const sizeEl = document.getElementById('cacheEstimatedSize');
+  const totalEl = $('cacheTotalItems');
+  const sizeEl = $('cacheEstimatedSize');
   if (!totalEl || !sizeEl) return;
 
   const stats = await sendMessageAsync({ type: 'XWISE_GET_CACHE_STATS' });
-  totalEl.textContent = stats.totalItems || 0;
-  sizeEl.textContent = `${stats.estimatedSizeKB || 0} KB`;
+  totalEl.textContent = formatCount(stats.totalItems);
+  sizeEl.textContent = `${formatCount(stats.estimatedSizeKB)} KB`;
 }
 
 // ============================================================================
-// Popup Toast Notifications
+// Toast
 // ============================================================================
-let toastTimer = null;
 function showPopupToast(message, duration = 2200) {
-  const toast = document.getElementById('popupToast');
+  const toast = $('popupToast');
   if (!toast) return;
 
   toast.textContent = message;

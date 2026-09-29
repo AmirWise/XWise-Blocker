@@ -1,5 +1,5 @@
 /* =====================================================================
-   XWise Blocker v3.1.1 Masterpiece — 10/10 Modern Dark Theme Styles
+   XWise Blocker v3.2.1 — Popup Styles
    Matches X (Twitter) official design language with sleek modern touches.
    ===================================================================== */
 
@@ -29,7 +29,7 @@
 }
 
 :root {
-  --xe-bg: #000000;
+  --xe-bg: #0c0d0f;
   --xe-card: #16181c;
   --xe-card-hover: #1c1f24;
   --xe-border: #2f3336;
@@ -1439,3 +1439,48 @@ body {
   border-color: rgba(249, 24, 128, 0.45);
 }
 
+
+/* =====================================================================
+   v3.2.1 additions
+   ===================================================================== */
+.xe-empty-text {
+  font-size: 11px;
+  color: var(--xe-text-dim);
+  padding: 6px 2px;
+}
+
+.xe-chip-text {
+  cursor: pointer;
+  user-select: none;
+}
+
+.xe-chip-off .xe-chip-text {
+  opacity: 0.45;
+  text-decoration: line-through;
+}
+
+.xe-chip-regex .xe-chip-text {
+  font-family: ui-monospace, Consolas, monospace;
+  direction: ltr;
+}
+
+.xe-show-more {
+  width: 100%;
+  margin-top: 4px;
+}
+
+.xe-user-card-spacer {
+  width: 15px;
+  flex-shrink: 0;
+}
+
+.xe-activity-rule {
+  flex: 1;
+  margin: 0 8px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 10.5px;
+  color: var(--xe-text-dim);
+  direction: ltr;
+}

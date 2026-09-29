@@ -1,14 +1,21 @@
 'use strict';
 
 /**
- * XWise Blocker v3.0.1 — High-Performance Two-Tier Caching Engine
- * L1: Ultra-fast in-memory LRU Map ($O(1)$) with strict memory bounds (<5MB RAM).
- * L2: Persistent chrome.storage.local with TTL-based eviction.
+ * XWise Blocker v3.2.1 - Two-tier cache
+ * L1: in-memory LRU map per namespace.
+ * L2: one chrome.storage.local record per namespace, written in debounced batches.
  */
+
+const XWISE_CACHE_PREFIX = 'xwise.cache.ns.';
+const XWISE_CACHE_LEGACY_FLAG = 'xwise.cache.legacyPurged';
 
 class XWiseCacheEngine {
   constructor() {
     this.memoryCaches = new Map();
+    this.dirtyNamespaces = new Set();
+    this.flushTimers = new Map();
+    this.flushDelayMs = 1500;
+
     this.limits = {
       bios: 500,
       verdicts: 1000,
@@ -17,311 +24,257 @@ class XWiseCacheEngine {
       gender: 1000,
     };
     this.defaultTTLs = {
-      bios: 7 * 24 * 60 * 60 * 1000,        // 7 days
-      verdicts: 24 * 60 * 60 * 1000,        // 24 hours
-      relationships: 30 * 24 * 60 * 60 * 1000, // 30 days
-      general: 12 * 60 * 60 * 1000,         // 12 hours
-      gender: 7 * 24 * 60 * 60 * 1000,      // 7 days
+      bios: 7 * 24 * 60 * 60 * 1000,
+      verdicts: 24 * 60 * 60 * 1000,
+      relationships: 30 * 24 * 60 * 60 * 1000,
+      general: 12 * 60 * 60 * 1000,
+      gender: 7 * 24 * 60 * 60 * 1000,
     };
 
-    // Pending writes buffer to avoid hammering chrome.storage.local
-    this.writeDebounceTimers = new Map();
-    this.pendingWrites = new Map();
-
-    // Auto-hydrate memory cache from persistent storage
     this.initPromise = this.init();
 
-    // Auto-flush on page unload if in browser window
     if (typeof window !== 'undefined') {
-      window.addEventListener('beforeunload', () => this._flushStorageWrites());
-      window.addEventListener('pagehide', () => this._flushStorageWrites());
+      window.addEventListener('pagehide', () => this._flushAll());
+    }
+    if (this._hasStorage() && chrome.storage.onChanged) {
+      chrome.storage.onChanged.addListener((changes, area) => this._onStorageChanged(changes, area));
     }
   }
 
-  /**
-   * Pre-load existing cache entries from chrome.storage.local into L1 memory
-   */
-  async init() {
-    try {
-      if (typeof chrome !== 'undefined' && chrome.storage && chrome.storage.local) {
-        const all = await chrome.storage.local.get(null);
-        const now = Date.now();
-        for (const [sKey, entry] of Object.entries(all)) {
-          if (sKey.startsWith('xwise.cache.') && entry && typeof entry === 'object') {
-            if (entry.expiresAt && now > entry.expiresAt) continue;
-            const parts = sKey.split('.');
-            if (parts.length >= 4) {
-              const namespace = parts[2];
-              const key = parts.slice(3).join('.');
-              this._setMemory(namespace, key, entry.value, entry.expiresAt);
-            }
-          }
-        }
-      }
-    } catch {}
+  _hasStorage() {
+    return typeof chrome !== 'undefined' && !!chrome.storage && !!chrome.storage.local;
+  }
+
+  _storageKey(namespace) {
+    return XWISE_CACHE_PREFIX + namespace;
   }
 
   _getMemoryMap(namespace) {
-    if (!this.memoryCaches.has(namespace)) {
-      this.memoryCaches.set(namespace, new Map());
+    let map = this.memoryCaches.get(namespace);
+    if (!map) {
+      map = new Map();
+      this.memoryCaches.set(namespace, map);
     }
-    return this.memoryCaches.get(namespace);
+    return map;
   }
 
-  _storageKey(namespace, key) {
-    return `xwise.cache.${namespace}.${key}`;
-  }
-
-  _storagePrefix(namespace) {
-    return `xwise.cache.${namespace}.`;
-  }
-
-  /**
-   * Get value from L1 (Memory) or L2 (chrome.storage.local)
-   */
-  async get(namespace, key) {
-    if (!namespace || !key) return null;
-    const cleanKey = String(key).toLowerCase().trim();
-    const l1 = this._getMemoryMap(namespace);
-
-    // 1. Check L1 Memory (LRU re-insertion for true O(1))
-    if (l1.has(cleanKey)) {
-      const entry = l1.get(cleanKey);
-      if (entry.expiresAt && Date.now() > entry.expiresAt) {
-        l1.delete(cleanKey);
-        this.delete(namespace, cleanKey);
-        return null;
-      }
-      // Re-insert to mark recently used
-      l1.delete(cleanKey);
-      l1.set(cleanKey, entry);
-      return entry.value;
-    }
-
-    // 2. Check L2 Storage
+  async init() {
+    if (!this._hasStorage()) return;
     try {
-      if (typeof chrome !== 'undefined' && chrome.storage && chrome.storage.local) {
-        const sKey = this._storageKey(namespace, cleanKey);
-        const res = await chrome.storage.local.get(sKey);
-        const entry = res[sKey];
+      const namespaces = Object.keys(this.limits);
+      const stored = await chrome.storage.local.get(namespaces.map((ns) => this._storageKey(ns)));
+      const now = Date.now();
 
-        if (entry && typeof entry === 'object') {
-          if (entry.expiresAt && Date.now() > entry.expiresAt) {
-            await chrome.storage.local.remove(sKey);
-            return null;
-          }
-          // Promote to L1
-          this._setMemory(namespace, cleanKey, entry.value, entry.expiresAt);
-          return entry.value;
+      for (const namespace of namespaces) {
+        const blob = stored[this._storageKey(namespace)];
+        if (!blob || !Array.isArray(blob.entries)) continue;
+        for (const [key, value, expiresAt] of blob.entries) {
+          if (expiresAt && now > expiresAt) continue;
+          this._setMemory(namespace, key, value, expiresAt);
         }
       }
-    } catch {
-      // Storage unavailable or disabled
-    }
 
-    return null;
+      await this._purgeLegacyEntries();
+    } catch {
+      // Storage unavailable
+    }
   }
 
-  /**
-   * Synchronous L1 memory read (critical for real-time DOM filtering without async lag)
-   */
+  async _purgeLegacyEntries() {
+    const done = await chrome.storage.local.get(XWISE_CACHE_LEGACY_FLAG);
+    if (done[XWISE_CACHE_LEGACY_FLAG]) return;
+
+    const all = await chrome.storage.local.get(null);
+    const legacyKeys = Object.keys(all).filter(
+      (key) =>
+        key.startsWith('xwise.cache.') &&
+        !key.startsWith(XWISE_CACHE_PREFIX) &&
+        key !== XWISE_CACHE_LEGACY_FLAG
+    );
+    if (legacyKeys.length > 0) await chrome.storage.local.remove(legacyKeys);
+    await chrome.storage.local.set({ [XWISE_CACHE_LEGACY_FLAG]: true });
+  }
+
+  _onStorageChanged(changes, area) {
+    if (area !== 'local') return;
+
+    for (const [storageKey, change] of Object.entries(changes)) {
+      if (!storageKey.startsWith(XWISE_CACHE_PREFIX)) continue;
+      const namespace = storageKey.slice(XWISE_CACHE_PREFIX.length);
+
+      if (!change.newValue) {
+        this.memoryCaches.delete(namespace);
+        this.dirtyNamespaces.delete(namespace);
+        continue;
+      }
+
+      const now = Date.now();
+      const map = this._getMemoryMap(namespace);
+      for (const [key, value, expiresAt] of change.newValue.entries || []) {
+        if (map.has(key) || (expiresAt && now > expiresAt)) continue;
+        this._setMemory(namespace, key, value, expiresAt);
+      }
+    }
+  }
+
+  async get(namespace, key) {
+    await this.initPromise;
+    return this.getMemoryOnly(namespace, key);
+  }
+
   getMemoryOnly(namespace, key) {
     if (!namespace || !key) return null;
     const cleanKey = String(key).toLowerCase().trim();
-    const l1 = this._getMemoryMap(namespace);
+    const map = this._getMemoryMap(namespace);
+    const entry = map.get(cleanKey);
+    if (!entry) return null;
 
-    if (l1.has(cleanKey)) {
-      const entry = l1.get(cleanKey);
-      if (entry.expiresAt && Date.now() > entry.expiresAt) {
-        l1.delete(cleanKey);
-        return null;
-      }
-      l1.delete(cleanKey);
-      l1.set(cleanKey, entry);
-      return entry.value;
+    if (entry.expiresAt && Date.now() > entry.expiresAt) {
+      map.delete(cleanKey);
+      this._markDirty(namespace);
+      return null;
     }
 
-    // Background promotion from L2 to L1 if available
-    if (typeof chrome !== 'undefined' && chrome.storage && chrome.storage.local) {
-      const sKey = this._storageKey(namespace, cleanKey);
-      chrome.storage.local.get([sKey]).then((res) => {
-        const entry = res?.[sKey];
-        if (entry && typeof entry === 'object' && (!entry.expiresAt || Date.now() <= entry.expiresAt)) {
-          this._setMemory(namespace, cleanKey, entry.value, entry.expiresAt);
-        }
-      }).catch(() => {});
-    }
-
-    return null;
+    map.delete(cleanKey);
+    map.set(cleanKey, entry);
+    return entry.value;
   }
 
-  /**
-   * Store into L1 & L2
-   */
   async set(namespace, key, value, customTTL) {
     if (!namespace || !key) return;
     const cleanKey = String(key).toLowerCase().trim();
     const ttl = customTTL || this.defaultTTLs[namespace] || this.defaultTTLs.general;
-    const expiresAt = Date.now() + ttl;
 
-    // 1. Write L1
-    this._setMemory(namespace, cleanKey, value, expiresAt);
-
-    // 2. Batch write L2
-    this._queueStorageWrite(namespace, cleanKey, { value, expiresAt, updatedAt: Date.now() });
+    this._setMemory(namespace, cleanKey, value, Date.now() + ttl);
+    this._markDirty(namespace);
   }
 
   _setMemory(namespace, key, value, expiresAt) {
-    const l1 = this._getMemoryMap(namespace);
+    const map = this._getMemoryMap(namespace);
     const limit = this.limits[namespace] || this.limits.general;
 
-    if (l1.has(key)) {
-      l1.delete(key);
-    } else if (l1.size >= limit) {
-      // Evict oldest (first key in insertion order)
-      const oldestKey = l1.keys().next().value;
-      if (oldestKey) l1.delete(oldestKey);
+    if (map.has(key)) {
+      map.delete(key);
+    } else if (map.size >= limit) {
+      const oldestKey = map.keys().next().value;
+      if (oldestKey !== undefined) map.delete(oldestKey);
     }
-
-    l1.set(key, { value, expiresAt });
+    map.set(key, { value, expiresAt });
   }
 
-  _queueStorageWrite(namespace, key, record) {
-    const sKey = this._storageKey(namespace, key);
-    this.pendingWrites.set(sKey, record);
+  _markDirty(namespace) {
+    this.dirtyNamespaces.add(namespace);
+    if (this.flushTimers.has(namespace)) return;
 
-    if (!this.writeDebounceTimers.has(namespace)) {
-      const timer = setTimeout(() => {
-        this.writeDebounceTimers.delete(namespace);
-        this._flushStorageWrites();
-      }, 300);
-      this.writeDebounceTimers.set(namespace, timer);
-    }
+    const timer = setTimeout(() => {
+      this.flushTimers.delete(namespace);
+      this._flushNamespace(namespace);
+    }, this.flushDelayMs);
+    this.flushTimers.set(namespace, timer);
   }
 
-  async _flushStorageWrites() {
-    if (this.pendingWrites.size === 0) return;
-    const payload = {};
-    for (const [k, v] of this.pendingWrites.entries()) {
-      payload[k] = v;
+  async _flushNamespace(namespace) {
+    if (!this._hasStorage() || !this.dirtyNamespaces.has(namespace)) return;
+    this.dirtyNamespaces.delete(namespace);
+
+    const now = Date.now();
+    const entries = [];
+    for (const [key, entry] of this._getMemoryMap(namespace)) {
+      if (!entry.expiresAt || entry.expiresAt > now) {
+        entries.push([key, entry.value, entry.expiresAt]);
+      }
     }
-    this.pendingWrites.clear();
 
     try {
-      if (typeof chrome !== 'undefined' && chrome.storage && chrome.storage.local) {
-        await chrome.storage.local.set(payload);
-      }
+      await chrome.storage.local.set({ [this._storageKey(namespace)]: { entries, updatedAt: now } });
     } catch {
-      // Silently handle storage write limits
+      // Write failed; the entries remain available in memory
     }
   }
 
-  /**
-   * Remove item from both layers
-   */
+  _flushAll() {
+    for (const namespace of [...this.dirtyNamespaces]) {
+      this._flushNamespace(namespace);
+    }
+  }
+
   async delete(namespace, key) {
     if (!namespace || !key) return;
-    const cleanKey = String(key).toLowerCase().trim();
-    const l1 = this._getMemoryMap(namespace);
-    l1.delete(cleanKey);
-
-    const sKey = this._storageKey(namespace, cleanKey);
-    this.pendingWrites.delete(sKey);
-
-    try {
-      if (typeof chrome !== 'undefined' && chrome.storage && chrome.storage.local) {
-        await chrome.storage.local.remove(sKey);
-      }
-    } catch {}
+    this._getMemoryMap(namespace).delete(String(key).toLowerCase().trim());
+    this._markDirty(namespace);
   }
 
-  /**
-   * Prune expired entries from L2 storage
-   */
   async prune(namespace) {
-    try {
-      if (typeof chrome === 'undefined' || !chrome.storage || !chrome.storage.local) return 0;
-      const all = await chrome.storage.local.get(null);
-      const prefix = namespace ? this._storagePrefix(namespace) : 'xwise.cache.';
-      const now = Date.now();
-      const keysToRemove = [];
+    const now = Date.now();
+    const namespaces = namespace ? [namespace] : [...this.memoryCaches.keys()];
+    let removed = 0;
 
-      for (const [k, entry] of Object.entries(all)) {
-        if (k.startsWith(prefix)) {
-          if (entry && entry.expiresAt && now > entry.expiresAt) {
-            keysToRemove.push(k);
-          }
+    for (const ns of namespaces) {
+      const map = this._getMemoryMap(ns);
+      for (const [key, entry] of [...map]) {
+        if (entry.expiresAt && now > entry.expiresAt) {
+          map.delete(key);
+          removed++;
         }
       }
-
-      if (keysToRemove.length > 0) {
-        await chrome.storage.local.remove(keysToRemove);
-      }
-      return keysToRemove.length;
-    } catch {
-      return 0;
+      if (removed > 0) this._markDirty(ns);
     }
+    return removed;
   }
 
-  /**
-   * Clear cache completely
-   */
   async clear(namespace) {
     if (namespace) {
       this._getMemoryMap(namespace).clear();
+      this.dirtyNamespaces.delete(namespace);
     } else {
       this.memoryCaches.clear();
+      this.dirtyNamespaces.clear();
     }
-    this.pendingWrites.clear();
+    for (const timer of this.flushTimers.values()) clearTimeout(timer);
+    this.flushTimers.clear();
 
+    if (!this._hasStorage()) return;
     try {
-      if (typeof chrome === 'undefined' || !chrome.storage || !chrome.storage.local) return;
       const all = await chrome.storage.local.get(null);
-      const prefix = namespace ? this._storagePrefix(namespace) : 'xwise.cache.';
-      const keysToRemove = Object.keys(all).filter((k) => k.startsWith(prefix));
-      if (keysToRemove.length > 0) {
-        await chrome.storage.local.remove(keysToRemove);
-      }
-    } catch {}
+      const prefix = namespace ? this._storageKey(namespace) : XWISE_CACHE_PREFIX;
+      const keys = Object.keys(all).filter((key) => key.startsWith(prefix));
+      if (keys.length > 0) await chrome.storage.local.remove(keys);
+    } catch {
+      // Storage unavailable
+    }
   }
 
-  /**
-   * Calculate cache statistics for settings UI
-   */
   async getStats() {
-    let memoryCount = 0;
-    for (const map of this.memoryCaches.values()) {
-      memoryCount += map.size;
-    }
+    let memoryItems = 0;
+    for (const map of this.memoryCaches.values()) memoryItems += map.size;
 
-    let storageCount = 0;
+    let storageItems = 0;
     let estimatedBytes = 0;
 
-    try {
-      if (typeof chrome !== 'undefined' && chrome.storage && chrome.storage.local) {
+    if (this._hasStorage()) {
+      try {
         const all = await chrome.storage.local.get(null);
-        for (const [k, v] of Object.entries(all)) {
-          if (k.startsWith('xwise.cache.') || k.startsWith('xwise.tracker.')) {
-            storageCount++;
-            estimatedBytes += JSON.stringify(v).length * 2; // rough UTF-16 byte calculation
-          }
+        for (const [key, blob] of Object.entries(all)) {
+          if (!key.startsWith(XWISE_CACHE_PREFIX)) continue;
+          storageItems += Array.isArray(blob?.entries) ? blob.entries.length : 0;
+          estimatedBytes += JSON.stringify(blob).length * 2;
         }
+      } catch {
+        // Storage unavailable
       }
-    } catch {}
+    }
 
     return {
-      memoryItems: memoryCount,
-      storageItems: storageCount,
-      totalItems: Math.max(storageCount, memoryCount),
+      memoryItems,
+      storageItems,
+      totalItems: Math.max(storageItems, memoryItems),
       estimatedSizeKB: Math.round(estimatedBytes / 1024),
     };
   }
 }
 
-// Global Singleton Instance
 const XWiseCache = new XWiseCacheEngine();
 
-// Export for ES modules and standard script inclusion
 if (typeof module !== 'undefined' && module.exports) {
   module.exports = { XWiseCache, XWiseCacheEngine };
 }

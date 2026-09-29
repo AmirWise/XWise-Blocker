@@ -1,11 +1,13 @@
 'use strict';
 
 /**
- * XWise Blocker v3.1.1 — Content Script
+ * XWise Blocker v3.2.1 — Content Script
  * Seamless in-page native Twitter integration, flawless ad cleaner, and smart filter suite.
  */
 
 const DEFAULT_SETTINGS = {
+  shieldEnabled: true,
+
   // Video Suite
   volumeSliderEnabled: true,
   rememberVolume: true,
@@ -68,14 +70,6 @@ const DEFAULT_SETTINGS = {
   language: 'fa',
   showBlockToasts: true,
 
-  // Stats
-  blockCount: 0,
-  filterBlockCount: 0,
-  muteCount: 0,
-  hideCount: 0,
-  adBlockCount: 0,
-  blueCheckCount: 0,
-  dryRunMatchCount: 0,
 };
 
 // Preset packs without Iran flag
@@ -92,10 +86,12 @@ let currentTheme = 'dark';
 
 // Fast WeakSets to prevent redundant processing
 const processedVideos = new WeakSet();
-const processedTweets = new WeakSet();
-const scannedTweetNodes = new WeakSet();
+let scannedTweetNodes = new WeakSet();
 const hiddenTweetNodes = new WeakSet();
-const processedAdNodes = new WeakSet();
+let processedAdNodes = new WeakSet();
+const hideMeta = new WeakMap();
+const tweetRetries = new WeakMap();
+const STATS_KEY = 'xwise.stats';
 
 // Lookup Sets & Caches
 const blockedHandles = new Set();
@@ -141,27 +137,65 @@ function isHandleBoysWhitelisted(handle) {
 // Activity Logger
 // ============================================================================
 
-async function recordActivity({ handle, action, rule, scope }) {
-  if (!chrome?.storage?.local) return;
+const activityBuffer = [];
+let activityFlushTimer = null;
+
+function recordActivity({ handle, action, rule, scope }) {
+  activityBuffer.push({
+    id: 'act_' + Date.now() + '_' + Math.random().toString(36).substring(2, 6),
+    handle: String(handle || '').replace(/^@/, ''),
+    action,
+    rule: rule || '',
+    scope: scope || '',
+    timestamp: Date.now(),
+  });
+  if (!activityFlushTimer) activityFlushTimer = setTimeout(flushActivity, 1500);
+}
+
+async function flushActivity() {
+  activityFlushTimer = null;
+  if (!activityBuffer.length || !chrome?.storage?.local) return;
+
+  const pending = activityBuffer.splice(0).reverse();
   try {
     const data = await chrome.storage.local.get(['xwise.activityLog']);
     const list = Array.isArray(data['xwise.activityLog']) ? data['xwise.activityLog'] : [];
-
-    const entry = {
-      id: 'act_' + Date.now() + '_' + Math.random().toString(36).substring(2, 6),
-      handle: String(handle || '').replace(/^@/, ''),
-      action,
-      rule: rule || '',
-      scope: scope || '',
-      timestamp: Date.now(),
-    };
-
-    const updated = [entry, ...list].slice(0, 20);
-    await chrome.storage.local.set({ 'xwise.activityLog': updated });
+    await chrome.storage.local.set({ 'xwise.activityLog': [...pending, ...list].slice(0, 20) });
   } catch {
     // Non-blocking
   }
 }
+
+const statBuffer = {};
+let statFlushTimer = null;
+
+function incrementBlockMetric(key = 'blockCount') {
+  statBuffer[key] = (statBuffer[key] || 0) + 1;
+  if (!statFlushTimer) statFlushTimer = setTimeout(flushStats, 1500);
+}
+
+async function flushStats() {
+  statFlushTimer = null;
+  const pending = { ...statBuffer };
+  for (const key of Object.keys(statBuffer)) delete statBuffer[key];
+  if (!Object.keys(pending).length || !chrome?.storage?.local) return;
+
+  try {
+    const res = await chrome.storage.local.get(STATS_KEY);
+    const stats = res[STATS_KEY] || {};
+    for (const [key, amount] of Object.entries(pending)) {
+      stats[key] = (stats[key] || 0) + amount;
+    }
+    await chrome.storage.local.set({ [STATS_KEY]: stats });
+  } catch {
+    // Non-blocking
+  }
+}
+
+window.addEventListener('pagehide', () => {
+  flushActivity();
+  flushStats();
+});
 
 // ============================================================================
 // Toast Notification
@@ -293,7 +327,7 @@ function replaceToastContent(toast, message, { isWarning, action, onAction, dura
 // ============================================================================
 
 const BLOCK_KEYWORDS = [
-  'block', 'مسدود', 'bloquear', 'bloquer', 'blockieren', 'blocca',
+  'block', 'بلاک', 'مسدود', 'bloquear', 'bloquer', 'blockieren', 'blocca',
   'блокировать', '屏蔽', 'ブロック', 'حظر', 'chặn', 'blokir', 'blokkeren',
 ];
 const UNBLOCK_KEYWORDS = [
@@ -310,16 +344,27 @@ const UNMUTE_KEYWORDS = [
 ];
 
 function isBlockMenuItem(node) {
+  if (node.matches('[data-testid="unblock"]') || node.querySelector('[data-testid="unblock"]')) return false;
+  if (node.matches('[data-testid="block"]') || node.querySelector('[data-testid="block"]')) return true;
   const text = node.textContent.trim().toLowerCase();
   if (!text) return false;
   if (UNBLOCK_KEYWORDS.some((k) => text.includes(k))) return false;
   return BLOCK_KEYWORDS.some((k) => text.includes(k));
 }
 
+const MUTE_EXCLUDED_PHRASES = ['this conversation', 'mute words', 'گفتگو', 'مکالمه'];
+
+function menuItemMentions(node, handle) {
+  return node.textContent.toLowerCase().includes('@' + String(handle).toLowerCase());
+}
+
 function isMuteMenuItem(node) {
+  if (node.matches('[data-testid="unmute"]') || node.querySelector('[data-testid="unmute"]')) return false;
+  if (node.matches('[data-testid="mute"]') || node.querySelector('[data-testid="mute"]')) return true;
   const text = node.textContent.trim().toLowerCase();
   if (!text) return false;
   if (UNMUTE_KEYWORDS.some((k) => text.includes(k))) return false;
+  if (MUTE_EXCLUDED_PHRASES.some((k) => text.includes(k))) return false;
   return MUTE_KEYWORDS.some((k) => text.includes(k));
 }
 
@@ -374,7 +419,7 @@ function isInsideQuoteTweet(element, rootTweet) {
 }
 
 function getHandleFromTweet(tweetNode) {
-  if (!tweetNode) return 'user';
+  if (!tweetNode) return '';
 
   // 1. Prioritize User-Name elements of the PRIMARY tweet author (strictly excluding quote tweets)
   const userNames = tweetNode.querySelectorAll('[data-testid="User-Name"]');
@@ -401,36 +446,41 @@ function getHandleFromTweet(tweetNode) {
     if (h && !['home', 'explore', 'notifications', 'messages'].includes(h)) return h;
   }
 
-  return 'user';
+  return '';
 }
 
 async function performBlockInternal(tweetNode, { requireConfirmDelay = false, source = 'manual', rule = '' } = {}) {
   const handle = getHandleFromTweet(tweetNode);
+  if (!handle) return false;
+  const handleKey = handle.toLowerCase();
 
   if (isHandleWhitelisted(handle)) return false;
-  if (blockedHandles.has(handle) || inProgressHandles.has(handle)) return false;
+  if (blockedHandles.has(handleKey) || inProgressHandles.has(handleKey)) return false;
 
-  inProgressHandles.add(handle);
+  inProgressHandles.add(handleKey);
 
   const moreBtn = tweetNode.querySelector('[data-testid="caret"], [aria-label="More" i], [aria-label*="بیشتر" i]');
   if (!moreBtn) {
     if (source === 'manual') showToast(settings.language === 'fa' ? `منوی کاربر @${handle} پیدا نشد` : `Menu not found for @${handle}`);
-    inProgressHandles.delete(handle);
+    inProgressHandles.delete(handleKey);
     return false;
   }
   moreBtn.click();
 
-  const menuItem = await waitFor(document, isBlockMenuItem, 1800);
+  const menuItem = await waitForMenuItem(
+    [(node) => isBlockMenuItem(node) && menuItemMentions(node, handle), isBlockMenuItem],
+    1800
+  );
   if (!menuItem) {
     document.body.click();
-    inProgressHandles.delete(handle);
+    inProgressHandles.delete(handleKey);
     return false;
   }
   menuItem.click();
 
   const confirmBtn = await waitFor(document, '[data-testid="confirmationSheetConfirm"]', 1800);
   if (!confirmBtn) {
-    inProgressHandles.delete(handle);
+    inProgressHandles.delete(handleKey);
     return false;
   }
 
@@ -445,15 +495,15 @@ async function performBlockInternal(tweetNode, { requireConfirmDelay = false, so
     await new Promise((r) => setTimeout(r, 2000));
     if (cancelled) {
       document.querySelector('[data-testid="confirmationSheetCancel"]')?.click();
-      inProgressHandles.delete(handle);
+      inProgressHandles.delete(handleKey);
       return false;
     }
   }
 
   confirmBtn.click();
 
-  blockedHandles.add(handle);
-  inProgressHandles.delete(handle);
+  blockedHandles.add(handleKey);
+  inProgressHandles.delete(handleKey);
 
   const metricKey = source === 'filter' ? 'filterBlockCount' : 'blockCount';
   incrementBlockMetric(metricKey);
@@ -471,25 +521,30 @@ async function performBlockInternal(tweetNode, { requireConfirmDelay = false, so
 
 async function performMuteInternal(tweetNode, { source = 'filter', rule = '' } = {}) {
   const handle = getHandleFromTweet(tweetNode);
+  if (!handle) return false;
+  const handleKey = handle.toLowerCase();
 
   if (isHandleWhitelisted(handle)) return false;
-  if (mutedHandles.has(handle) || blockedHandles.has(handle) || inProgressHandles.has(handle)) {
+  if (mutedHandles.has(handleKey) || blockedHandles.has(handleKey) || inProgressHandles.has(handleKey)) {
     return false;
   }
 
-  inProgressHandles.add(handle);
+  inProgressHandles.add(handleKey);
 
   const moreBtn = tweetNode.querySelector('[data-testid="caret"], [aria-label="More" i], [aria-label*="بیشتر" i]');
   if (!moreBtn) {
-    inProgressHandles.delete(handle);
+    inProgressHandles.delete(handleKey);
     return false;
   }
   moreBtn.click();
 
-  const menuItem = await waitFor(document, isMuteMenuItem, 1800);
+  const menuItem = await waitForMenuItem(
+    [(node) => isMuteMenuItem(node) && menuItemMentions(node, handle), isMuteMenuItem],
+    1800
+  );
   if (!menuItem) {
     document.body.click();
-    inProgressHandles.delete(handle);
+    inProgressHandles.delete(handleKey);
     return false;
   }
   menuItem.click();
@@ -497,8 +552,8 @@ async function performMuteInternal(tweetNode, { source = 'filter', rule = '' } =
   const confirmBtn = await waitFor(document, '[data-testid="confirmationSheetConfirm"]', 700);
   if (confirmBtn) confirmBtn.click();
 
-  mutedHandles.add(handle);
-  inProgressHandles.delete(handle);
+  mutedHandles.add(handleKey);
+  inProgressHandles.delete(handleKey);
 
   incrementBlockMetric('muteCount');
   recordActivity({ handle, action: 'mute', rule, scope: source });
@@ -525,29 +580,97 @@ function performMute(tweetNode, options = {}) {
 // Clean & Native-Feeling Tweet Hiding
 // ============================================================================
 
-function applyHideTweet(tweetNode, { rule = '', scope = '', handle = '' } = {}) {
-  if (hiddenTweetNodes.has(tweetNode)) return;
-  hiddenTweetNodes.add(tweetNode);
+function isShieldOn() {
+  return settings.shieldEnabled !== false;
+}
 
+function findActionBar(tweet) {
+  return (
+    tweet.querySelector('[role="group"]:has([data-testid="reply"], [data-testid="like"], [data-testid="unlike"])') ||
+    tweet.querySelector('[role="group"]')
+  );
+}
+
+function getTweetId(tweet) {
+  const links = tweet.querySelectorAll('a[href*="/status/"]');
+  for (const link of links) {
+    if (!link.querySelector('time') || isInsideQuoteTweet(link, tweet)) continue;
+    const match = link.getAttribute('href').match(/\/status\/(\d+)/);
+    if (match) return match[1];
+  }
+  return '';
+}
+
+function attachRehideButton(tweetNode, bar) {
+  if (tweetNode.querySelector('.xe-rehide-btn-wrapper')) return;
+
+  const actionBar = findActionBar(tweetNode);
+  if (!actionBar) return;
+
+  const rehideBtn = document.createElement('div');
+  rehideBtn.className = 'xe-rehide-btn-wrapper';
+  rehideBtn.setAttribute('role', 'button');
+  rehideBtn.setAttribute('tabindex', '0');
+  const tooltip = settings.language === 'fa' ? 'پنهان‌سازی مجدد توییت' : 'Hide tweet again';
+  rehideBtn.setAttribute('aria-label', tooltip);
+  rehideBtn.title = tooltip;
+
+  rehideBtn.innerHTML = `
+    <div class="xe-rehide-btn-inner">
+      <div class="xe-rehide-btn-icon">
+        <svg viewBox="0 0 24 24" aria-hidden="true">
+          <path d="M3.27 2L2 3.27l3.78 3.78C4.1 8.35 2.78 10.02 2 12c1.73 4.39 6 7.5 11 7.5 2.16 0 4.17-.6 5.86-1.64L20.73 22 22 20.73 3.27 2zM12 17c-2.76 0-5-2.24-5-5 0-.77.18-1.5.49-2.16l6.67 6.67c-.66.31-1.39.49-2.16.49zm-.5-10c.17 0 .33.02.5.03 2.74.19 4.95 2.4 5.14 5.14.01.17.03.33.03.5 0 .76-.17 1.48-.46 2.13l1.52 1.52C19.38 15.14 20.24 13.67 21 12c-1.73-4.39-6-7.5-11-7.5-1.07 0-2.1.16-3.08.43l1.7 1.7c.43-.09.89-.13 1.38-.13z"/>
+        </svg>
+      </div>
+    </div>
+  `;
+
+  const onRehide = (ev) => {
+    ev.preventDefault();
+    ev.stopPropagation();
+    collapseTweet(tweetNode, bar);
+  };
+
+  rehideBtn.addEventListener('click', onRehide);
+  rehideBtn.addEventListener('keydown', (ev) => {
+    if (ev.key === 'Enter' || ev.key === ' ') onRehide(ev);
+  });
+
+  actionBar.appendChild(rehideBtn);
+}
+
+function revealTweet(tweetNode, bar) {
+  bar.classList.add('xe-hidden-bar');
+  tweetNode.classList.remove('xe-tweet-hidden');
+  tweetNode.removeAttribute('data-xe-hidden');
+  tweetNode.classList.add('xe-tweet-revealed');
+  tweetNode.setAttribute('data-xe-revealed', 'true');
+
+  attachRehideButton(tweetNode, bar);
+  setTimeout(() => attachRehideButton(tweetNode, bar), 120);
+}
+
+function collapseTweet(tweetNode, bar) {
+  bar.classList.remove('xe-hidden-bar');
   tweetNode.classList.add('xe-tweet-hidden');
   tweetNode.setAttribute('data-xe-hidden', 'true');
-  if (scope === 'gender') {
-    tweetNode.setAttribute('data-xe-reason', 'gender');
-  }
+  tweetNode.classList.remove('xe-tweet-revealed');
+  tweetNode.removeAttribute('data-xe-revealed');
+  tweetNode.querySelector('.xe-rehide-btn-wrapper')?.remove();
+}
 
+function buildFilteredBar(tweetNode, { rule, scope }) {
   const bar = document.createElement('div');
   bar.className = 'xe-filtered-bar';
   bar.setAttribute('role', 'region');
-  if (scope === 'gender') {
-    bar.setAttribute('data-xe-gender', 'true');
-  }
+  if (scope === 'gender') bar.setAttribute('data-xe-gender', 'true');
 
   const label = document.createElement('span');
   label.className = 'xe-filtered-label';
-  const cleanRule = rule || 'Filter';
   if (scope === 'gender') {
     label.textContent = settings.language === 'fa' ? 'پست پنهان شد (اکانت پسر)' : 'Post hidden (Boy account)';
   } else {
+    const cleanRule = rule || 'Filter';
     label.textContent = settings.language === 'fa' ? `پست پنهان شد (${cleanRule})` : `Post hidden (${cleanRule})`;
   }
 
@@ -555,93 +678,136 @@ function applyHideTweet(tweetNode, { rule = '', scope = '', handle = '' } = {}) 
   showBtn.type = 'button';
   showBtn.className = 'xe-filtered-show-btn';
   showBtn.textContent = settings.language === 'fa' ? 'مشاهده' : 'View';
-
   showBtn.addEventListener('click', (e) => {
     e.preventDefault();
     e.stopPropagation();
-
-    // Reveal tweet as a 100% normal tweet
-    bar.classList.add('xe-hidden-bar');
-    tweetNode.classList.remove('xe-tweet-hidden');
-    tweetNode.removeAttribute('data-xe-hidden');
-    tweetNode.classList.add('xe-tweet-revealed');
-    tweetNode.setAttribute('data-xe-revealed', 'true');
-
-    // Attach native re-hide button under tweet in bottom action bar
-    function attachRehideButton() {
-      if (tweetNode.querySelector('.xe-rehide-btn-wrapper')) return;
-
-      const actionBar = tweetNode.querySelector('[role="group"]');
-      if (!actionBar) return;
-
-      const rehideBtn = document.createElement('div');
-      rehideBtn.className = 'xe-rehide-btn-wrapper';
-      rehideBtn.setAttribute('role', 'button');
-      rehideBtn.setAttribute('tabindex', '0');
-      const tooltip = settings.language === 'fa' ? 'پنهان‌سازی مجدد توییت' : 'Hide tweet again';
-      rehideBtn.setAttribute('aria-label', tooltip);
-      rehideBtn.title = tooltip;
-
-      rehideBtn.innerHTML = `
-        <div class="xe-rehide-btn-inner">
-          <div class="xe-rehide-btn-icon">
-            <svg viewBox="0 0 24 24" aria-hidden="true">
-              <path d="M3.27 2L2 3.27l3.78 3.78C4.1 8.35 2.78 10.02 2 12c1.73 4.39 6 7.5 11 7.5 2.16 0 4.17-.6 5.86-1.64L20.73 22 22 20.73 3.27 2zM12 17c-2.76 0-5-2.24-5-5 0-.77.18-1.5.49-2.16l6.67 6.67c-.66.31-1.39.49-2.16.49zm-.5-10c.17 0 .33.02.5.03 2.74.19 4.95 2.4 5.14 5.14.01.17.03.33.03.5 0 .76-.17 1.48-.46 2.13l1.52 1.52C19.38 15.14 20.24 13.67 21 12c-1.73-4.39-6-7.5-11-7.5-1.07 0-2.1.16-3.08.43l1.7 1.7c.43-.09.89-.13 1.38-.13z"/>
-            </svg>
-          </div>
-        </div>
-      `;
-
-      const onRehide = (ev) => {
-        ev.preventDefault();
-        ev.stopPropagation();
-
-        // Re-collapse back into the bar
-        bar.classList.remove('xe-hidden-bar');
-        tweetNode.classList.add('xe-tweet-hidden');
-        tweetNode.setAttribute('data-xe-hidden', 'true');
-        tweetNode.classList.remove('xe-tweet-revealed');
-        tweetNode.removeAttribute('data-xe-revealed');
-        rehideBtn.remove();
-      };
-
-      rehideBtn.addEventListener('click', onRehide);
-      rehideBtn.addEventListener('keydown', (ev) => {
-        if (ev.key === 'Enter' || ev.key === ' ') onRehide(ev);
-      });
-
-      actionBar.appendChild(rehideBtn);
-    }
-
-    attachRehideButton();
-    setTimeout(attachRehideButton, 120);
+    revealTweet(tweetNode, bar);
   });
 
   bar.addEventListener('click', (e) => e.stopPropagation());
-
   bar.appendChild(label);
   bar.appendChild(showBtn);
-  tweetNode.prepend(bar);
+  return bar;
+}
+
+function applyHideTweet(tweetNode, { rule = '', scope = '', handle = '' } = {}) {
+  if (hiddenTweetNodes.has(tweetNode)) return;
+  hiddenTweetNodes.add(tweetNode);
+  hideMeta.set(tweetNode, { rule, scope, handle, tweetId: getTweetId(tweetNode) });
+
+  tweetNode.classList.add('xe-tweet-hidden');
+  tweetNode.setAttribute('data-xe-hidden', 'true');
+  if (scope === 'gender') tweetNode.setAttribute('data-xe-reason', 'gender');
+
+  tweetNode.prepend(buildFilteredBar(tweetNode, { rule, scope }));
 
   incrementBlockMetric('hideCount');
   recordActivity({ handle, action: 'hide', rule, scope });
+}
+
+function unhideTweet(tweet) {
+  tweet.classList.remove('xe-tweet-hidden', 'xe-tweet-revealed');
+  tweet.removeAttribute('data-xe-hidden');
+  tweet.removeAttribute('data-xe-revealed');
+  tweet.removeAttribute('data-xe-reason');
+  tweet.querySelectorAll(':scope > .xe-filtered-bar, .xe-rehide-btn-wrapper').forEach((node) => node.remove());
+  hiddenTweetNodes.delete(tweet);
+  hideMeta.delete(tweet);
+}
+
+// React can drop injected nodes or recycle an article for another tweet.
+function restoreMissingBars() {
+  document.querySelectorAll('article[data-xe-hidden="true"], article[data-xe-revealed="true"]').forEach((tweet) => {
+    const meta = hideMeta.get(tweet);
+    if (!meta) {
+      unhideTweet(tweet);
+      return;
+    }
+
+    const currentId = getTweetId(tweet);
+    if (meta.tweetId && currentId && meta.tweetId !== currentId) {
+      unhideTweet(tweet);
+      scannedTweetNodes.delete(tweet);
+      processTweetFilter(tweet);
+      return;
+    }
+
+    if (tweet.getAttribute('data-xe-hidden') === 'true' && !tweet.querySelector(':scope > .xe-filtered-bar')) {
+      tweet.prepend(buildFilteredBar(tweet, meta));
+    }
+  });
+}
+
+function rescanAllTweets() {
+  document.querySelectorAll('article[data-xe-hidden], article[data-xe-revealed]').forEach((tweet) => unhideTweet(tweet));
+  document.querySelectorAll('.xe-filter-badge').forEach((badge) => badge.remove());
+  scannedTweetNodes = new WeakSet();
+  document.querySelectorAll('article').forEach((tweet) => processTweetFilter(tweet));
+}
+
+function scheduleTweetRetry(tweet) {
+  const attempts = tweetRetries.get(tweet) || 0;
+  if (attempts >= 6 || !tweet.isConnected) return;
+  tweetRetries.set(tweet, attempts + 1);
+  setTimeout(() => processTweetFilter(tweet), 250 * (attempts + 1));
 }
 
 // ============================================================================
 // Clean Timeline & Zen Mode Management
 // ============================================================================
 
+let recommendationsWereActive = false;
+let adBlockWasActive = false;
+
+function recommendationCleaningActive() {
+  return (
+    isShieldOn() &&
+    settings.cleanTimelineEnabled !== false &&
+    (!!settings.hideWhoToFollow || !!settings.hideProfileWhoToFollow)
+  );
+}
+
+const HIDDEN_STYLE_PROPS = ['display', 'visibility', 'height', 'min-height', 'max-height', 'margin', 'padding', 'border', 'overflow'];
+
+function restoreHiddenElements(className) {
+  document.querySelectorAll('.' + className).forEach((el) => {
+    el.classList.remove(className);
+    HIDDEN_STYLE_PROPS.forEach((prop) => el.style.removeProperty(prop));
+  });
+}
+
+function restoreRecommendations() {
+  restoreHiddenElements('xe-recommendation-hidden');
+}
+
+function restoreAds() {
+  restoreHiddenElements('xe-ad-cell-hidden');
+  restoreHiddenElements('xe-ad-hidden');
+  processedAdNodes = new WeakSet();
+}
+
 function applyTimelineCleaners() {
   const root = document.documentElement;
-  const isTimelineClean = settings.cleanTimelineEnabled !== false;
+  const shieldOn = isShieldOn();
+  const isTimelineClean = shieldOn && settings.cleanTimelineEnabled !== false;
+  const adBlockActive = shieldOn && !!settings.adBlockerEnabled;
 
   root.classList.toggle('xe-clean-who-to-follow', isTimelineClean && !!settings.hideWhoToFollow);
   root.classList.toggle('xe-clean-profile-who-to-follow', isTimelineClean && (!!settings.hideProfileWhoToFollow || !!settings.hideWhoToFollow));
   root.classList.toggle('xe-clean-grok', isTimelineClean && !!settings.hideGrokDrawer);
   root.classList.toggle('xe-clean-premium', isTimelineClean && !!settings.hidePremiumUpsell);
   root.classList.toggle('xe-clean-view-counts', isTimelineClean && !!settings.hideViewCounts);
+  root.classList.toggle('xe-adblock-off', !adBlockActive);
   root.classList.toggle('xe-zen-mode', !!settings.zenModeEnabled);
   root.classList.toggle('xe-zen-keep-search', !!settings.zenModeEnabled && settings.zenKeepSearch !== false);
+
+  const recommendationsActive = recommendationCleaningActive();
+  if (recommendationsWereActive && !recommendationsActive) restoreRecommendations();
+  recommendationsWereActive = recommendationsActive;
+
+  if (adBlockWasActive && !adBlockActive) restoreAds();
+  adBlockWasActive = adBlockActive;
+
   cleanZenSidebar();
 }
 
@@ -750,102 +916,97 @@ function cleanZenSidebar() {
   }
 }
 
-function cleanWhoToFollowRecommendations(root = document) {
-  if (!settings.hideWhoToFollow && !settings.hideProfileWhoToFollow) return;
+const USER_LIST_PATH = /\/(followers|following|verified_followers|followers_you_follow|retweets|reposts|likes|members|subscribers|blocked|muted)(\/|$)/;
 
-  const path = window.location.pathname;
-  const isIntentionalUserList =
-    path.endsWith('/followers') ||
-    path.endsWith('/following') ||
-    path.endsWith('/verified_followers') ||
-    path.endsWith('/followers_you_follow') ||
-    (path.startsWith('/search') && new URLSearchParams(window.location.search).get('f') === 'user') ||
+function isUserListView() {
+  const path = window.location.pathname.toLowerCase();
+  return (
+    USER_LIST_PATH.test(path) ||
+    path.startsWith('/search') ||
+    path.startsWith('/i/connect_people') ||
+    path.startsWith('/messages') ||
+    path.startsWith('/settings') ||
     path.includes('/lists/') ||
-    path.startsWith('/i/connect_people');
+    path.includes('/communities/')
+  );
+}
 
-  // 1. Sidebar recommendations (Who to follow / Relevant people / You might like)
+function cleanSidebarRecommendations() {
+  if (!recommendationCleaningActive()) return;
+
   const sidebar = document.querySelector?.('[data-testid="sidebarColumn"]');
-  if (sidebar) {
-    const widgets = sidebar.querySelectorAll('aside, section, [data-testid="placementTracking"]');
-    for (let i = 0; i < widgets.length; i++) {
-      const w = widgets[i];
-      if (w.classList.contains('xe-recommendation-hidden')) continue;
+  if (!sidebar) return;
 
-      // Absolute Immunity for Search Box and Recent Searches/Typeahead Profiles!
-      const isSearchBoxOrRecent =
-        !!w.querySelector('form[role="search"], [data-testid="SearchBox_Search_Input"], [data-testid*="typeahead" i], [data-testid="TypeaheadUser"], [role="listbox"]') ||
-        w.matches?.('form[role="search"], [data-testid="SearchBox_Search_Input"], [data-testid*="typeahead" i], [data-testid="TypeaheadUser"], [role="listbox"]') ||
-        (w.getAttribute('aria-label') || '').toLowerCase().includes('recent') ||
-        (w.getAttribute('aria-label') || '').includes('اخیر') ||
-        (w.textContent || '').includes('جستجوهای اخیر');
+  const widgets = sidebar.querySelectorAll('aside, section, [data-testid="placementTracking"]');
+  for (let i = 0; i < widgets.length; i++) {
+    const w = widgets[i];
+    if (w.classList.contains('xe-recommendation-hidden')) continue;
 
-      if (isSearchBoxOrRecent) continue;
+    const isSearchBoxOrRecent =
+      !!w.querySelector('form[role="search"], [data-testid="SearchBox_Search_Input"], [data-testid*="typeahead" i], [data-testid="TypeaheadUser"], [role="listbox"]') ||
+      w.matches?.('form[role="search"], [data-testid="SearchBox_Search_Input"], [data-testid*="typeahead" i], [data-testid="TypeaheadUser"], [role="listbox"]') ||
+      (w.getAttribute('aria-label') || '').toLowerCase().includes('recent') ||
+      (w.getAttribute('aria-label') || '').includes('اخیر') ||
+      (w.textContent || '').includes('جستجوهای اخیر');
 
-      const txt = w.textContent || '';
-      const aria = w.getAttribute('aria-label') || '';
-      const hasConnectLink = !!w.querySelector('a[href*="/connect_people"], a[href*="/i/connect_people"]');
-      const hasUserCell = !!w.querySelector('[data-testid="UserCell"]');
-      const isRecText = isRecommendationText(txt) || isRecommendationText(aria);
+    if (isSearchBoxOrRecent) continue;
 
-      // Only hide genuine follow recommendations (do NOT hide search results or recent accounts!)
-      if (hasConnectLink || isRecText || (hasUserCell && !w.querySelector('[data-testid="trend"]') && !isSearchBoxOrRecent)) {
-        hideRecommendationElement(w);
-      }
+    const hasConnectLink = !!w.querySelector('a[href*="/connect_people"], a[href*="/i/connect_people"]');
+    const hasUserCell = !!w.querySelector('[data-testid="UserCell"]');
+    const isRecText = isRecommendationText(w.textContent || '') || isRecommendationText(w.getAttribute('aria-label') || '');
+
+    if (hasConnectLink || isRecText || (hasUserCell && !w.querySelector('[data-testid="trend"]'))) {
+      hideRecommendationElement(w);
     }
   }
+}
 
-  // 2. Timeline / In-feed recommendations (Home, Profiles, Tweet details, etc.)
-  if (!isIntentionalUserList) {
-    const scope = root.querySelectorAll ? root : document;
-    const cells = scope.querySelectorAll('[data-testid="cellInnerDiv"]');
-    for (let i = 0; i < cells.length; i++) {
-      const cell = cells[i];
-      if (cell.classList.contains('xe-recommendation-hidden') || cell.classList.contains('xe-ad-cell-hidden')) continue;
+function cleanFeedRecommendations(root = document) {
+  if (!recommendationCleaningActive() || isUserListView()) return;
 
-      // NEVER hide a genuine tweet article!
-      if (cell.querySelector('article')) continue;
+  const scope = root.querySelectorAll ? root : document;
+  const cells = scope.querySelectorAll('[data-testid="cellInnerDiv"]');
+  for (let i = 0; i < cells.length; i++) {
+    const cell = cells[i];
+    if (cell.classList.contains('xe-recommendation-hidden') || cell.classList.contains('xe-ad-cell-hidden')) continue;
+    if (cell.querySelector('article')) continue;
 
-      // Connect people link
-      if (cell.querySelector('a[href*="/connect_people"], a[href*="/i/connect_people"]')) {
+    if (cell.querySelector('a[href*="/connect_people"], a[href*="/i/connect_people"]')) {
+      hideRecommendationElement(cell);
+      continue;
+    }
+
+    const aside = cell.querySelector('aside');
+    if (aside) {
+      const aria = aside.getAttribute('aria-label') || '';
+      if (isRecommendationText(aria) || isRecommendationText(aside.textContent)) {
         hideRecommendationElement(cell);
         continue;
       }
+    }
 
-      // Aside recommendation
-      const aside = cell.querySelector('aside');
-      if (aside) {
-        const aria = aside.getAttribute('aria-label') || '';
-        if (isRecommendationText(aria) || isRecommendationText(aside.textContent)) {
-          hideRecommendationElement(cell);
-          continue;
-        }
-      }
+    if (cell.querySelector('[data-testid="UserCell"]')) {
+      hideRecommendationElement(cell);
+      continue;
+    }
 
-      // Recommendation user rows (UserCell without article)
-      if (cell.querySelector('[data-testid="UserCell"]')) {
-        hideRecommendationElement(cell);
-        continue;
-      }
+    const txt = cell.textContent || '';
+    const hasControls = !!(cell.querySelector('[role="button"]') || cell.querySelector('a[href^="/"]'));
 
-      // Carousel of users/creators
-      if (cell.querySelector('[data-testid="Carousel"]')) {
-        const txt = cell.textContent || '';
-        if (isRecommendationText(txt) || cell.querySelector('[role="button"]') || cell.querySelector('a[href^="/"]')) {
-          hideRecommendationElement(cell);
-          continue;
-        }
-      }
+    if (cell.querySelector('[data-testid="Carousel"]') && (isRecommendationText(txt) || hasControls)) {
+      hideRecommendationElement(cell);
+      continue;
+    }
 
-      // Text match with follow button or link
-      const txt = cell.textContent || '';
-      if (isRecommendationText(txt)) {
-        if (cell.querySelector('[role="button"]') || cell.querySelector('a[href^="/"]')) {
-          hideRecommendationElement(cell);
-          continue;
-        }
-      }
+    if (isRecommendationText(txt) && hasControls) {
+      hideRecommendationElement(cell);
     }
   }
+}
+
+function cleanWhoToFollowRecommendations(root = document) {
+  cleanSidebarRecommendations();
+  cleanFeedRecommendations(root);
 }
 
 const cleanProfileRecommendations = cleanWhoToFollowRecommendations;
@@ -859,6 +1020,13 @@ const AD_INDICATORS = [
   'реклама', 'anuncio', 'sponsorisé', 'gesponsert', 'sponsorizzato',
   'sponsorlu', 'iklan',
 ];
+
+function isAdLabel(text) {
+  const label = String(text).trim().toLowerCase();
+  if (!label) return false;
+  if (AD_INDICATORS.includes(label)) return true;
+  return AD_INDICATORS.some((k) => k.length > 3 && (label.startsWith(k + ' ') || label.startsWith(k + ':')));
+}
 
 function cleanAdElement(node) {
   if (processedAdNodes.has(node)) return;
@@ -887,7 +1055,7 @@ function isGenuinePromotedAd(tweetNode) {
   const socialContext = tweetNode.querySelector('[data-testid="socialContext"]');
   if (socialContext) {
     const text = socialContext.textContent.trim().toLowerCase();
-    if (text && AD_INDICATORS.some((k) => text === k || text.includes(k))) {
+    if (text && isAdLabel(text)) {
       return true;
     }
   }
@@ -895,6 +1063,7 @@ function isGenuinePromotedAd(tweetNode) {
   // 2. Check header text for ad/promoted indicators
   const spans = tweetNode.querySelectorAll('[dir] > span');
   for (let i = 0; i < spans.length; i++) {
+    if (spans[i].closest('[data-testid="tweetText"], [data-testid="User-Name"]')) continue;
     const text = spans[i].textContent.trim().toLowerCase();
     if (text && AD_INDICATORS.includes(text)) {
       return true;
@@ -923,7 +1092,7 @@ function isGenuinePromotedAd(tweetNode) {
 }
 
 function scanAndPurgeAds(root = document) {
-  if (!settings.adBlockerEnabled) return;
+  if (!isShieldOn() || !settings.adBlockerEnabled) return;
 
   // 1. Selector search on genuine ad cells
   const tracked = root.querySelectorAll?.('[data-testid="placementTracking"]');
@@ -954,13 +1123,14 @@ function scanAndPurgeAds(root = document) {
   const promoTrends = root.querySelectorAll?.('[data-testid="trend"]:has([data-testid="placementTracking"])');
   if (promoTrends) {
     for (let i = 0; i < promoTrends.length; i++) {
+      promoTrends[i].classList.add('xe-ad-hidden');
       promoTrends[i].style.setProperty('display', 'none', 'important');
     }
   }
 }
 
 function detectAndBlockAd(tweetNode) {
-  if (!settings.adBlockerEnabled) return false;
+  if (!isShieldOn() || !settings.adBlockerEnabled) return false;
   if (processedAdNodes.has(tweetNode)) return false;
 
   if (isGenuinePromotedAd(tweetNode)) {
@@ -1880,7 +2050,7 @@ function inspectTweetAgainstFilters(tweet) {
   const scopes = settings.filterScopes || { displayName: true, bio: true, tweetText: false };
 
   for (const filter of filters) {
-    if (!filter.enabled) continue;
+    if (filter.enabled === false) continue;
     const pattern = filter.pattern;
     const isRegex = !!filter.isRegex;
 
@@ -1930,15 +2100,37 @@ function applyDryRunBadge(tweet, match) {
   recordActivity({ handle: match.handle, action: 'dry-run', rule: match.matchedFilter.pattern, scope: match.matchedScope });
 }
 
+const failureReported = new Set();
+
+function reportAutoActionFailure(kind, handle) {
+  const key = kind + ':' + String(handle).toLowerCase();
+  if (failureReported.has(key) || blockedHandles.has(String(handle).toLowerCase()) || mutedHandles.has(String(handle).toLowerCase())) return;
+  failureReported.add(key);
+  console.warn(`[XWise] Auto-${kind} did not complete for @${handle}`);
+  if (isHandleWhitelisted(handle)) return;
+  showToast(
+    settings.language === 'fa'
+      ? `اجرای خودکار ${kind === 'block' ? 'بلاک' : 'بی‌صدا'} برای @${handle} انجام نشد`
+      : `Auto-${kind} could not be completed for @${handle}`,
+    { isWarning: true }
+  );
+}
+
 async function processTweetFilter(tweet) {
-  if (scannedTweetNodes.has(tweet)) return;
-  scannedTweetNodes.add(tweet);
+  if (scannedTweetNodes.has(tweet) || !isShieldOn()) return;
+
+  if (detectAndBlockAd(tweet)) {
+    scannedTweetNodes.add(tweet);
+    return;
+  }
 
   const handle = getHandleFromTweet(tweet);
+  if (!handle) {
+    scheduleTweetRetry(tweet);
+    return;
+  }
+  scannedTweetNodes.add(tweet);
   if (isHandleWhitelisted(handle)) return;
-
-  // Ad cleaner
-  if (detectAndBlockAd(tweet)) return;
 
   // Blue check
   if (detectAndFilterBlueCheck(tweet)) return;
@@ -1964,18 +2156,22 @@ async function processTweetFilter(tweet) {
   const match = inspectTweetAgainstFilters(tweet);
   if (!match) return;
 
-  const action = (match.matchedFilter.action && match.matchedFilter.action !== 'default')
+  const ACTION_ALIASES = { block: 'auto-block', mute: 'auto-mute' };
+  const rawAction = (match.matchedFilter.action && match.matchedFilter.action !== 'default')
     ? match.matchedFilter.action
     : (settings.filterMode || 'hide');
+  const action = ACTION_ALIASES[rawAction] || rawAction;
 
   if (action === 'dry-run') {
     applyDryRunBadge(tweet, match);
   } else if (action === 'hide') {
     applyHideTweet(tweet, { rule: match.matchedFilter.pattern, scope: match.matchedScope, handle: match.handle });
   } else if (action === 'auto-mute') {
-    await performMute(tweet, { source: 'filter', rule: match.matchedFilter.pattern });
+    const ok = await performMute(tweet, { source: 'filter', rule: match.matchedFilter.pattern });
+    if (!ok) reportAutoActionFailure('mute', match.handle);
   } else if (action === 'auto-block') {
-    await performBlock(tweet, { requireConfirmDelay: false, source: 'filter', rule: match.matchedFilter.pattern });
+    const ok = await performBlock(tweet, { requireConfirmDelay: false, source: 'filter', rule: match.matchedFilter.pattern });
+    if (!ok) reportAutoActionFailure('block', match.handle);
   }
 }
 
@@ -1983,7 +2179,7 @@ async function processTweetFilter(tweet) {
 // Pro Video Suite (Volume, Speed, Loop & Downloader)
 // ============================================================================
 
-const PLAYBACK_SPEEDS = [0.5, 1, 1.25, 1.5, 2];
+const PLAYBACK_SPEEDS = [0.5, 0.75, 1, 1.25, 1.5, 2];
 
 function getVideoMediaUrl(video) {
   if (video.currentSrc && !video.currentSrc.startsWith('blob:')) {
@@ -2000,6 +2196,36 @@ function getVideoMediaUrl(video) {
   }
 
   return video.currentSrc || video.src || '';
+}
+
+function getTweetIdForVideo(video) {
+  const pathMatch = window.location.pathname.match(/\/status\/(\d+)/);
+  const article = video.closest('article');
+  return (article && getTweetId(article)) || (pathMatch ? pathMatch[1] : '');
+}
+
+function requestVideoDownload(video) {
+  const fa = settings.language === 'fa';
+  const tweetId = getTweetIdForVideo(video);
+  const directUrl = getVideoMediaUrl(video);
+  const usableUrl = directUrl && !directUrl.startsWith('blob:') ? directUrl : '';
+
+  if (!tweetId && !usableUrl) {
+    showToast(fa ? 'لینک ویدیو پیدا نشد' : 'Video source not found');
+    return;
+  }
+
+  const article = video.closest('article');
+  const handle = article ? getHandleFromTweet(article) : '';
+
+  chrome.runtime.sendMessage({ type: 'XWISE_DOWNLOAD_VIDEO', tweetId, url: usableUrl, handle }, (resp) => {
+    void chrome.runtime.lastError;
+    if (resp?.success) {
+      showToast(fa ? 'دانلود آغاز شد' : 'Download started');
+    } else {
+      showToast(fa ? 'دانلود این ویدیو ممکن نشد' : 'This video could not be downloaded', { isWarning: true });
+    }
+  });
 }
 
 function createVolumeSlider(video) {
@@ -2148,29 +2374,9 @@ function createVolumeSlider(video) {
   downloadBtn.title = settings.language === 'fa' ? 'دانلود فایل ویدیو' : 'Download Video';
   downloadBtn.innerHTML = `<svg viewBox="0 0 24 24" width="13" height="13" fill="currentColor"><path d="M19 9h-4V3H9v6H5l7 7 7-7zM5 18v2h14v-2H5z"/></svg>`;
 
-  downloadBtn.addEventListener('click', async (e) => {
+  downloadBtn.addEventListener('click', (e) => {
     e.stopPropagation();
-    const mediaUrl = getVideoMediaUrl(video);
-    if (!mediaUrl) {
-      showToast(settings.language === 'fa' ? 'لینک ویدیو پیدا نشد' : 'Video URL not found');
-      return;
-    }
-
-    if (chrome?.runtime?.sendMessage) {
-      chrome.runtime.sendMessage({
-        type: 'XWISE_DOWNLOAD_VIDEO',
-        url: mediaUrl,
-        filename: `xwise-video-${Date.now()}.mp4`,
-      }, (resp) => {
-        if (resp && resp.success) {
-          showToast(settings.language === 'fa' ? 'دانلود آغاز شد' : 'Download started');
-        } else {
-          window.open(mediaUrl, '_blank');
-        }
-      });
-    } else {
-      window.open(mediaUrl, '_blank');
-    }
+    requestVideoDownload(video);
   });
 
   const stopProp = (e) => e.stopPropagation();
@@ -2206,12 +2412,10 @@ function addVolumeSliders(root = document) {
 // ============================================================================
 
 function createBlockButton(tweet) {
-  if (processedTweets.has(tweet)) return;
-  processedTweets.add(tweet);
-
   if (settings.blockButtonEnabled === false) return;
+  if (tweet.querySelector('.xe-block-btn-wrapper')) return;
 
-  const actionBar = tweet.querySelector('[role="group"]');
+  const actionBar = findActionBar(tweet);
   if (!actionBar) return;
 
   const btn = document.createElement('div');
@@ -2259,6 +2463,12 @@ function addBlockButtons(root = document) {
 // Keyboard Shortcut
 // ============================================================================
 
+function isShortcutKey(e) {
+  const wanted = String(settings.shortcutKey || 'b').toLowerCase();
+  if (e.key.toLowerCase() === wanted) return true;
+  return /^[a-z]$/.test(wanted) && e.code === 'Key' + wanted.toUpperCase();
+}
+
 let hoveredElement = null;
 document.addEventListener('mouseover', (e) => { hoveredElement = e.target; }, { passive: true });
 
@@ -2275,9 +2485,8 @@ document.addEventListener('keydown', (e) => {
   if (tag === 'INPUT' || tag === 'TEXTAREA' || e.target.isContentEditable) return;
   if (e.target.getAttribute('role') === 'textbox') return;
 
-  const key = e.key.toLowerCase();
   const matches =
-    key === (settings.shortcutKey || 'b').toLowerCase() &&
+    isShortcutKey(e) &&
     e.ctrlKey === !!settings.shortcutCtrl &&
     e.altKey === !!settings.shortcutAlt &&
     e.shiftKey === !!settings.shortcutShift;
@@ -2296,21 +2505,13 @@ document.addEventListener('keydown', (e) => {
 // Element Waiter Helper
 // ============================================================================
 
-function waitFor(root, matcher, timeoutMs = 2000) {
+function waitForResult(root, resolveNode, timeoutMs = 2000) {
   return new Promise((resolve) => {
-    const test = () => {
-      if (typeof matcher === 'string') return root.querySelector(matcher);
-      for (const node of root.querySelectorAll('[role="menuitem"]')) {
-        if (matcher(node)) return node;
-      }
-      return null;
-    };
-
-    const existing = test();
+    const existing = resolveNode();
     if (existing) { resolve(existing); return; }
 
     const observer = new MutationObserver(() => {
-      const match = test();
+      const match = resolveNode();
       if (match) {
         cleanup();
         resolve(match);
@@ -2324,6 +2525,29 @@ function waitFor(root, matcher, timeoutMs = 2000) {
       clearTimeout(timer);
     }
   });
+}
+
+function waitFor(root, matcher, timeoutMs = 2000) {
+  return waitForResult(root, () => {
+    if (typeof matcher === 'string') return root.querySelector(matcher);
+    for (const node of root.querySelectorAll('[role="menuitem"]')) {
+      if (matcher(node)) return node;
+    }
+    return null;
+  }, timeoutMs);
+}
+
+// Matchers are tried in order of specificity once the menu has rendered.
+function waitForMenuItem(matchers, timeoutMs = 1800) {
+  return waitForResult(document, () => {
+    const items = Array.from(document.querySelectorAll('[role="menuitem"]'));
+    if (items.length === 0) return null;
+    for (const matcher of matchers) {
+      const hit = items.find(matcher);
+      if (hit) return hit;
+    }
+    return null;
+  }, timeoutMs);
 }
 
 // ============================================================================
@@ -2400,31 +2624,41 @@ function renderInPageDrawerContent() {
   // Synchronized via iframe running popup.html
 }
 
-// Close drawer on outside click, ESC key, or message from iframe
-window.addEventListener('message', async (e) => {
-  if (e.data?.type === 'XWISE_CLOSE_DRAWER') {
-    closeInPageDrawer();
-  }
+function isTrustedDrawerMessage(e) {
+  const frame = inPageDrawer?.querySelector('iframe');
+  return !!frame && e.source === frame.contentWindow && e.origin === extensionOrigin;
+}
 
-  if (e.data?.type === 'XWISE_DRAWER_RUN_SYNC') {
-    try {
-      if (globalThis.XWiseRelationshipTracker) {
-        await globalThis.XWiseRelationshipTracker.init();
-        const categories = await globalThis.XWiseRelationshipTracker.sync();
-        e.source.postMessage({
-          type: 'XWISE_DRAWER_SYNC_RESULT',
-          success: true,
-          categories,
-          snapshot: globalThis.XWiseRelationshipTracker.latestSnapshot,
-        }, '*');
+window.addEventListener('message', async (e) => {
+  if (!isTrustedDrawerMessage(e)) return;
+
+  const data = e.data || {};
+  const reply = (payload) => e.source.postMessage(payload, extensionOrigin);
+
+  switch (data.type) {
+    case 'XWISE_CLOSE_DRAWER':
+      closeInPageDrawer();
+      break;
+
+    case 'XWISE_DRAWER_RUN_SYNC':
+      try {
+        const meta = await runPageSync((payload) => reply({ type: 'XWISE_DRAWER_SYNC_PROGRESS', payload }));
+        reply({ type: 'XWISE_DRAWER_SYNC_RESULT', success: true, meta });
+      } catch (err) {
+        reply({ type: 'XWISE_DRAWER_SYNC_RESULT', success: false, error: err.message });
       }
-    } catch (err) {
-      e.source.postMessage({
-        type: 'XWISE_DRAWER_SYNC_RESULT',
-        success: false,
-        error: err.message,
-      }, '*');
+      break;
+
+    case 'XWISE_DRAWER_RUN_BATCH': {
+      drawerBatchEmit = (payload) => reply({ type: 'XWISE_DRAWER_BATCH_EVENT', payload });
+      const result = startPageBatch(data.targets, data.actionType, drawerBatchEmit);
+      if (!result.success) drawerBatchEmit({ event: 'rejected', error: result.error });
+      break;
     }
+
+    case 'XWISE_DRAWER_BATCH_CONTROL':
+      controlPageBatch(data.command, drawerBatchEmit || (() => {}));
+      break;
   }
 });
 
@@ -2516,112 +2750,179 @@ function loadSettings() {
   });
 }
 
+const RESCAN_KEYS = new Set([
+  'shieldEnabled', 'filterEngineEnabled', 'filterMode', 'filterScopes', 'filters',
+  'filterCaseSensitive', 'filterWholeWord', 'filterDefaultAvatars', 'filterEngagementBait',
+  'blueCheckFilter', 'blueCheckAction', 'whitelist', 'boysWhitelist', 'hideBoysMode', 'adBlockerEnabled',
+]);
+const QUIET_KEYS = new Set(['lastVolume', 'defaultPlaybackRate']);
+
 chrome.storage?.onChanged?.addListener((changes, area) => {
   if (area !== 'sync') return;
+
   for (const key in changes) {
     if (key in settings) {
-      settings[key] = changes[key].newValue;
+      settings[key] = 'newValue' in changes[key] ? changes[key].newValue : DEFAULT_SETTINGS[key];
     }
   }
-  if ('whitelist' in changes) {
-    updateWhitelistSet();
-  }
-  if ('boysWhitelist' in changes) {
-    updateBoysWhitelistSet();
-    document.querySelectorAll('article.xe-tweet-hidden[data-xe-reason="gender"]').forEach((tw) => {
-      const h = getHandleFromTweet(tw);
-      if (isHandleBoysWhitelisted(h)) {
-        tw.classList.remove('xe-tweet-hidden');
-        tw.removeAttribute('data-xe-reason');
-        tw.querySelector('.xe-filtered-bar[data-xe-gender="true"]')?.remove();
-        hiddenTweetNodes.delete(tw);
-      }
-    });
-  }
-  if ('hideBoysMode' in changes) {
-    if (changes.hideBoysMode.newValue) {
-      document.querySelectorAll('article[data-testid="tweet"]').forEach((tw) => {
-        scannedTweetNodes.delete(tw);
-        processTweetFilter(tw);
-      });
+
+  const keys = Object.keys(changes);
+  if ('lastVolume' in changes) lastVolume = changes.lastVolume.newValue ?? 1;
+  if (keys.every((key) => QUIET_KEYS.has(key))) return;
+
+  if ('whitelist' in changes) updateWhitelistSet();
+  if ('boysWhitelist' in changes) updateBoysWhitelistSet();
+
+  if ('blockButtonEnabled' in changes) {
+    if (settings.blockButtonEnabled === false) {
+      document.querySelectorAll('.xe-block-btn-wrapper').forEach((btn) => btn.remove());
     } else {
-      document.querySelectorAll('article.xe-tweet-hidden[data-xe-reason="gender"]').forEach((tw) => {
-        tw.classList.remove('xe-tweet-hidden');
-        tw.removeAttribute('data-xe-reason');
-        tw.querySelector('.xe-filtered-bar[data-xe-gender="true"]')?.remove();
-        hiddenTweetNodes.delete(tw);
-      });
+      addBlockButtons(document);
     }
   }
+
   applyTimelineCleaners();
   cleanWhoToFollowRecommendations(document);
-  if (inPageDrawer?.classList.contains('xe-open')) {
-    renderInPageDrawerContent();
+
+  if (keys.some((key) => RESCAN_KEYS.has(key))) {
+    rescanAllTweets();
   }
 });
 
-chrome.runtime?.onMessage?.addListener((message, sender, sendResponse) => {
-  if (message.type === 'XWISE_SETTINGS_CHANGED') {
-    loadSettings();
-  }
+// ----------------------------------------------------------------------------
+// Relationship sync and action queue (driven by the popup or the in-page drawer)
+// ----------------------------------------------------------------------------
 
-  if (message.type === 'XWISE_RUN_RELATIONSHIP_SYNC') {
-    (async () => {
-      try {
-        if (!globalThis.XWiseRelationshipTracker) {
-          sendResponse({ success: false, error: 'ماژول ردیاب در صفحه لود نشده است.' });
-          return;
-        }
+const extensionOrigin = new URL(chrome.runtime.getURL('/')).origin;
+let drawerBatchEmit = null;
 
-        await globalThis.XWiseRelationshipTracker.init();
-        const categories = await globalThis.XWiseRelationshipTracker.sync();
-        sendResponse({
-          success: true,
-          categories,
-          snapshot: globalThis.XWiseRelationshipTracker.latestSnapshot,
-        });
-      } catch (err) {
-        console.error('[XWise] In-page sync failed:', err);
-        sendResponse({ success: false, error: err.message });
-      }
-    })();
-    return true; // Keep message channel open for async response
-  }
-
-  if (message.type === 'XWISE_RUN_BATCH_ACTION') {
-    (async () => {
-      try {
-        if (!globalThis.XWiseRelationshipTracker) {
-          sendResponse({ success: false, error: 'Tracker not loaded' });
-          return;
-        }
-
-        const result = await globalThis.XWiseRelationshipTracker.executeBatchAction(
-          message.targets,
-          message.actionType
-        );
-        sendResponse({ success: true, result });
-      } catch (err) {
-        sendResponse({ success: false, error: err.message });
-      }
-    })();
-    return true;
-  }
-});
-
-function saveVolume(v) {
-  lastVolume = v;
-  if (settings.rememberVolume && chrome?.storage?.sync) {
-    chrome.storage.sync.set({ lastVolume: v });
+function emitRuntimeEvent(type, payload) {
+  try {
+    chrome.runtime.sendMessage({ type, payload }, () => void chrome.runtime.lastError);
+  } catch {
+    // Extension context may have been invalidated
   }
 }
 
-function incrementBlockMetric(key = 'blockCount') {
-  if (!chrome?.storage?.sync) return;
-  chrome.storage.sync.get([key], (stored) => {
-    const count = (stored[key] || 0) + 1;
-    chrome.storage.sync.set({ [key]: count });
-  });
+const emitBatchToRuntime = (payload) => emitRuntimeEvent('XWISE_BATCH_EVENT', payload);
+
+async function runPageSync(onProgress) {
+  const tracker = globalThis.XWiseRelationshipTracker;
+  if (!tracker) throw new Error('TRACKER_NOT_LOADED');
+
+  await tracker.init();
+  const categories = await tracker.sync(onProgress);
+  return {
+    isInitialScan: categories.isInitialScan,
+    newUnfollowerCount: categories.newUnfollowerCount,
+  };
+}
+
+function sanitizeBatchTargets(targets) {
+  if (!Array.isArray(targets)) return [];
+  return targets
+    .filter((t) => t && typeof t.handle === 'string' && /^\w{1,15}$/.test(t.handle))
+    .map((t) => ({ id: String(t.id || ''), handle: t.handle, name: String(t.name || '') }));
+}
+
+function startPageBatch(rawTargets, actionType, emit) {
+  const tracker = globalThis.XWiseRelationshipTracker;
+  if (!tracker) return { success: false, error: 'TRACKER_NOT_LOADED' };
+  if (actionType !== 'unfollow' && actionType !== 'remove_follower') {
+    return { success: false, error: 'UNKNOWN_ACTION' };
+  }
+  if (tracker.queueState === 'running' || tracker.queueState === 'paused') {
+    return { success: false, error: 'BATCH_BUSY' };
+  }
+
+  const targets = sanitizeBatchTargets(rawTargets);
+  if (targets.length === 0) return { success: false, error: 'NO_TARGETS' };
+
+  tracker
+    .executeBatchAction(targets, actionType, {
+      onProgress: (p) => emit({ event: 'progress', ...p }),
+      onSuccess: ({ user }) => emit({ event: 'success', userId: user.id, actionType }),
+    })
+    .then((result) => emit({ event: 'complete', ...result }))
+    .catch((err) => emit({
+      event: 'complete', successful: 0, failed: targets.length, errors: [err.message], rateLimited: false,
+    }));
+
+  return { success: true };
+}
+
+function controlPageBatch(command, emit) {
+  const tracker = globalThis.XWiseRelationshipTracker;
+  if (!tracker) return { success: false };
+
+  if (command === 'pause') tracker.pauseQueue();
+  else if (command === 'resume') tracker.resumeQueue();
+  else if (command === 'stop') tracker.stopQueue();
+  else return { success: false };
+
+  emit({ event: 'state', state: tracker.queueState });
+  return { success: true, state: tracker.queueState };
+}
+
+async function runSingleAction(targets, actionType) {
+  const tracker = globalThis.XWiseRelationshipTracker;
+  if (!tracker) return { success: false, error: 'TRACKER_NOT_LOADED' };
+  if (tracker.queueState === 'running' || tracker.queueState === 'paused') {
+    return { success: false, error: 'BATCH_BUSY' };
+  }
+
+  try {
+    const result = await tracker.executeBatchAction(sanitizeBatchTargets(targets), actionType);
+    if (result.failed === 0 && result.successful > 0) return { success: true };
+    return { success: false, error: result.errors[0] || 'ACTION_FAILED' };
+  } catch (err) {
+    return { success: false, error: err.message };
+  }
+}
+
+chrome.runtime?.onMessage?.addListener((message, sender, sendResponse) => {
+  switch (message?.type) {
+    case 'XWISE_PING':
+      sendResponse({ ok: true });
+      return false;
+
+    case 'XWISE_RUN_RELATIONSHIP_SYNC':
+      runPageSync((progress) => emitRuntimeEvent('XWISE_SYNC_PROGRESS', progress))
+        .then((meta) => sendResponse({ success: true, meta }))
+        .catch((err) => sendResponse({ success: false, error: err.message }));
+      return true;
+
+    case 'XWISE_START_BATCH':
+      sendResponse(startPageBatch(message.targets, message.actionType, emitBatchToRuntime));
+      return false;
+
+    case 'XWISE_BATCH_CONTROL':
+      sendResponse(controlPageBatch(message.command, emitBatchToRuntime));
+      return false;
+
+    case 'XWISE_BATCH_STATUS':
+      sendResponse(globalThis.XWiseRelationshipTracker?.getBatchStatus() || { state: 'idle', progress: null });
+      return false;
+
+    case 'XWISE_RUN_BATCH_ACTION':
+      runSingleAction(message.targets, message.actionType).then(sendResponse);
+      return true;
+
+    default:
+      return false;
+  }
+});
+
+let volumeSaveTimer = null;
+
+function saveVolume(v) {
+  lastVolume = v;
+  if (!settings.rememberVolume || !chrome?.storage?.sync) return;
+
+  clearTimeout(volumeSaveTimer);
+  volumeSaveTimer = setTimeout(() => {
+    chrome.storage.sync.set({ lastVolume: v }).catch(() => {});
+  }, 400);
 }
 
 // ============================================================================
@@ -2671,15 +2972,7 @@ function handleNavigation() {
 
     // If leaving For You tab (switching to Following or navigating to a Profile):
     if (!curForYou && settings.hideBoysMode) {
-      document.querySelectorAll('article[data-xe-reason="gender"]').forEach((tw) => {
-        tw.classList.remove('xe-tweet-hidden', 'xe-tweet-revealed');
-        tw.removeAttribute('data-xe-hidden');
-        tw.removeAttribute('data-xe-revealed');
-        tw.removeAttribute('data-xe-reason');
-        tw.querySelector('.xe-filtered-bar')?.remove();
-        tw.querySelector('.xe-rehide-banner')?.remove();
-        hiddenTweetNodes.delete(tw);
-      });
+      document.querySelectorAll('article[data-xe-reason="gender"]').forEach((tw) => unhideTweet(tw));
     } else if (curForYou && settings.hideBoysMode) {
       // Re-scan when returning to For You tab
       document.querySelectorAll('article[data-testid="tweet"]').forEach((tw) => {
@@ -2709,8 +3002,7 @@ function flushScan() {
     // Purge any genuine ads
     scanAndPurgeAds(root);
 
-    // Clean recommendations (Who to follow / Relevant people / You might like)
-    cleanWhoToFollowRecommendations(root);
+    cleanFeedRecommendations(root);
 
     addVolumeSliders(root);
     addBlockButtons(root);
@@ -2721,8 +3013,8 @@ function flushScan() {
     }
   }
 
-  // Sweep sidebar recommendations on full document
-  cleanWhoToFollowRecommendations(document);
+  cleanSidebarRecommendations();
+  restoreMissingBars();
   cleanZenSidebar();
 
   ensureInPageLauncher();

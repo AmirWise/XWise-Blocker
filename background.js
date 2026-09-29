@@ -1,28 +1,43 @@
 'use strict';
 
 /**
- * XWise Blocker v3.1.1 — Background Service Worker
- * Handles unified storage migration to v5, media download automation,
- * cross-tab synchronization, periodic relationship tracking, and runtime messaging.
+ * XWise Blocker v3.2.1 - Background Service Worker
+ * Settings storage and migration, scheduled relationship scans,
+ * video download resolution, and runtime messaging.
  */
 
 import './modules/cache.js';
 import './modules/twitterApi.js';
 import './modules/relationshipTracker.js';
 
-const STORAGE_VERSION = 5;
+const STORAGE_VERSION = 6;
 const TRACKER_ALARM_NAME = 'xwise_periodic_tracker';
+const STATS_KEY = 'xwise.stats';
+const X_TAB_PATTERNS = ['*://*.x.com/*', '*://*.twitter.com/*'];
+
+const LEGACY_STAT_KEYS = [
+  'blockCount',
+  'filterBlockCount',
+  'muteCount',
+  'hideCount',
+  'adBlockCount',
+  'blueCheckCount',
+  'dryRunMatchCount',
+  'cleanerCount',
+];
 
 const DEFAULT_SETTINGS = {
   __version: STORAGE_VERSION,
 
-  // Relationship Tracker & Manager (New in v3.0.0 Masterpiece)
-  trackerEnabled: true,
-  trackerCheckInterval: 240, // 4 hours in minutes (0 = off, 120, 240, 720, 1440)
-  trackerBadgeAlerts: true,
-  trackerLastCheck: null,
+  // Master switch for filtering, ad removal and timeline cleaning
+  shieldEnabled: true,
 
-  // Video Suite
+  // Relationship tracker
+  trackerEnabled: true,
+  trackerCheckInterval: 240, // minutes; 0 = off
+  trackerBadgeAlerts: true,
+
+  // Video suite
   volumeSliderEnabled: true,
   rememberVolume: true,
   lastVolume: 1,
@@ -30,19 +45,19 @@ const DEFAULT_SETTINGS = {
   videoLoopEnabled: false,
   videoDownloadEnabled: true,
 
-  // Timeline & UI Cleaner
+  // Timeline and UI cleaner
   cleanTimelineEnabled: true,
-  hideWhoToFollow: true,       // Hide "Who to follow" & connect modules
-  hideProfileWhoToFollow: true,// Hide "Who to follow" & relevant people on profiles
-  hideGrokDrawer: true,        // Hide Grok sidebar and prompts
-  hidePremiumUpsell: true,     // Hide "Subscribe to Premium" boxes
-  hideViewCounts: false,       // Hide view counts on tweets
-  zenModeEnabled: false,       // Focus / Zen reader mode (hide sidebars)
-  zenKeepSearch: true,         // Keep search box in sidebar during zen mode
-  scrollToTopEnabled: true,    // Smooth floating scroll to top button
-  highResImagesEnabled: true,  // Automatically load high-res images
+  hideWhoToFollow: true,
+  hideProfileWhoToFollow: true,
+  hideGrokDrawer: true,
+  hidePremiumUpsell: true,
+  hideViewCounts: false,
+  zenModeEnabled: false,
+  zenKeepSearch: true,
+  scrollToTopEnabled: true,
+  highResImagesEnabled: true,
 
-  // Smart Filter Engine
+  // Filter engine
   filterEngineEnabled: true,
   filterMode: 'hide', // 'dry-run' | 'hide' | 'auto-mute' | 'auto-block'
   filterScopes: {
@@ -50,31 +65,30 @@ const DEFAULT_SETTINGS = {
     bio: true,
     tweetText: false,
   },
-  filters: [], // Array of { id, pattern, action: 'default'|'dry-run'|'hide'|'mute'|'block', isRegex: boolean, enabled: true, createdAt }
+  filters: [], // { id, pattern, action, isRegex, enabled, createdAt }
   filterCaseSensitive: false,
   filterWholeWord: false,
 
-  // Anti-Spam & Bot Detection
-  filterDefaultAvatars: false, // Filter default egg avatars
-  filterEngagementBait: false, // Filter obvious engagement bait
+  // Anti-spam
+  filterDefaultAvatars: false,
+  filterEngagementBait: false,
 
-  // Fun & Special Filters (New in v3.0.1)
-  hideBoysMode: false, // Fun mode: hide guy/male accounts on timeline (default: off)
-  boysWhitelist: [],   // Exempt friend handles for No-Boys Mode
+  // Fun filters
+  hideBoysMode: false,
+  boysWhitelist: [],
 
-  // Ad Cleaner
+  // Ads
   adBlockerEnabled: true,
 
-  // Blue Checkmark / Premium Account Filter
+  // Verified account filter
   blueCheckFilter: 'off', // 'off' | 'replies-only' | 'all'
   blueCheckAction: 'hide', // 'hide' | 'mute' | 'block'
 
-  // Whitelist / Safe List
   whitelist: [],
 
-  // Manual Block, Shortcut & Quick Menu
+  // Manual block, shortcut and quick menu
   blockButtonEnabled: true,
-  quickMenuEnabled: true, // XWise quick action menu on tweets
+  quickMenuEnabled: true,
   shortcutEnabled: true,
   shortcutCtrl: true,
   shortcutAlt: true,
@@ -82,32 +96,22 @@ const DEFAULT_SETTINGS = {
   shortcutKey: 'b',
   confirmDelayOnShortcut: true,
 
-  // UI & Display
+  // UI
   showMatchBadges: true,
   badgeStyle: 'subtle',
-  language: 'fa', // 'fa' | 'en'
+  language: 'fa',
   showBlockToasts: true,
-
-  // Statistics
-  blockCount: 0,
-  filterBlockCount: 0,
-  muteCount: 0,
-  hideCount: 0,
-  adBlockCount: 0,
-  blueCheckCount: 0,
-  dryRunMatchCount: 0,
-  cleanerCount: 0,
 };
 
-/**
- * Loads and migrates settings to schema version 5
- */
+// ----------------------------------------------------------------------------
+// Settings
+// ----------------------------------------------------------------------------
+
 async function loadSettings() {
   const stored = await chrome.storage.sync.get(null);
   let current = { ...stored };
-  let version = current.__version || 0;
+  const version = current.__version || 0;
 
-  // Handle legacy nested 'xwise.settings' if present
   if (current['xwise.settings'] && typeof current['xwise.settings'] === 'object') {
     const legacy = current['xwise.settings'];
     current = { ...legacy, ...current };
@@ -126,9 +130,6 @@ async function loadSettings() {
   return merged;
 }
 
-/**
- * Migrates settings sequentially across versions
- */
 async function migrateSettings(settings, fromVersion) {
   console.log(`[XWise] Migrating settings from v${fromVersion} to v${STORAGE_VERSION}`);
 
@@ -153,10 +154,6 @@ async function migrateSettings(settings, fromVersion) {
     settings.blueCheckAction = settings.blueCheckAction || 'hide';
     settings.whitelist = Array.isArray(settings.whitelist) ? settings.whitelist : [];
     settings.defaultPlaybackRate = settings.defaultPlaybackRate || 1;
-    settings.muteCount = settings.muteCount || 0;
-    settings.hideCount = settings.hideCount || 0;
-    settings.adBlockCount = settings.adBlockCount || 0;
-    settings.blueCheckCount = settings.blueCheckCount || 0;
   }
 
   if (fromVersion < 4) {
@@ -171,7 +168,6 @@ async function migrateSettings(settings, fromVersion) {
     settings.quickMenuEnabled = settings.quickMenuEnabled ?? true;
     settings.filterDefaultAvatars = settings.filterDefaultAvatars ?? false;
     settings.filterEngagementBait = settings.filterEngagementBait ?? false;
-    settings.cleanerCount = settings.cleanerCount || 0;
 
     if (Array.isArray(settings.filters)) {
       settings.filters = settings.filters.map((f) => ({
@@ -182,11 +178,15 @@ async function migrateSettings(settings, fromVersion) {
   }
 
   if (fromVersion < 5) {
-    // v3.0.0 Masterpiece Upgrade
     settings.trackerEnabled = settings.trackerEnabled ?? true;
     settings.trackerCheckInterval = settings.trackerCheckInterval ?? 240;
     settings.trackerBadgeAlerts = settings.trackerBadgeAlerts ?? true;
-    settings.trackerLastCheck = null;
+    delete settings.trackerLastCheck;
+  }
+
+  if (fromVersion < 6) {
+    settings.shieldEnabled = settings.shieldEnabled ?? true;
+    await migrateLegacyStats(settings);
   }
 
   settings.__version = STORAGE_VERSION;
@@ -194,158 +194,208 @@ async function migrateSettings(settings, fromVersion) {
   return settings;
 }
 
-/**
- * Configure recurring background alarm for relationship tracking
- */
-async function configureTrackerAlarm(intervalMinutes) {
-  if (typeof chrome.alarms === 'undefined') return;
+// Counters used to live in sync storage, where frequent writes hit quota limits.
+async function migrateLegacyStats(settings) {
+  const carried = {};
+  for (const key of LEGACY_STAT_KEYS) {
+    const value = Number(settings[key]) || 0;
+    if (value > 0) carried[key] = value;
+    delete settings[key];
+  }
+  await chrome.storage.sync.remove(LEGACY_STAT_KEYS);
 
+  if (Object.keys(carried).length === 0) return;
+  const res = await chrome.storage.local.get(STATS_KEY);
+  const stats = res[STATS_KEY] || {};
+  for (const [key, value] of Object.entries(carried)) {
+    stats[key] = (stats[key] || 0) + value;
+  }
+  await chrome.storage.local.set({ [STATS_KEY]: stats });
+}
+
+// ----------------------------------------------------------------------------
+// Scheduled relationship scan
+// ----------------------------------------------------------------------------
+
+async function configureTrackerAlarm(settings) {
   await chrome.alarms.clear(TRACKER_ALARM_NAME);
-  if (intervalMinutes && intervalMinutes > 0) {
-    chrome.alarms.create(TRACKER_ALARM_NAME, {
-      periodInMinutes: Number(intervalMinutes),
-      delayInMinutes: 2, // Initial run shortly after startup
-    });
+  const interval = Number(settings.trackerCheckInterval);
+  if (settings.trackerEnabled === false || !interval || interval <= 0) return;
+
+  chrome.alarms.create(TRACKER_ALARM_NAME, {
+    periodInMinutes: interval,
+    delayInMinutes: 2,
+  });
+}
+
+// Alarms are not guaranteed to survive a browser restart, so verify on startup.
+async function ensureTrackerAlarm() {
+  const settings = await loadSettings();
+  const interval = Number(settings.trackerCheckInterval);
+  const wanted = settings.trackerEnabled !== false && interval > 0;
+  const existing = await chrome.alarms.get(TRACKER_ALARM_NAME);
+
+  if (wanted && (!existing || existing.periodInMinutes !== interval)) {
+    await configureTrackerAlarm(settings);
+  } else if (!wanted && existing) {
+    await chrome.alarms.clear(TRACKER_ALARM_NAME);
   }
 }
 
-chrome.alarms.onAlarm.addListener(async (alarm) => {
-  if (alarm.name === TRACKER_ALARM_NAME) {
+async function applyBadge(count) {
+  await chrome.action.setBadgeText({ text: count > 0 ? `-${count}` : '' });
+  if (count > 0) {
+    await chrome.action.setBadgeBackgroundColor({ color: '#f4212e' });
+  }
+}
+
+// Prefer running inside an open X tab, where the page session is fully available.
+async function runRelationshipScan() {
+  const tabs = await chrome.tabs.query({ url: X_TAB_PATTERNS });
+  for (const tab of tabs) {
     try {
-      const s = await loadSettings();
-      if (s.trackerEnabled && globalThis.XWiseRelationshipTracker) {
-        await globalThis.XWiseRelationshipTracker.init();
-        await globalThis.XWiseRelationshipTracker.sync();
-        await chrome.storage.sync.set({ trackerLastCheck: Date.now() });
-      }
-    } catch (err) {
-      console.warn('[XWise] Tracker alarm cycle skipped:', err.message);
+      const res = await chrome.tabs.sendMessage(tab.id, { type: 'XWISE_RUN_RELATIONSHIP_SYNC' });
+      if (res?.success) return res.meta;
+    } catch {
+      // Tab has no content script; try the next one
     }
+  }
+
+  const tracker = globalThis.XWiseRelationshipTracker;
+  if (!tracker) throw new Error('TRACKER_NOT_LOADED');
+  await tracker.init();
+  const categories = await tracker.sync();
+  return {
+    isInitialScan: categories.isInitialScan,
+    newUnfollowerCount: categories.newUnfollowerCount,
+  };
+}
+
+chrome.alarms.onAlarm.addListener(async (alarm) => {
+  if (alarm.name !== TRACKER_ALARM_NAME) return;
+
+  try {
+    const settings = await loadSettings();
+    if (!settings.trackerEnabled) return;
+
+    const meta = await runRelationshipScan();
+    if (settings.trackerBadgeAlerts) {
+      await applyBadge(meta?.newUnfollowerCount || 0);
+    }
+  } catch (err) {
+    console.warn('[XWise] Scheduled scan skipped:', err.message);
   }
 });
 
-/**
- * Listen for storage changes and broadcast to tabs
- */
-chrome.storage.onChanged.addListener(async (changes, area) => {
-  if (area !== 'sync') return;
+// ----------------------------------------------------------------------------
+// Video download
+// ----------------------------------------------------------------------------
 
-  if (changes.trackerCheckInterval) {
-    await configureTrackerAlarm(changes.trackerCheckInterval.newValue);
+async function downloadVideo({ tweetId, url, handle }) {
+  let target = '';
+
+  if (tweetId && globalThis.XWiseTwitterApi) {
+    try {
+      const variants = await globalThis.XWiseTwitterApi.fetchVideoVariants(tweetId);
+      target = variants[0]?.url || '';
+    } catch (err) {
+      console.warn('[XWise] Video variant lookup failed:', err.message);
+    }
   }
 
-  const tabs = await chrome.tabs.query({ url: ['*://*.x.com/*', '*://*.twitter.com/*'] });
-  for (const tab of tabs) {
-    try {
-      await chrome.tabs.sendMessage(tab.id, {
-        type: 'XWISE_SETTINGS_CHANGED',
-        changes,
-      });
-    } catch {
-      // Content script may not be active
-    }
+  if (!target && url && !String(url).startsWith('blob:')) {
+    target = String(url);
+  }
+
+  let parsed = null;
+  try {
+    parsed = new URL(target);
+  } catch {
+    // Handled below
+  }
+  if (!parsed || parsed.protocol !== 'https:') {
+    return { success: false, error: 'NO_DOWNLOADABLE_SOURCE' };
+  }
+
+  const safeHandle = String(handle || '').replace(/[^\w]/g, '');
+  const name = ['xwise', safeHandle, tweetId || Date.now()].filter(Boolean).join('-');
+  const downloadId = await chrome.downloads.download({
+    url: parsed.href,
+    filename: `XWise/${name}.mp4`,
+    saveAs: false,
+  });
+  return { success: true, downloadId };
+}
+
+// ----------------------------------------------------------------------------
+// Lifecycle
+// ----------------------------------------------------------------------------
+
+chrome.storage.onChanged.addListener((changes, area) => {
+  if (area !== 'sync') return;
+  if (changes.trackerCheckInterval || changes.trackerEnabled) {
+    ensureTrackerAlarm().catch(() => {});
   }
 });
 
 chrome.runtime.onInstalled.addListener(async (details) => {
   if (details.reason === 'install') {
     await chrome.storage.sync.set(DEFAULT_SETTINGS);
-    await chrome.storage.local.set({ 'xwise.activityLog': [] });
-    await configureTrackerAlarm(DEFAULT_SETTINGS.trackerCheckInterval);
-    console.log('[XWise] Fresh installation of v3.0.0 Masterpiece initialized');
+    await chrome.storage.local.set({ 'xwise.activityLog': [], [STATS_KEY]: {} });
+    console.log('[XWise] Installed v3.2.1');
   } else if (details.reason === 'update') {
-    const s = await loadSettings();
-    await configureTrackerAlarm(s.trackerCheckInterval);
-    console.log('[XWise] Upgraded to v3.0.0 Masterpiece, storage & alarms verified');
+    await loadSettings();
+    console.log('[XWise] Updated to v3.2.1');
   }
+  await ensureTrackerAlarm();
 });
 
+chrome.runtime.onStartup.addListener(() => {
+  ensureTrackerAlarm().catch(() => {});
+});
+
+// ----------------------------------------------------------------------------
+// Messaging
+// ----------------------------------------------------------------------------
+
 chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
-  // Settings operations
-  if (message.type === 'XWISE_GET_SETTINGS') {
-    loadSettings().then(sendResponse);
+  const respondWith = (promise) => {
+    promise.then(sendResponse).catch((err) => sendResponse({ success: false, error: err.message }));
     return true;
-  }
+  };
 
-  if (message.type === 'XWISE_SAVE_SETTINGS') {
-    const settingsToSave = { ...message.settings, __version: STORAGE_VERSION };
-    chrome.storage.sync.set(settingsToSave).then(() => {
-      sendResponse({ success: true });
-    });
-    return true;
-  }
+  switch (message?.type) {
+    case 'XWISE_GET_SETTINGS':
+      return respondWith(loadSettings());
 
-  // Cache operations
-  if (message.type === 'XWISE_GET_CACHE_STATS') {
-    if (globalThis.XWiseCache) {
-      globalThis.XWiseCache.getStats().then(sendResponse);
-      return true;
-    }
-    sendResponse({ totalItems: 0, estimatedSizeKB: 0 });
-    return false;
-  }
-
-  if (message.type === 'XWISE_CLEAR_CACHE') {
-    if (globalThis.XWiseCache) {
-      globalThis.XWiseCache.clear().then(async () => {
-        const stats = await globalThis.XWiseCache.getStats();
-        sendResponse({ success: true, stats });
-      });
-      return true;
-    }
-    sendResponse({ success: true });
-    return false;
-  }
-
-  // Relationship Tracker operations
-  if (message.type === 'XWISE_SYNC_RELATIONSHIPS') {
-    if (globalThis.XWiseRelationshipTracker) {
-      globalThis.XWiseRelationshipTracker.sync()
-        .then((categories) => {
-          chrome.storage.sync.set({ trackerLastCheck: Date.now() });
-          sendResponse({ success: true, categories });
-        })
-        .catch((err) => {
-          sendResponse({ success: false, error: err.message });
-        });
-      return true;
-    }
-    sendResponse({ success: false, error: 'Tracker not initialized' });
-    return false;
-  }
-
-  if (message.type === 'XWISE_CLEAR_BADGE') {
-    if (chrome.action && chrome.action.setBadgeText) {
-      chrome.action.setBadgeText({ text: '' });
-    }
-    sendResponse({ success: true });
-    return false;
-  }
-
-  // Video download
-  if (message.type === 'XWISE_DOWNLOAD_VIDEO') {
-    if (chrome.downloads && message.url) {
-      const filename = message.filename || `xwise-video-${Date.now()}.mp4`;
-      chrome.downloads.download(
-        {
-          url: message.url,
-          filename,
-          saveAs: false,
-        },
-        (downloadId) => {
-          if (chrome.runtime.lastError) {
-            sendResponse({ success: false, error: chrome.runtime.lastError.message });
-          } else {
-            sendResponse({ success: true, downloadId });
-          }
-        }
+    case 'XWISE_GET_CACHE_STATS':
+      return respondWith(
+        globalThis.XWiseCache
+          ? globalThis.XWiseCache.getStats()
+          : Promise.resolve({ totalItems: 0, estimatedSizeKB: 0 })
       );
-      return true;
-    } else {
-      sendResponse({ success: false, error: 'Downloads API unavailable' });
-      return false;
-    }
-  }
 
-  return false;
+    case 'XWISE_CLEAR_CACHE':
+      return respondWith(
+        (async () => {
+          if (globalThis.XWiseCache) await globalThis.XWiseCache.clear();
+          const stats = globalThis.XWiseCache
+            ? await globalThis.XWiseCache.getStats()
+            : { totalItems: 0, estimatedSizeKB: 0 };
+          return { success: true, stats };
+        })()
+      );
+
+    case 'XWISE_SYNC_RELATIONSHIPS':
+      return respondWith(runRelationshipScan().then((meta) => ({ success: true, meta })));
+
+    case 'XWISE_CLEAR_BADGE':
+      return respondWith(applyBadge(0).then(() => ({ success: true })));
+
+    case 'XWISE_DOWNLOAD_VIDEO':
+      return respondWith(downloadVideo(message));
+
+    default:
+      return false;
+  }
 });

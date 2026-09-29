@@ -1,5 +1,5 @@
 /* =====================================================================
-   XWise Blocker v3.1.1 — Native Injected Styles
+   XWise Blocker v3.2.1 — Native Injected Styles
    Seamlessly integrates with X (Twitter) matching native Twitter design 100%.
    ===================================================================== */
 
@@ -95,8 +95,8 @@
    ===================================================================== */
 
 /* CSS-First Ad Blocker: eliminates layout shift before JS runs */
-[data-testid="cellInnerDiv"]:has([data-testid="placementTracking"]):not(:has(video)),
-[data-testid="cellInnerDiv"]:has(a[href*="/quick_promote_web/"]),
+:root:not(.xe-adblock-off) [data-testid="cellInnerDiv"]:has([data-testid="placementTracking"]):not(:has([data-testid="videoPlayer"], video)),
+:root:not(.xe-adblock-off) [data-testid="cellInnerDiv"]:has(a[href*="/quick_promote_web/"]),
 [data-testid="cellInnerDiv"]:has(.xe-ad-hidden),
 .xe-ad-cell-hidden,
 .xe-ad-hidden {
@@ -335,11 +335,6 @@ article.xe-tweet-hidden:not(.xe-tweet-revealed) {
 .xe-filtered-bar[data-xe-gender="true"] .xe-filtered-show-btn {
   color: #f91880;
   border-color: rgba(249, 24, 128, 0.35);
-}
-
-.xe-filtered-bar[data-xe-gender="true"] .xe-filtered-show-btn:hover {
-  background: rgba(249, 24, 128, 0.12);
-  border-color: #f91880;
 }
 
 .xe-filtered-bar[data-xe-gender="true"] .xe-filtered-show-btn:hover {
@@ -651,7 +646,7 @@ article.xe-tweet-hidden:not(.xe-tweet-revealed) {
   height: 620px;
   max-height: calc(100vh - 110px);
   border-radius: 16px;
-  background: #000000;
+  background: #0c0d0f;
   border: 1px solid rgb(47, 51, 54);
   box-shadow: 0 16px 48px rgba(0, 0, 0, 0.85), 0 0 1px rgba(255, 255, 255, 0.2);
   display: none;
