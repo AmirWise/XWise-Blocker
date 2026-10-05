@@ -1,9 +1,9 @@
 {
   "manifest_version": 3,
   "name": "XWise Blocker",
-  "version": "3.2.1",
+  "version": "3.5.0",
   "minimum_chrome_version": "105",
-  "description": "Content filter, timeline cleaner, ad blocker, video suite, and relationship tracker for X (Twitter).",
+  "description": "Content filter, timeline cleaner, ad blocker, video suite, relationship tracker, and Persian RastNevis editor for X (Twitter).",
   "icons": {
     "16": "icons/icon16.png",
     "48": "icons/icon48.png",
@@ -16,7 +16,7 @@
       "48": "icons/icon48.png",
       "128": "icons/icon128.png"
     },
-    "default_title": "XWise Blocker v3.2.1"
+    "default_title": "XWise Blocker v3.5.0"
   },
   "background": {
     "service_worker": "background.js",
@@ -35,6 +35,7 @@
         "modules/cache.js",
         "modules/twitterApi.js",
         "modules/relationshipTracker.js",
+        "modules/rastnevis.js",
         "content.js"
       ],
       "css": ["styles.css"],

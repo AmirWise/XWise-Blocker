@@ -1,7 +1,7 @@
 'use strict';
 
 /**
- * XWise Blocker v3.2.1 - Relationship tracker and rate-limited action queue
+ * XWise Blocker v3.5.0 - Relationship tracker and rate-limited action queue
  * Computes follower/following diffs and executes account actions with jittered delays.
  */
 

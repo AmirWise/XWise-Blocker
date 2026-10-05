@@ -1,9 +1,9 @@
 'use strict';
 
 /**
- * XWise Blocker v3.2.1 — Popup Controller
+ * XWise Blocker v3.5.0 — Popup Controller
  * Bilingual controller for the dashboard, filters, relationship tracker,
- * media settings and cache tabs.
+ * media settings, Persian RastNevis editor and cache tabs.
  */
 
 // ============================================================================
@@ -16,6 +16,7 @@ const I18N = {
     navFilters: 'فیلترها',
     navTracker: 'آنفالویاب',
     navMedia: 'رسانه و تمیز',
+    navRastnevis: 'راست‌نویس',
     navSettings: 'تنظیمات',
 
     // Dashboard
@@ -29,6 +30,7 @@ const I18N = {
     statFiltered: 'توییت فیلترشده',
     statBlocked: 'بلاک رسمی',
     statLost: 'آنفالو کرده‌اند',
+    statRastnevis: 'ویرایش راست‌نویس',
     activityHeading: 'گزارش آخرین اقدامات',
     btnClearLog: 'پاک کردن',
     noActivityYet: 'هنوز فعالیتی ثبت نشده است.',
@@ -129,6 +131,40 @@ const I18N = {
     boysWhitelistAdded: 'به لیست دوستان مصون افزوده شد',
     boysWhitelistExists: 'این کاربر قبلاً در لیست دوستان وجود دارد',
 
+    // RastNevis Smart Editor
+    rnMasterTitle: 'ویراستار هوشمند راست‌نویس',
+    rnMasterDesc: 'خطایابی خودکار هکسره، نیم‌فاصله، نویسه‌های عربی و غلط‌های املایی',
+    rnRulesHeading: 'قواعد و خطایاب هوشمند',
+    rnRuleHeksareTitle: 'خطایابی هکسره و هکسره معکوس',
+    rnRuleHeksareDesc: 'تشخیص مضاف و مضاف‌الیه با آزمون نحوی (کتابه من ➔ کتاب من)',
+    rnRuleArabicTitle: 'اصلاح نویسه‌های عربی به فارسی',
+    rnRuleArabicDesc: 'تبدیل خودکار «ي» و «ك» به «ی» و «ک» و مدیریت «ة/ۀ»',
+    rnRuleSpellingTitle: 'غلط‌یاب املایی بومی و پربسامد',
+    rnRuleSpellingDesc: 'شناسایی لغات پرغلط روزمره (اسفاده ➔ استفاده، مشگل ➔ مشکل)',
+    rnRuleZwnjTitle: 'مدیریت ساختاری نیم‌فاصله‌ها',
+    rnRuleZwnjDesc: 'پیشوندهای «می/نمی» و پسوندهای «ها/تر/ترین» با بررسی حروف جدانویس',
+    rnRuleHintsTitle: 'پیشنهادهای نگارشی ظریف',
+    rnRuleHintsDesc: 'تنوین نصب (واقعا ➔ واقعاً) و تکرار بیش‌ازحد حروف (عالییی ➔ عالی)',
+    rnDisplayHeading: 'نحوه نمایش در تایم‌لاین X',
+    rnOptUnderlineTitle: 'زیرخط زدن تعاملی کلمات مشکل‌دار',
+    rnOptUnderlineDesc: 'نمایش خط‌چین مواج رنگی با تول‌تیپ توضیحی و شکل اصلاح‌شده',
+    rnOptShowBadgeTitle: 'نشان و پنل اصلاح زیر توییت',
+    rnOptShowBadgeDesc: 'دکمه مشاهده گزارش خطاها و کپی یک‌کلیکی متن اصلاح‌شده توییت',
+    rnTestHeading: 'جعبه تست زنده ویراستار',
+    rnTestDesc: 'متن دلخواه خود را بنویسید یا پیست کنید تا خطایابی و اصلاح آنی انجام شود:',
+    rnTestPlaceholder: 'متن تستی را اینجا بنویسید... مثلاً: توییته تستی برایه پروژه راست‌نویس اسفاده شد و خاهش میکنم کارو چک کن...',
+    rnFixedLabel: 'متن اصلاح‌شده:',
+    rnBtnCopy: 'کپی متن',
+    rnCopied: 'کپی شد',
+    rnCopyFailed: 'خطا در کپی',
+    rnStatsHeading: 'آمار و حریم خصوصی',
+    rnMarkedLabel: 'توییت نشانه‌گذاری‌شده',
+    rnBtnReset: 'صفر کردن شمارنده',
+    rnPrivacyNote: '۱۰۰٪ محلی و امن (Zero Data Collection) — پردازش درون دستگاه بدون ارسال داده به اینترنت',
+    rnZeroIssues: 'متن بدون خطا است',
+    rnIssuesFound: '{n} خطا یافت شد',
+    rnCounterReset: 'شمارنده با موفقیت صفر شد',
+
     // Settings & Cache
     settingsGeneralHeading: 'تنظیمات عمومی و کاربری',
     langSettingTitle: 'زبان افزونه (Language)',
@@ -215,6 +251,7 @@ const I18N = {
     navFilters: 'Filters',
     navTracker: 'Tracker',
     navMedia: 'Media & Zen',
+    navRastnevis: 'RastNevis',
     navSettings: 'Settings',
 
     // Dashboard
@@ -228,6 +265,7 @@ const I18N = {
     statFiltered: 'Filtered Tweets',
     statBlocked: 'Accounts Blocked',
     statLost: 'Unfollowers',
+    statRastnevis: 'RastNevis Edits',
     activityHeading: 'Recent Activity Log',
     btnClearLog: 'Clear',
     noActivityYet: 'No activity recorded yet.',
@@ -328,6 +366,40 @@ const I18N = {
     boysWhitelistAdded: 'Added to exempt friends list',
     boysWhitelistExists: 'User already in exempt list',
 
+    // RastNevis Smart Editor
+    rnMasterTitle: 'RastNevis Smart Persian Editor',
+    rnMasterDesc: 'Automatic Persian spell-checking, heksare, ZWNJ, and Arabic normalization',
+    rnRulesHeading: 'Grammar Rules & Engine',
+    rnRuleHeksareTitle: 'Heksare & Reverse Heksare',
+    rnRuleHeksareDesc: 'Syntactic detection of ezāfe vs copula (کتابه من ➔ کتاب من)',
+    rnRuleArabicTitle: 'Arabic to Persian Normalization',
+    rnRuleArabicDesc: 'Converts Arabic «ي» and «ك» to Persian «ی» and «ک»',
+    rnRuleSpellingTitle: 'Native Misspelling Dictionary',
+    rnRuleSpellingDesc: 'Detects high-frequency typos (اسفاده ➔ استفاده, مشگل ➔ مشکل)',
+    rnRuleZwnjTitle: 'Structural Half-Space (ZWNJ)',
+    rnRuleZwnjDesc: 'Smart spacing for «می/نمی» and «ها/تر/ترین» suffixes',
+    rnRuleHintsTitle: 'Subtle Stylistic Hints',
+    rnRuleHintsDesc: 'Tanwin (واقعا ➔ واقعاً) and repeated character reduction (عالییی ➔ عالی)',
+    rnDisplayHeading: 'Timeline Appearance on X',
+    rnOptUnderlineTitle: 'Interactive Underline on Typos',
+    rnOptUnderlineDesc: 'Wavy colored underlines with interactive tooltips on click',
+    rnOptShowBadgeTitle: 'Inline Badge & Revision Panel',
+    rnOptShowBadgeDesc: 'Summary badge under tweets with 1-click copy of fixed text',
+    rnTestHeading: 'Live Interactive Editor',
+    rnTestDesc: 'Type or paste Persian text below for real-time analysis and correction:',
+    rnTestPlaceholder: 'Type sample text here... e.g. توییته تستی برایه پروژه راست‌نویس اسفاده شد...',
+    rnFixedLabel: 'Corrected Text:',
+    rnBtnCopy: 'Copy Text',
+    rnCopied: 'Copied',
+    rnCopyFailed: 'Copy failed',
+    rnStatsHeading: 'Statistics & Privacy',
+    rnMarkedLabel: 'Tweets Marked & Edited',
+    rnBtnReset: 'Reset Counter',
+    rnPrivacyNote: '100% Local & Safe (Zero Data Collection) — Processed entirely on-device',
+    rnZeroIssues: 'No errors found in text',
+    rnIssuesFound: '{n} errors found',
+    rnCounterReset: 'Counter reset successfully',
+
     // Settings & Cache
     settingsGeneralHeading: 'General Settings',
     langSettingTitle: 'Extension Language',
@@ -420,6 +492,7 @@ const SYNC_INJECT_FILES = [
   'modules/cache.js',
   'modules/twitterApi.js',
   'modules/relationshipTracker.js',
+  'modules/rastnevis.js',
   'content.js',
 ];
 
@@ -445,7 +518,8 @@ const BOOLEAN_SETTINGS = [
   'filterCaseSensitive', 'filterWholeWord', 'filterDefaultAvatars', 'filterEngagementBait',
   'hideBoysMode', 'adBlockerEnabled', 'blockButtonEnabled', 'quickMenuEnabled', 'shortcutEnabled',
   'shortcutCtrl', 'shortcutAlt', 'shortcutShift', 'confirmDelayOnShortcut', 'showMatchBadges',
-  'showBlockToasts',
+  'showBlockToasts', 'rastnevisEnabled', 'rastnevisHeksare', 'rastnevisArabic', 'rastnevisSpelling',
+  'rastnevisZwnj', 'rastnevisHints', 'rastnevisShowBadge', 'rastnevisUnderline',
 ];
 const ENUM_SETTINGS = {
   filterMode: ['hide', 'auto-mute', 'auto-block', 'dry-run'],
@@ -517,6 +591,14 @@ document.addEventListener('DOMContentLoaded', async () => {
     language: 'fa',
     zenKeepSearch: true,
     boysWhitelist: [],
+    rastnevisEnabled: true,
+    rastnevisHeksare: true,
+    rastnevisArabic: true,
+    rastnevisSpelling: true,
+    rastnevisZwnj: true,
+    rastnevisHints: true,
+    rastnevisShowBadge: true,
+    rastnevisUnderline: true,
     ...loaded,
   };
   currentLang = currentSettings.language || 'fa';
@@ -531,6 +613,7 @@ document.addEventListener('DOMContentLoaded', async () => {
   setupFiltersTab();
   setupTrackerTab();
   setupMediaTab();
+  setupRastnevisTab();
   setupSettingsTab();
   syncControlsFromSettings();
 
@@ -718,6 +801,15 @@ function syncControlsFromSettings() {
   const zenSub = $('zenSubOptions');
   if (zenSub) zenSub.style.display = s.zenModeEnabled ? 'flex' : 'none';
 
+  setChecked('rastnevisMasterToggle', s.rastnevisEnabled !== false);
+  setChecked('rnRuleHeksare', s.rastnevisHeksare !== false);
+  setChecked('rnRuleArabic', s.rastnevisArabic !== false);
+  setChecked('rnRuleSpelling', s.rastnevisSpelling !== false);
+  setChecked('rnRuleZwnj', s.rastnevisZwnj !== false);
+  setChecked('rnRuleHints', s.rastnevisHints !== false);
+  setChecked('rnOptUnderline', s.rastnevisUnderline !== false);
+  setChecked('rnOptShowBadge', s.rastnevisShowBadge !== false);
+
   const setValue = (id, value) => {
     const el = $(id);
     if (el) el.value = String(value);
@@ -746,6 +838,7 @@ function activateTab(name) {
     pane.classList.toggle('active', pane.id === `tab-${name}`);
   });
   if (name === 'settings') updateCacheStats();
+  if (name === 'rastnevis') updateRastnevisStats();
 }
 
 function setupTabs() {
@@ -780,6 +873,8 @@ function setupDashboard() {
     el.addEventListener('click', openMyProfile);
   }
 
+  $('dashRastnevisStatBox')?.addEventListener('click', () => activateTab('rastnevis'));
+
   $('btnClearActivity')?.addEventListener('click', async () => {
     if (!chrome?.storage?.local) return;
     await chrome.storage.local.set({ [ACTIVITY_KEY]: [] });
@@ -797,14 +892,30 @@ function formatCount(value) {
   return Number(value || 0).toLocaleString(currentLang === 'fa' ? 'fa-IR' : 'en-US');
 }
 
+async function updateRastnevisStats() {
+  if (!chrome?.storage?.local) return;
+  try {
+    const res = await chrome.storage.local.get({ marked: 0 });
+    const count = Number(res.marked || 0);
+    const rnEl = $('rnMarkedCount');
+    if (rnEl) rnEl.textContent = formatCount(count);
+    const dashEl = $('statRastnevisCount');
+    if (dashEl) dashEl.textContent = formatCount(count);
+  } catch {}
+}
+
 async function renderDashboard() {
-  const local = await readLocal([STATS_KEY, ACTIVITY_KEY]);
+  const local = await readLocal([STATS_KEY, ACTIVITY_KEY, 'marked']);
   const stats = local[STATS_KEY] || {};
 
   $('statAdBlockCount').textContent = formatCount(stats.adBlockCount);
   $('statHideCount').textContent = formatCount(stats.hideCount);
   $('statBlockCount').textContent = formatCount((stats.blockCount || 0) + (stats.filterBlockCount || 0));
   $('statUnfollowCount').textContent = formatCount(trackerCategories.unfollowers?.length);
+  const rnStatEl = $('statRastnevisCount');
+  if (rnStatEl) rnStatEl.textContent = formatCount(local.marked || 0);
+  const rnMarkedEl = $('rnMarkedCount');
+  if (rnMarkedEl) rnMarkedEl.textContent = formatCount(local.marked || 0);
 
   const snapshot = globalThis.XWiseRelationshipTracker?.latestSnapshot;
   if (snapshot?.account) {
@@ -1772,6 +1883,143 @@ function sanitizeImportedSettings(raw) {
     }
   }
   return clean;
+}
+
+// ============================================================================
+// RastNevis Persian Smart Editor Tab (v3.5.0)
+// ============================================================================
+function setupRastnevisTab() {
+  const bindToggle = (id, key) => {
+    $(id)?.addEventListener('change', async (e) => {
+      await saveSettings({ [key]: e.target.checked });
+      runTestBench();
+    });
+  };
+
+  bindToggle('rastnevisMasterToggle', 'rastnevisEnabled');
+  bindToggle('rnRuleHeksare', 'rastnevisHeksare');
+  bindToggle('rnRuleArabic', 'rastnevisArabic');
+  bindToggle('rnRuleSpelling', 'rastnevisSpelling');
+  bindToggle('rnRuleZwnj', 'rastnevisZwnj');
+  bindToggle('rnRuleHints', 'rastnevisHints');
+  bindToggle('rnOptUnderline', 'rastnevisUnderline');
+  bindToggle('rnOptShowBadge', 'rastnevisShowBadge');
+
+  $('rnBtnResetCount')?.addEventListener('click', async () => {
+    if (!chrome?.storage?.local) return;
+    await chrome.storage.local.set({ marked: 0 });
+    const rnEl = $('rnMarkedCount');
+    if (rnEl) rnEl.textContent = formatCount(0);
+    const dashEl = $('statRastnevisCount');
+    if (dashEl) dashEl.textContent = formatCount(0);
+    showPopupToast(t('rnCounterReset'));
+  });
+
+  // Interactive Live Test Bench
+  let testTimer = null;
+  const testInput = $('rnTestInput');
+  const testBadge = $('rnTestBadge');
+  const testIssuesList = $('rnTestIssues');
+  const testFixedBox = $('rnTestFixedBox');
+  const testFixedText = $('rnTestFixedText');
+  const btnCopyFixed = $('rnBtnCopyFixed');
+
+  function runTestBench() {
+    const engine = globalThis.RastNevisEngine;
+    if (!engine) return;
+
+    const text = testInput?.value || '';
+    if (!text.trim()) {
+      if (testBadge) testBadge.textContent = '0 ' + t('rnZeroIssues');
+      if (testIssuesList) {
+        testIssuesList.style.display = 'none';
+        testIssuesList.textContent = '';
+      }
+      if (testFixedBox) testFixedBox.style.display = 'none';
+      return;
+    }
+
+    const issues = engine.checkText(text, {
+      heksare: currentSettings.rastnevisHeksare !== false,
+      arabic: currentSettings.rastnevisArabic !== false,
+      spelling: currentSettings.rastnevisSpelling !== false,
+      zwnj: currentSettings.rastnevisZwnj !== false,
+      hints: currentSettings.rastnevisHints !== false,
+    });
+
+    if (testBadge) {
+      testBadge.textContent = issues.length > 0
+        ? t('rnIssuesFound', { n: formatCount(issues.length) })
+        : t('rnZeroIssues');
+    }
+
+    if (issues.length === 0) {
+      if (testIssuesList) {
+        testIssuesList.style.display = 'none';
+        testIssuesList.textContent = '';
+      }
+      if (testFixedBox) testFixedBox.style.display = 'none';
+      return;
+    }
+
+    if (testIssuesList) {
+      testIssuesList.textContent = '';
+      testIssuesList.style.display = 'flex';
+      issues.forEach((issue) => {
+        const item = document.createElement('div');
+        item.className = `xe-rn-issue-item severity-${issue.severity}`;
+
+        const wrong = document.createElement('span');
+        wrong.className = 'xe-rn-wrong';
+        wrong.textContent = issue.wrong;
+
+        const arrow = document.createElement('span');
+        arrow.className = 'xe-rn-arrow';
+        arrow.textContent = '➔';
+
+        const correct = document.createElement('span');
+        correct.className = 'xe-rn-correct';
+        correct.textContent = issue.correct;
+
+        const reason = document.createElement('span');
+        reason.className = 'xe-rn-reason';
+        reason.textContent = issue.reason;
+
+        item.appendChild(wrong);
+        item.appendChild(arrow);
+        item.appendChild(correct);
+        item.appendChild(reason);
+        testIssuesList.appendChild(item);
+      });
+    }
+
+    const fixed = engine.applyCorrections(text, issues);
+    if (testFixedBox && testFixedText) {
+      testFixedText.textContent = fixed;
+      testFixedBox.style.display = 'block';
+    }
+  }
+
+  testInput?.addEventListener('input', () => {
+    clearTimeout(testTimer);
+    testTimer = setTimeout(runTestBench, 100);
+  });
+
+  btnCopyFixed?.addEventListener('click', async () => {
+    const fixed = testFixedText?.textContent || '';
+    if (!fixed) return;
+    try {
+      await navigator.clipboard.writeText(fixed);
+      btnCopyFixed.textContent = t('rnCopied');
+      setTimeout(() => {
+        btnCopyFixed.textContent = t('rnBtnCopy');
+      }, 1600);
+    } catch {
+      btnCopyFixed.textContent = t('rnCopyFailed');
+    }
+  });
+
+  updateRastnevisStats();
 }
 
 function setupSettingsTab() {

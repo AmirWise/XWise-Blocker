@@ -1,7 +1,7 @@
 'use strict';
 
 /**
- * XWise Blocker v3.2.1 - Background Service Worker
+ * XWise Blocker v3.5.0 - Background Service Worker
  * Settings storage and migration, scheduled relationship scans,
  * video download resolution, and runtime messaging.
  */
@@ -9,8 +9,9 @@
 import './modules/cache.js';
 import './modules/twitterApi.js';
 import './modules/relationshipTracker.js';
+import './modules/rastnevis.js';
 
-const STORAGE_VERSION = 6;
+const STORAGE_VERSION = 7;
 const TRACKER_ALARM_NAME = 'xwise_periodic_tracker';
 const STATS_KEY = 'xwise.stats';
 const X_TAB_PATTERNS = ['*://*.x.com/*', '*://*.twitter.com/*'];
@@ -76,6 +77,16 @@ const DEFAULT_SETTINGS = {
   // Fun filters
   hideBoysMode: false,
   boysWhitelist: [],
+
+  // RastNevis Persian Editor (New in v3.5.0)
+  rastnevisEnabled: true,
+  rastnevisHeksare: true,
+  rastnevisArabic: true,
+  rastnevisSpelling: true,
+  rastnevisZwnj: true,
+  rastnevisHints: true,
+  rastnevisShowBadge: true,
+  rastnevisUnderline: true,
 
   // Ads
   adBlockerEnabled: true,
@@ -187,6 +198,17 @@ async function migrateSettings(settings, fromVersion) {
   if (fromVersion < 6) {
     settings.shieldEnabled = settings.shieldEnabled ?? true;
     await migrateLegacyStats(settings);
+  }
+
+  if (fromVersion < 7) {
+    settings.rastnevisEnabled = settings.rastnevisEnabled ?? true;
+    settings.rastnevisHeksare = settings.rastnevisHeksare ?? true;
+    settings.rastnevisArabic = settings.rastnevisArabic ?? true;
+    settings.rastnevisSpelling = settings.rastnevisSpelling ?? true;
+    settings.rastnevisZwnj = settings.rastnevisZwnj ?? true;
+    settings.rastnevisHints = settings.rastnevisHints ?? true;
+    settings.rastnevisShowBadge = settings.rastnevisShowBadge ?? true;
+    settings.rastnevisUnderline = settings.rastnevisUnderline ?? true;
   }
 
   settings.__version = STORAGE_VERSION;
@@ -342,10 +364,10 @@ chrome.runtime.onInstalled.addListener(async (details) => {
   if (details.reason === 'install') {
     await chrome.storage.sync.set(DEFAULT_SETTINGS);
     await chrome.storage.local.set({ 'xwise.activityLog': [], [STATS_KEY]: {} });
-    console.log('[XWise] Installed v3.2.1');
+    console.log('[XWise] Installed v3.5.0');
   } else if (details.reason === 'update') {
     await loadSettings();
-    console.log('[XWise] Updated to v3.2.1');
+    console.log('[XWise] Updated to v3.5.0');
   }
   await ensureTrackerAlarm();
 });

@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>XWise Blocker v3.2.1</title>
+  <title>XWise Blocker v3.5.0</title>
   <link rel="stylesheet" href="popup.css" />
 </head>
 <body>
@@ -15,7 +15,7 @@
         <div class="xe-header-text">
           <div class="xe-title-row">
             <h1>XWise Blocker</h1>
-            <span class="xe-badge">v3.2.1</span>
+            <span class="xe-badge">v3.5.0</span>
           </div>
           <p class="xe-sub" data-i18n="appSubtitle">سوئیت فیلتر هوشمند، ردیاب آنفالو و پاک‌ساز X</p>
         </div>
@@ -61,6 +61,13 @@
           <path d="M18 4l2 4h-3l-2-4h-2l2 4h-3l-2-4H8l2 4H7L5 4H4c-1.1 0-1.99.9-1.99 2L2 18c0 1.1.9 2 2 2h16c1.1 0 2-.9 2-2V4h-4z"/>
         </svg>
         <span data-i18n="navMedia">رسانه و تمیز</span>
+      </button>
+
+      <button type="button" class="xe-tab" data-tab="rastnevis">
+        <svg viewBox="0 0 24 24" width="14" height="14" fill="currentColor">
+          <path d="M3 17.25V21h3.75L17.81 9.94l-3.75-3.75L3 17.25zM20.71 7.04c.39-.39.39-1.02 0-1.41l-2.34-2.34c-.39-.39-1.02-.39-1.41 0l-1.83 1.83 3.75 3.75 1.83-1.83z"/>
+        </svg>
+        <span data-i18n="navRastnevis">راست‌نویس</span>
       </button>
 
       <button type="button" class="xe-tab" data-tab="settings">
@@ -140,6 +147,10 @@
           <div class="xe-stat-box xe-stat-highlight-red">
             <span class="xe-stat-num" id="statUnfollowCount">0</span>
             <span class="xe-stat-lbl" data-i18n="statLost">آنفالو کرده‌اند</span>
+          </div>
+          <div class="xe-stat-box xe-stat-highlight-purple" id="dashRastnevisStatBox" style="cursor: pointer;" title="راست‌نویس">
+            <span class="xe-stat-num" id="statRastnevisCount">0</span>
+            <span class="xe-stat-lbl" data-i18n="statRastnevis">ویرایش راست‌نویس</span>
           </div>
         </div>
       </section>
@@ -627,7 +638,158 @@
     </main>
 
     <!-- ===================================================================
-         TAB 5: SETTINGS & CACHE
+         TAB 5: RASTNEVIS PERSIAN SMART EDITOR (MASTERPIECE INTEGRATION)
+         =================================================================== -->
+    <main id="tab-rastnevis" class="xe-tab-pane">
+      <!-- Master Editor Toggle Card -->
+      <section class="xe-card xe-rastnevis-card">
+        <div class="xe-row">
+          <div class="xe-row-content">
+            <div class="xe-rn-title-row">
+              <span class="xe-rn-icon">✍️</span>
+              <p class="xe-row-title" data-i18n="rnMasterTitle">ویراستار هوشمند راست‌نویس</p>
+            </div>
+            <p class="xe-row-desc" id="rnMasterDesc" data-i18n="rnMasterDesc">خطایابی خودکار هکسره، نیم‌فاصله، نویسه‌های عربی و غلط‌های املایی</p>
+          </div>
+          <label class="xe-switch">
+            <input type="checkbox" id="rastnevisMasterToggle" checked />
+            <span></span>
+          </label>
+        </div>
+      </section>
+
+      <!-- Rules & Grammar Pipeline Card -->
+      <section class="xe-card">
+        <h2 class="xe-section-title" data-i18n="rnRulesHeading">قواعد و خطایاب هوشمند</h2>
+
+        <div class="xe-row">
+          <div class="xe-row-content">
+            <p class="xe-row-title" data-i18n="rnRuleHeksareTitle">خطایابی هکسره و هکسره معکوس</p>
+            <p class="xe-row-desc" data-i18n="rnRuleHeksareDesc">تشخیص مضاف و مضاف‌الیه با آزمون نحوی (کتابه من ➔ کتاب من)</p>
+          </div>
+          <label class="xe-switch">
+            <input type="checkbox" id="rnRuleHeksare" checked />
+            <span></span>
+          </label>
+        </div>
+
+        <div class="xe-row">
+          <div class="xe-row-content">
+            <p class="xe-row-title" data-i18n="rnRuleArabicTitle">اصلاح نویسه‌های عربی به فارسی</p>
+            <p class="xe-row-desc" data-i18n="rnRuleArabicDesc">تبدیل خودکار «ي» و «ك» به «ی» و «ک» و مدیریت «ة/ۀ»</p>
+          </div>
+          <label class="xe-switch">
+            <input type="checkbox" id="rnRuleArabic" checked />
+            <span></span>
+          </label>
+        </div>
+
+        <div class="xe-row">
+          <div class="xe-row-content">
+            <p class="xe-row-title" data-i18n="rnRuleSpellingTitle">غلط‌یاب املایی بومی و پربسامد</p>
+            <p class="xe-row-desc" data-i18n="rnRuleSpellingDesc">شناسایی لغات پرغلط روزمره (اسفاده ➔ استفاده، مشگل ➔ مشکل)</p>
+          </div>
+          <label class="xe-switch">
+            <input type="checkbox" id="rnRuleSpelling" checked />
+            <span></span>
+          </label>
+        </div>
+
+        <div class="xe-row">
+          <div class="xe-row-content">
+            <p class="xe-row-title" data-i18n="rnRuleZwnjTitle">مدیریت ساختاری نیم‌فاصله‌ها</p>
+            <p class="xe-row-desc" data-i18n="rnRuleZwnjDesc">پیشوندهای «می/نمی» و پسوندهای «ها/تر/ترین» با بررسی حروف جدانویس</p>
+          </div>
+          <label class="xe-switch">
+            <input type="checkbox" id="rnRuleZwnj" checked />
+            <span></span>
+          </label>
+        </div>
+
+        <div class="xe-row">
+          <div class="xe-row-content">
+            <p class="xe-row-title" data-i18n="rnRuleHintsTitle">پیشنهادهای نگارشی ظریف</p>
+            <p class="xe-row-desc" data-i18n="rnRuleHintsDesc">تنوین نصب (واقعا ➔ واقعاً) و تکرار بیش‌ازحد حروف (عالییی ➔ عالی)</p>
+          </div>
+          <label class="xe-switch">
+            <input type="checkbox" id="rnRuleHints" checked />
+            <span></span>
+          </label>
+        </div>
+      </section>
+
+      <!-- Appearance in Timeline -->
+      <section class="xe-card">
+        <h2 class="xe-section-title" data-i18n="rnDisplayHeading">نحوه نمایش در تایم‌لاین X</h2>
+
+        <div class="xe-row">
+          <div class="xe-row-content">
+            <p class="xe-row-title" data-i18n="rnOptUnderlineTitle">زیرخط زدن تعاملی کلمات مشکل‌دار</p>
+            <p class="xe-row-desc" data-i18n="rnOptUnderlineDesc">نمایش خط‌چین مواج رنگی با تول‌تیپ توضیحی و شکل اصلاح‌شده</p>
+          </div>
+          <label class="xe-switch">
+            <input type="checkbox" id="rnOptUnderline" checked />
+            <span></span>
+          </label>
+        </div>
+
+        <div class="xe-row">
+          <div class="xe-row-content">
+            <p class="xe-row-title" data-i18n="rnOptShowBadgeTitle">نشان و پنل اصلاح زیر توییت</p>
+            <p class="xe-row-desc" data-i18n="rnOptShowBadgeDesc">دکمه مشاهده گزارش خطاها و کپی یک‌کلیکی متن اصلاح‌شده توییت</p>
+          </div>
+          <label class="xe-switch">
+            <input type="checkbox" id="rnOptShowBadge" checked />
+            <span></span>
+          </label>
+        </div>
+      </section>
+
+      <!-- Live Interactive Editor Bench -->
+      <section class="xe-card">
+        <div class="xe-card-header-row">
+          <h2 class="xe-section-title" data-i18n="rnTestHeading">جعبه تست زنده ویراستار</h2>
+          <span class="xe-count-badge" id="rnTestBadge">0 خطا</span>
+        </div>
+        <p class="xe-card-note" data-i18n="rnTestDesc">متن دلخواه خود را بنویسید یا پیست کنید تا خطایابی و اصلاح آنی انجام شود:</p>
+        <textarea id="rnTestInput" class="xe-textarea" rows="3"
+                  placeholder="متن تستی را اینجا بنویسید... مثلاً: توییته تستی برایه پروژه راست‌نویس اسفاده شد..."
+                  data-i18n-placeholder="rnTestPlaceholder"></textarea>
+
+        <div id="rnTestIssues" class="xe-rn-issues-list" style="display: none;"></div>
+
+        <div id="rnTestFixedBox" class="xe-rn-fixed-box" style="display: none;">
+          <div class="xe-rn-fixed-header">
+            <span class="xe-rn-fixed-label" data-i18n="rnFixedLabel">متن اصلاح‌شده:</span>
+            <button type="button" id="rnBtnCopyFixed" class="xe-btn-primary xe-btn-compact" data-i18n="rnBtnCopy">کپی متن</button>
+          </div>
+          <p id="rnTestFixedText" class="xe-rn-fixed-text"></p>
+        </div>
+      </section>
+
+      <!-- Statistics & Zero-Data Privacy -->
+      <section class="xe-card">
+        <h2 class="xe-section-title" data-i18n="rnStatsHeading">آمار و حریم خصوصی</h2>
+        <div class="xe-cache-stats-row">
+          <div class="xe-cache-stat">
+            <span class="xe-cache-val" id="rnMarkedCount">0</span>
+            <span class="xe-cache-lbl" data-i18n="rnMarkedLabel">توییت نشانه‌گذاری‌شده</span>
+          </div>
+          <button type="button" id="rnBtnResetCount" class="xe-btn-secondary xe-btn-compact" data-i18n="rnBtnReset">
+            صفر کردن شمارنده
+          </button>
+        </div>
+        <div class="xe-privacy-badge">
+          <svg viewBox="0 0 24 24" width="14" height="14" fill="currentColor">
+            <path d="M12 1L3 5v6c0 5.55 3.84 10.74 9 12 5.16-1.26 9-6.45 9-12V5l-9-4zm-1 15.5l-3.5-3.5 1.41-1.41L11 13.67l5.09-5.09 1.41 1.41L11 16.5z"/>
+          </svg>
+          <span data-i18n="rnPrivacyNote">۱۰۰٪ محلی و امن (Zero Data Collection) — پردازش درون دستگاه بدون ارسال داده به اینترنت</span>
+        </div>
+      </section>
+    </main>
+
+    <!-- ===================================================================
+         TAB 6: SETTINGS & CACHE
          =================================================================== -->
     <main id="tab-settings" class="xe-tab-pane">
       <!-- Interface & Shortcuts -->
@@ -716,6 +878,7 @@
 
   <script src="modules/twitterApi.js"></script>
   <script src="modules/relationshipTracker.js"></script>
+  <script src="modules/rastnevis.js"></script>
   <script src="popup.js"></script>
 </body>
 </html>

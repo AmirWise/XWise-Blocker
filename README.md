@@ -1,6 +1,6 @@
-# XWise Blocker v3.2.1 🛡️⚡
+# XWise Blocker v3.5.0 🛡️✍️⚡
 
-A powerful, ultra-fast, and native-feeling Chrome extension for X (Twitter). XWise Blocker purifies your timeline, protects your attention, and manages your social graph: **Follow/Unfollow Tracker**, **Relationship Manager (Non-followers, Fans, Mutuals, Lost followers)**, **Anti-Limit Safety Queue**, **Two-Tier LRU & TTL Caching**, **Instant CSS-First Ad Blocker**, **Pro Video Suite with MP4 Downloader & Loop**, **No-Boys Mode (Timeline Gender Filter)**, and **10/10 Modern Bilingual UI (FA/EN)** with embedded Vazirmatn font.
+A powerful, ultra-fast, and native-feeling Chrome extension for X (Twitter). XWise Blocker purifies your timeline, protects your attention, and manages your social graph: **RastNevis Smart Persian Editor & Proofreader**, **Follow/Unfollow Tracker**, **Relationship Manager (Non-followers, Fans, Mutuals, Lost followers)**, **Anti-Limit Safety Queue**, **Two-Tier LRU & TTL Caching**, **Instant CSS-First Ad Blocker**, **Pro Video Suite with MP4 Downloader & Loop**, **No-Boys Mode (Timeline Gender Filter)**, and **10/10 Modern Bilingual UI (FA/EN)** with embedded Vazirmatn font.
 
 ---
 
@@ -68,6 +68,25 @@ A powerful, ultra-fast, and native-feeling Chrome extension for X (Twitter). XWi
 - **Native Inline Re-hide Action Button**: Clicking "Show" reveals the tweet completely normally, placing a sleek native action button in the bottom action bar (`[role="group"]`) to instantly re-collapse it without breaking tweet balance.
 - **Disabled by Default**: Safe, optional, and easily toggled in the "Media & Zen" tab under "Fun & Special Filters".
 
+### 8️⃣ RastNevis (راست‌نویس) — Smart Persian Editor & Proofreader ✍️ (Mega New in v3.5.0)
+- **Intelligent Syntactic Heksare Pipeline**: Precision multi-tier distinction between inherent «ه» (خانه، پروژه، توسعه), verbal copulas (هوا سرده = سرد است), colloquial definite markers (این پسره), and true heksare errors (کتابه من ➔ کتاب من) with zero false positives.
+- **Reverse Heksare Detection**: Fixes trailing kasrah used erroneously in place of copula (آرادِ ➔ آراده).
+- **Arabic to Persian Character Normalization**: Auto-replaces Arabic «ي» and «ك» with Persian «ی» and «ک» and standardizes «ة/ۀ».
+- **Structural Half-Space (ZWNJ) Engine**: Distinguishes «می/نمی» prefixes and «ها/تر/ترین» suffixes while strictly honoring Persian non-joining letters (ر، ز، د، و، ا...).
+- **Native Misspelling Dictionary**: Fixes high-frequency everyday typos (اسفاده ➔ استفاده، مشگل ➔ مشکل).
+- **Subtle Stylistic Hints**: Optional suggestions for tanwin (واقعا ➔ واقعاً) and repeated character reduction (عالییی ➔ عالی).
+- **Interactive Live Test Bench**: A built-in scratchpad inside the extension popup to paste or type any Persian text and receive instantaneous corrections with 1-click copy.
+- **Timeline Underline, Tooltips & Revision Panel**: Wavy underlines on problematic words, hover/click tooltips with explanations, summary tweet badges, and interactive revision panels with 1-click full-text copy.
+- **100% Offline & Private (Zero Data Collection)**: All natural language processing happens locally in the browser. Zero network requests, zero telemetry.
+
+## 🆕 What's new in 3.5.0 (The Mega Update)
+
+- **RastNevis Deep Integration**: Project RastNevis has been seamlessly integrated as a master 6th tab and a core in-page capability of XWise Blocker. Zero interference with existing filters, ad block, video suite, or relationship tracker.
+- **Live Interactive Editor Test-Bench**: Added in the RastNevis tab for real-time Persian proofreading and 1-click copy.
+- **New Mature Brand Identity & Cyber-Shield Logo**: Replaced the legacy pixelated forbidden icon with an ultra-sleek, modern, high-res cyber-shield emblem fused with a stylized "X" and wisdom checkmark crest in vibrant neon cyan and royal violet.
+- **Comprehensive Rule Toggles**: Granular controls for heksare, Arabic letters, spelling, ZWNJ, stylistic hints, underlines, and inline badges.
+- **Live Statistics & Privacy**: Tracks total proofread tweets with on-device storage and 1-click reset.
+
 ## 🆕 What's new in 3.2.1
 
 - **Auto-block / auto-mute fixed**: menu items are now matched by their stable `data-testid` (`block`, `mute`) instead of localized text only, filters saved by older versions without an `enabled` flag are honored, legacy `block`/`mute` filter actions map correctly, and a warning toast appears if an automatic action cannot complete.
@@ -112,9 +131,9 @@ A powerful, ultra-fast, and native-feeling Chrome extension for X (Twitter). XWi
 
 <div dir="rtl">
 
-# راهنمای فارسی افزونه XWise Blocker نسخه 3.2.1 🛡️⚡
+# راهنمای فارسی افزونه XWise Blocker نسخه 3.5.0 🛡️✍️⚡
 
-افزونه اختصاصی و فوق‌العاده سریع برای مرورگرهای کرومیوم (Chrome, Brave, Edge, Arc, Opera) جهت پاک‌سازی تایم‌لاین، مدیریت شبکه ارتباطات و ارتقای امنیت در شبکه اجتماعی X (توییتر).
+افزونه اختصاصی و فوق‌العاده سریع برای مرورگرهای کرومیوم (Chrome, Brave, Edge, Arc, Opera) جهت پاک‌سازی تایم‌لاین، مدیریت شبکه ارتباطات، ویراستاری هوشمند خط و زبان فارسی با راست‌نویس و ارتقای امنیت در شبکه اجتماعی X (توییتر).
 
 ---
 
@@ -179,6 +198,25 @@ A powerful, ultra-fast, and native-feeling Chrome extension for X (Twitter). XWi
 - **شیلد ایمنی بانوان (Female Guard)**: مصونیت ۱۰۰٪ برای خانم‌ها بر اساس نام‌ها، ضمایر (`she/her`)، کلمات کلیدی و ایموجی‌ها جهت جلوگیری قطعی از خطای مثبت.
 - **دکمه بومی هاید مجدد زیر توییت**: با زدن «نمایش»، توییت کاملاً طبیعی لود می‌شود و دکمه بومی هاید مجدد در نوار ابزار پایین توییت قرار می‌گیرد تا توازن صفحه حفظ شود.
 - **غیرفعال به صورت پیش‌فرض**: کاملاً اختیاری و قابل فعال‌سازی در تب «رسانه و تمیز» بخش فیلترهای اختصاصی.
+
+### ۸️⃣ راست‌نویس (RastNevis) — ویراستار هوشمند و بومی خط فارسی ✍️ (ابر ویژگی نسخه 3.5.0)
+- **موتور چندلایه‌ی هوشمند هکسره**: تفکیک قطعی «ه» ذاتی واژگان (خانه، پروژه، توسعه، خاطره)، افعال اسنادی و ربطی محاوره‌ای («است»: هوا سرده = سرد است)، معرفه‌سازهای عامیانه (این پسره) از خطاهای قطعی هکسره (کتابه من ➔ کتاب من) بدون هرگونه مثبت کاذب (Zero False Positives).
+- **شکار هکسره معکوس**: اصلاح کسره‌های پایانی نامناسب بدون مضاف‌الیه (آرادِ ➔ آراده).
+- **اصلاح خودکار نویسه‌های عربی به فارسی**: جایگزینی خودکار «ي» و «ك» به «ی» و «ک» و استانداردسازی «ة/ۀ».
+- **مدیریت ساختاری نیم‌فاصله‌ها**: سامان‌دهی پیشوندهای «می/نمی» و پسوندهای «ها/تر/ترین» با رعایت دقیق حروف جدانویس فارسی (مانند ر، ز، د، و، ا...).
+- **غلط‌یاب املایی بومی و پربسامد**: شناسایی لغات پرغلط روزمره در زبان فارسی و فضای مجازی (اسفاده ➔ استفاده، مشگل ➔ مشکل).
+- **پیشنهادهای سبک نگارشی**: پیشنهاد تنوین نصب (واقعا ➔ واقعاً) و جلوگیری از کشیدگی مفرط حروف (عالییی ➔ عالی).
+- **جعبه تست زنده ویراستار**: امکان تایپ یا پیست متن فارسی در تب راست‌نویس پاپ‌آپ و مشاهده آنی اشکالات به همراه کپی نسخه ویرایش‌شده با ۱ کلیک.
+- **نشانه‌گذاری تعاملی در تایم‌لاین توییتر**: زیرخط مواج رنگی روی واژه‌های نادرست، تول‌تیپ تعاملی علت خطا، نشان روی توییت و پنل ویرایش با امکان کپی ۱ کلیکی کل متن اصلاح‌شده توییت.
+- **۱۰۰٪ محلی و امن (Zero Data Collection)**: پردازش مستقیم در مرورگر کاربر بدون ارسال داده یا درخواست به هیچ سرور خارجی.
+
+## 🆕 تغییرات نسخه 3.5.0 (ابر آپدیت بزرگ)
+
+- **ادغام کامل پروژه راست‌نویس (RastNevis)**: اضافه شدن راست‌نویس به عنوان تب ششم مستقل در پاپ‌آپ و ماژول بومی پردازش زبان فارسی روی تایم‌لاین بدون کمترین تداخل با فیلترها و بلاکرها.
+- **جعبه تست زنده ویراستار (Live Test Bench)**: امکان نوشتن متن و ویرایش در لحظه داخل پاپ‌آپ افزونه.
+- **طراحی لوگوی فوق‌العاده مدرن، حرفه‌ای و بالغ**: جایگزینی لوگوی پیکسلی قدیمی با آیکون سایبر-شیلد باکیفیت و گرادیان نئونی توییتر-بنفش همراه با نشان تیک هوشمند.
+- **کنترل‌های تفکیک‌شده قواعد نگارش**: قابلیت فعال/غیرفعال‌سازی تک‌تک بخش‌های هکسره، حروف عربی، نیم‌فاصله و غلط املایی.
+- **آمار اختصاصی و صفر کردن شمارنده**: شمارش تعداد توییت‌های ویرایش‌شده و امکان ریست آمار.
 
 ## 🆕 تغییرات نسخه 3.2.1
 

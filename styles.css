@@ -1,5 +1,5 @@
 /* =====================================================================
-   XWise Blocker v3.2.1 — Native Injected Styles
+   XWise Blocker v3.5.0 — Native Injected Styles
    Seamlessly integrates with X (Twitter) matching native Twitter design 100%.
    ===================================================================== */
 
@@ -773,3 +773,199 @@ article.xe-tweet-hidden:not(.xe-tweet-revealed) {
   padding: 2px 8px;
   border-radius: 4px;
 }
+
+/* =====================================================================
+   RASTNEVIS IN-PAGE TIMELINE INTEGRATION (v3.5.0)
+   Native spelling & grammar marks, tooltips, revision badge and panel.
+   ===================================================================== */
+
+.pfa-u {
+  text-decoration-line: underline;
+  text-decoration-style: wavy;
+  text-decoration-color: var(--xe-danger);
+  text-underline-offset: 4px;
+  cursor: pointer;
+  border-radius: 2px;
+  transition: background-color 0.15s ease;
+}
+.pfa-u:hover {
+  background: rgba(244, 33, 46, 0.12);
+}
+
+.pfa-u.pfa-warning {
+  text-decoration-color: var(--xe-warning);
+}
+.pfa-u.pfa-warning:hover {
+  background: rgba(255, 184, 0, 0.12);
+}
+
+.pfa-u.pfa-hint {
+  text-decoration-color: #8b98ff;
+  text-decoration-style: dotted;
+}
+.pfa-u.pfa-hint:hover {
+  background: rgba(139, 152, 255, 0.12);
+}
+
+/* Inline badge under tweet */
+.pfa-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 3px 9px;
+  margin-top: 6px;
+  margin-bottom: 2px;
+  border-radius: 9999px;
+  border: 1px solid var(--xe-border);
+  background: transparent;
+  color: var(--xe-text-secondary);
+  font: 500 12px/1.6 var(--xe-font);
+  cursor: pointer;
+  transition: all 0.15s ease;
+  user-select: none;
+}
+.pfa-badge:hover {
+  background: rgba(29, 155, 240, 0.08);
+  border-color: var(--xe-accent);
+  color: var(--xe-accent);
+}
+.pfa-badge svg {
+  width: 13px;
+  height: 13px;
+  flex-shrink: 0;
+}
+.pfa-badge.pfa-badge-soft {
+  border-color: rgba(113, 118, 123, 0.25);
+  color: var(--xe-text-secondary);
+}
+
+/* Revision Panel */
+.pfa-panel {
+  direction: rtl;
+  margin: 8px 0 6px;
+  border: 1px solid var(--xe-border);
+  border-radius: 14px;
+  background: var(--xe-bg-card);
+  padding: 12px 14px;
+  font-family: var(--xe-font);
+  color: var(--xe-text-primary);
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.25);
+  animation: pfa-in 0.18s ease;
+}
+
+@keyframes pfa-in {
+  from { opacity: 0; transform: translateY(-4px); }
+  to { opacity: 1; transform: none; }
+}
+
+.pfa-panel h4 {
+  margin: 0 0 10px;
+  font-size: 13px;
+  font-weight: 700;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  color: var(--xe-text-primary);
+}
+.pfa-panel h4 svg {
+  width: 14px;
+  height: 14px;
+  color: var(--xe-accent);
+}
+
+.pfa-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+  padding: 7px 0;
+  border-top: 1px solid var(--xe-border);
+  font-size: 13px;
+}
+.pfa-item .w {
+  color: var(--xe-danger);
+  text-decoration: line-through;
+  text-decoration-color: rgba(244, 33, 46, 0.5);
+  font-weight: 600;
+}
+.pfa-item .c {
+  color: var(--xe-text-primary);
+  font-weight: 700;
+}
+.pfa-item .r {
+  color: var(--xe-text-secondary);
+  font-size: 11.5px;
+  margin-inline-start: auto;
+}
+.pfa-item svg {
+  width: 12px;
+  height: 12px;
+  color: var(--xe-text-secondary);
+  flex-shrink: 0;
+}
+
+.pfa-actions {
+  display: flex;
+  gap: 8px;
+  margin-top: 12px;
+}
+.pfa-btn {
+  border: none;
+  border-radius: 9999px;
+  padding: 7px 12px;
+  font: 700 12.5px var(--xe-font);
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+.pfa-btn:hover {
+  filter: brightness(1.1);
+}
+.pfa-btn-copy {
+  flex: 1;
+  background: var(--xe-accent);
+  color: #ffffff;
+}
+.pfa-btn-close {
+  background: transparent;
+  color: var(--xe-text-secondary);
+  border: 1px solid var(--xe-border) !important;
+  flex: 0 0 auto;
+}
+.pfa-btn-close:hover {
+  color: var(--xe-text-primary);
+  background: var(--xe-bg-hover);
+}
+
+/* Floating Tooltip on Underline Click */
+.pfa-tip {
+  position: absolute;
+  z-index: 2147483000;
+  direction: rtl;
+  background: var(--xe-bg-card);
+  border: 1px solid var(--xe-border);
+  border-radius: 10px;
+  padding: 8px 12px;
+  font-family: var(--xe-font);
+  font-size: 12.5px;
+  color: var(--xe-text-primary);
+  box-shadow: 0 4px 18px rgba(0, 0, 0, 0.5);
+  animation: pfa-in 0.15s ease;
+  max-width: 260px;
+  pointer-events: auto;
+}
+.pfa-tip .t-w {
+  color: var(--xe-danger);
+  text-decoration: line-through;
+  font-weight: 600;
+}
+.pfa-tip .t-c {
+  color: var(--xe-text-primary);
+  font-weight: 700;
+}
+.pfa-tip .t-r {
+  display: block;
+  color: var(--xe-text-secondary);
+  font-size: 11px;
+  margin-top: 4px;
+}
+

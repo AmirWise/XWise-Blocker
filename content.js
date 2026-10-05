@@ -1,7 +1,7 @@
 'use strict';
 
 /**
- * XWise Blocker v3.2.1 — Content Script
+ * XWise Blocker v3.5.0 — Content Script
  * Seamless in-page native Twitter integration, flawless ad cleaner, and smart filter suite.
  */
 
@@ -54,6 +54,16 @@ const DEFAULT_SETTINGS = {
   // Fun & Special Filters (v3.0.1)
   hideBoysMode: false,
   boysWhitelist: [],
+
+  // RastNevis Persian Editor (v3.5.0)
+  rastnevisEnabled: true,
+  rastnevisHeksare: true,
+  rastnevisArabic: true,
+  rastnevisSpelling: true,
+  rastnevisZwnj: true,
+  rastnevisHints: true,
+  rastnevisShowBadge: true,
+  rastnevisUnderline: true,
 
   // Ad Cleaner
   adBlockerEnabled: true,
@@ -713,6 +723,7 @@ function unhideTweet(tweet) {
   tweet.querySelectorAll(':scope > .xe-filtered-bar, .xe-rehide-btn-wrapper').forEach((node) => node.remove());
   hiddenTweetNodes.delete(tweet);
   hideMeta.delete(tweet);
+  processRastnevisTweet(tweet);
 }
 
 // React can drop injected nodes or recycle an article for another tweet.
@@ -741,6 +752,7 @@ function restoreMissingBars() {
 function rescanAllTweets() {
   document.querySelectorAll('article[data-xe-hidden], article[data-xe-revealed]').forEach((tweet) => unhideTweet(tweet));
   document.querySelectorAll('.xe-filter-badge').forEach((badge) => badge.remove());
+  clearAllRastnevisMarks();
   scannedTweetNodes = new WeakSet();
   document.querySelectorAll('article').forEach((tweet) => processTweetFilter(tweet));
 }
@@ -2130,7 +2142,10 @@ async function processTweetFilter(tweet) {
     return;
   }
   scannedTweetNodes.add(tweet);
-  if (isHandleWhitelisted(handle)) return;
+  if (isHandleWhitelisted(handle)) {
+    processRastnevisTweet(tweet);
+    return;
+  }
 
   // Blue check
   if (detectAndFilterBlueCheck(tweet)) return;
@@ -2154,7 +2169,10 @@ async function processTweetFilter(tweet) {
 
   // Filter Engine
   const match = inspectTweetAgainstFilters(tweet);
-  if (!match) return;
+  if (!match) {
+    processRastnevisTweet(tweet);
+    return;
+  }
 
   const ACTION_ALIASES = { block: 'auto-block', mute: 'auto-mute' };
   const rawAction = (match.matchedFilter.action && match.matchedFilter.action !== 'default')
@@ -2164,6 +2182,7 @@ async function processTweetFilter(tweet) {
 
   if (action === 'dry-run') {
     applyDryRunBadge(tweet, match);
+    processRastnevisTweet(tweet);
   } else if (action === 'hide') {
     applyHideTweet(tweet, { rule: match.matchedFilter.pattern, scope: match.matchedScope, handle: match.handle });
   } else if (action === 'auto-mute') {
@@ -2502,6 +2521,247 @@ document.addEventListener('keydown', (e) => {
 });
 
 // ============================================================================
+// RastNevis Persian Smart Editor (v3.5.0)
+// ============================================================================
+
+const ICON_WARN_SVG = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3Z"/><path d="M12 9v4"/><path d="M12 17h.01"/></svg>';
+const ICON_ARROW_SVG = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M19 12H5"/><path d="m12 19-7-7 7-7"/></svg>';
+
+function toFaDigits(n) {
+  return Number(n).toLocaleString('fa-IR');
+}
+
+function escHtml(s) {
+  return String(s).replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+}
+
+function findTweetTextElement(article) {
+  return article.querySelector('[data-testid="tweetText"]');
+}
+
+function clearRastnevisMarks(article) {
+  article.querySelectorAll('.pfa-u').forEach((span) => {
+    const parent = span.parentNode;
+    if (!parent) return;
+    parent.replaceChild(document.createTextNode(span.textContent), span);
+    parent.normalize();
+  });
+  article.querySelectorAll('.pfa-badge, .pfa-panel').forEach((el) => el.remove());
+  if (article._pfaIssues) article._pfaIssues = null;
+  article.removeAttribute('data-pfa-done');
+}
+
+function clearAllRastnevisMarks() {
+  document.querySelectorAll('article[data-pfa-done]').forEach(clearRastnevisMarks);
+  hideRastnevisTip();
+}
+
+function decorateRastnevisText(textEl, text, issues) {
+  const walker = document.createTreeWalker(textEl, NodeFilter.SHOW_TEXT, {
+    acceptNode(node) {
+      if (!node.nodeValue || !node.nodeValue.trim()) return NodeFilter.FILTER_REJECT;
+      const p = node.parentElement;
+      if (!p) return NodeFilter.FILTER_REJECT;
+      if (p.closest('a') || p.closest('.pfa-u')) return NodeFilter.FILTER_REJECT;
+      const tag = p.tagName;
+      if (tag === 'SCRIPT' || tag === 'STYLE' || tag === 'IMG') return NodeFilter.FILTER_REJECT;
+      return NodeFilter.FILTER_ACCEPT;
+    },
+  });
+  const nodes = [];
+  while (walker.nextNode()) nodes.push(walker.currentNode);
+
+  let base = 0;
+  for (const node of nodes) {
+    const idx = text.indexOf(node.nodeValue, base);
+    const start = idx >= 0 ? idx : base;
+    const end = start + node.nodeValue.length;
+    const hits = issues.filter((i) => i.index < end && i.index + i.length > start);
+    if (hits.length) wrapRastnevisNode(node, start, hits);
+    base = end;
+  }
+}
+
+function wrapRastnevisNode(node, nodeStart, hits) {
+  const text = node.nodeValue;
+  const frag = document.createDocumentFragment();
+  let cursor = 0;
+  for (const issue of hits) {
+    const s = Math.max(issue.index - nodeStart, 0);
+    const e = Math.min(issue.index + issue.length - nodeStart, text.length);
+    if (s > cursor) frag.appendChild(document.createTextNode(text.slice(cursor, s)));
+    if (e > s) {
+      const span = document.createElement('span');
+      span.className = 'pfa-u pfa-' + (issue.severity === 'hint' ? 'hint' : issue.severity === 'warning' ? 'warning' : 'error');
+      span.textContent = text.slice(s, e);
+      span.dataset.pfaWrong = issue.wrong;
+      span.dataset.pfaCorrect = issue.correct;
+      span.dataset.pfaReason = issue.reason;
+      frag.appendChild(span);
+      cursor = e;
+    }
+  }
+  if (cursor <= text.length - 1) frag.appendChild(document.createTextNode(text.slice(cursor)));
+  node.parentNode.replaceChild(frag, node);
+}
+
+function addRastnevisBadge(article, issues, soft) {
+  if (article.querySelector('.pfa-badge')) return;
+  const textEl = findTweetTextElement(article);
+  if (!textEl) return;
+
+  const spellingCount = issues.filter((i) => i.type === 'misspelling' || i.type === 'arabic' || i.type === 'heksare').length;
+  const writingCount = issues.filter((i) => i.type === 'zwnj' || i.type === 'tanwin').length;
+  const styleCount = issues.filter((i) => i.type === 'repeat').length;
+
+  const parts = [];
+  if (spellingCount) parts.push(toFaDigits(spellingCount) + ' غلط املایی');
+  if (writingCount) parts.push(toFaDigits(writingCount) + ' نکته‌ی نگارشی');
+  if (styleCount) parts.push(toFaDigits(styleCount) + ' تکرار حرف');
+  const label = parts.join(' · ') || (toFaDigits(issues.length) + ' اصلاحیه');
+
+  const badge = document.createElement('button');
+  badge.type = 'button';
+  badge.className = 'pfa-badge' + (soft ? ' pfa-badge-soft' : '');
+  badge.setAttribute('dir', 'rtl');
+  badge.innerHTML = ICON_WARN_SVG + '<span>' + label + '</span>';
+  badge.title = 'راست‌نویس — نمایش اصلاحات';
+  badge.addEventListener('click', (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+    toggleRastnevisPanel(article);
+  });
+  textEl.insertAdjacentElement('afterend', badge);
+}
+
+function toggleRastnevisPanel(article) {
+  const existing = article.querySelector('.pfa-panel');
+  if (existing) {
+    existing.remove();
+    return;
+  }
+  const textEl = findTweetTextElement(article);
+  const data = article._pfaIssues;
+  if (!textEl || !data || !globalThis.RastNevisEngine) return;
+
+  const panel = document.createElement('div');
+  panel.className = 'pfa-panel';
+  panel.innerHTML =
+    '<h4>' + ICON_WARN_SVG + '<span>ویرایش پیشنهادی راست‌نویس</span></h4>' +
+    data.issues.map((i) =>
+      '<div class="pfa-item"><span class="w">' + escHtml(i.wrong) + '</span>' +
+      ICON_ARROW_SVG +
+      '<span class="c">' + escHtml(i.correct) + '</span><span class="r">' + escHtml(i.reason) + '</span></div>'
+    ).join('') +
+    '<div class="pfa-actions"><button type="button" class="pfa-btn pfa-btn-copy">کپی متن اصلاح‌شده</button>' +
+    '<button type="button" class="pfa-btn pfa-btn-close">بستن</button></div>';
+
+  panel.addEventListener('click', (e) => e.stopPropagation());
+  panel.querySelector('.pfa-btn-close').addEventListener('click', () => panel.remove());
+  const copyBtn = panel.querySelector('.pfa-btn-copy');
+  copyBtn.addEventListener('click', async () => {
+    const fixed = globalThis.RastNevisEngine.applyCorrections(data.text, data.issues);
+    try {
+      await navigator.clipboard.writeText(fixed);
+      copyBtn.textContent = 'کپی شد';
+      setTimeout(() => { copyBtn.textContent = 'کپی متن اصلاح‌شده'; }, 1600);
+    } catch {
+      copyBtn.textContent = 'خطا در کپی';
+    }
+  });
+  textEl.insertAdjacentElement('afterend', panel);
+}
+
+let rastnevisTipEl = null;
+function hideRastnevisTip() {
+  if (rastnevisTipEl) {
+    rastnevisTipEl.remove();
+    rastnevisTipEl = null;
+  }
+}
+
+function showRastnevisTip(span) {
+  hideRastnevisTip();
+  rastnevisTipEl = document.createElement('div');
+  rastnevisTipEl.className = 'pfa-tip';
+  rastnevisTipEl.innerHTML =
+    '<span class="t-w">' + escHtml(span.dataset.pfaWrong) + '</span> ' +
+    '<span style="display:inline-block;vertical-align:-1px;width:12px;height:12px;">' + ICON_ARROW_SVG + '</span> ' +
+    '<b class="t-c">' + escHtml(span.dataset.pfaCorrect) + '</b>' +
+    '<span class="t-r">' + escHtml(span.dataset.pfaReason) + '</span>';
+  document.body.appendChild(rastnevisTipEl);
+  const r = span.getBoundingClientRect();
+  const tw = rastnevisTipEl.offsetWidth;
+  let left = r.left + window.scrollX + r.width / 2 - tw / 2;
+  left = Math.max(8, Math.min(left, window.innerWidth - tw - 8));
+  rastnevisTipEl.style.left = left + 'px';
+  rastnevisTipEl.style.top = r.bottom + window.scrollY + 8 + 'px';
+}
+
+let rastnevisPendingMarks = 0;
+let rastnevisStatTimer = null;
+function queueRastnevisStat() {
+  rastnevisPendingMarks++;
+  if (rastnevisStatTimer) return;
+  rastnevisStatTimer = setTimeout(() => {
+    rastnevisStatTimer = null;
+    const add = rastnevisPendingMarks;
+    rastnevisPendingMarks = 0;
+    try {
+      chrome.storage.local.get({ marked: 0 }, (s) => {
+        chrome.storage.local.set({ marked: (s.marked || 0) + add });
+      });
+    } catch {}
+  }, 600);
+}
+
+function processRastnevisTweet(article) {
+  if (!isShieldOn() || settings.rastnevisEnabled === false) return;
+  if (!globalThis.RastNevisEngine) return;
+  if (article.hasAttribute('data-pfa-done')) return;
+  if (article.hasAttribute('data-xe-hidden')) return;
+
+  article.setAttribute('data-pfa-done', '1');
+  const textEl = findTweetTextElement(article);
+  if (!textEl) return;
+  const text = textEl.textContent || '';
+  if (!globalThis.RastNevisEngine.isPersianText(text)) return;
+
+  const issues = globalThis.RastNevisEngine.checkText(text, {
+    heksare: settings.rastnevisHeksare !== false,
+    arabic: settings.rastnevisArabic !== false,
+    spelling: settings.rastnevisSpelling !== false,
+    zwnj: settings.rastnevisZwnj !== false,
+    hints: settings.rastnevisHints !== false,
+  });
+
+  if (!issues.length) return;
+  article._pfaIssues = { text, issues };
+
+  if (settings.rastnevisUnderline !== false) {
+    decorateRastnevisText(textEl, text, issues);
+  }
+  if (settings.rastnevisShowBadge !== false) {
+    addRastnevisBadge(article, issues, !issues.some((i) => i.severity === 'error'));
+  }
+  queueRastnevisStat();
+}
+
+document.addEventListener('click', (e) => {
+  const span = e.target?.closest?.('.pfa-u');
+  if (span) {
+    e.preventDefault();
+    e.stopPropagation();
+    showRastnevisTip(span);
+    return;
+  }
+  if (rastnevisTipEl && !e.target?.closest?.('.pfa-tip')) {
+    hideRastnevisTip();
+  }
+}, true);
+window.addEventListener('scroll', hideRastnevisTip, { passive: true, capture: true });
+
+// ============================================================================
 // Element Waiter Helper
 // ============================================================================
 
@@ -2754,6 +3014,8 @@ const RESCAN_KEYS = new Set([
   'shieldEnabled', 'filterEngineEnabled', 'filterMode', 'filterScopes', 'filters',
   'filterCaseSensitive', 'filterWholeWord', 'filterDefaultAvatars', 'filterEngagementBait',
   'blueCheckFilter', 'blueCheckAction', 'whitelist', 'boysWhitelist', 'hideBoysMode', 'adBlockerEnabled',
+  'rastnevisEnabled', 'rastnevisHeksare', 'rastnevisArabic', 'rastnevisSpelling',
+  'rastnevisZwnj', 'rastnevisHints', 'rastnevisShowBadge', 'rastnevisUnderline',
 ]);
 const QUIET_KEYS = new Set(['lastVolume', 'defaultPlaybackRate']);
 

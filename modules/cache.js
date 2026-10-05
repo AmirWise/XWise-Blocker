@@ -1,7 +1,7 @@
 'use strict';
 
 /**
- * XWise Blocker v3.2.1 - Two-tier cache
+ * XWise Blocker v3.5.0 - Two-tier cache
  * L1: in-memory LRU map per namespace.
  * L2: one chrome.storage.local record per namespace, written in debounced batches.
  */
