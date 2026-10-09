@@ -55,18 +55,28 @@ const DEFAULT_SETTINGS = {
   hideBoysMode: false,
   boysWhitelist: [],
 
-  // RastNevis Persian Editor (v3.5.0)
+  // RastNevis Persian Editor (v3.5.1)
   rastnevisEnabled: true,
   rastnevisHeksare: true,
   rastnevisArabic: true,
   rastnevisSpelling: true,
   rastnevisZwnj: true,
   rastnevisHints: true,
+  rastnevisPunctuation: true,
+  rastnevisDigits: true,
   rastnevisShowBadge: true,
   rastnevisUnderline: true,
+  rastnevisComposerBtn: true,
+  rastnevisIgnoredWords: [],
 
   // Ad Cleaner
   adBlockerEnabled: true,
+
+  // Productivity & Media Suite (New in v3.5.2)
+  cleanShareLinks: true,
+  imageDownloadEnabled: true,
+  threadReaderEnabled: true,
+  accountAgeBadge: true,
 
   // Blue Checkmark Filter (Default off)
   blueCheckFilter: 'off',
@@ -1171,9 +1181,15 @@ function detectAndFilterBlueCheck(tweetNode) {
   }
 
   if (settings.blueCheckFilter === 'replies-only') {
-    const isReply = location.pathname.includes('/status/') ||
-                    !!tweetNode.querySelector('a[href*="/status/"][dir="ltr"]') ||
+    const pathMatch = location.pathname.match(/\/status\/(\d+)/);
+    const tweetId = getTweetId(tweetNode);
+    // Do not hide the main focal tweet on its own status page
+    if (pathMatch && tweetId && pathMatch[1] === tweetId) {
+      return false;
+    }
+    const isReply = (pathMatch && (!tweetId || pathMatch[1] !== tweetId)) ||
                     !!tweetNode.closest('[data-testid="replies"]') ||
+                    !!tweetNode.querySelector('div[dir="auto"] a[href^="/"][role="link"]') ||
                     (tweetNode.previousElementSibling && tweetNode.previousElementSibling.matches('article'));
     if (!isReply) return false;
   }
@@ -2142,6 +2158,7 @@ async function processTweetFilter(tweet) {
     return;
   }
   scannedTweetNodes.add(tweet);
+  if (settings.accountAgeBadge) detectAccountAge(tweet, handle);
   if (isHandleWhitelisted(handle)) {
     processRastnevisTweet(tweet);
     return;
@@ -2521,11 +2538,13 @@ document.addEventListener('keydown', (e) => {
 });
 
 // ============================================================================
-// RastNevis Persian Smart Editor (v3.5.0)
+// RastNevis Persian Smart Editor (v3.5.1)
 // ============================================================================
 
 const ICON_WARN_SVG = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3Z"/><path d="M12 9v4"/><path d="M12 17h.01"/></svg>';
 const ICON_ARROW_SVG = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M19 12H5"/><path d="m12 19-7-7 7-7"/></svg>';
+const ICON_FEATHER_SVG = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20.24 12.24a6 6 0 0 0-8.49-8.49L5 10.5V19h8.5z"/><line x1="16" y1="8" x2="2" y2="22"/><line x1="17.5" y1="15" x2="9" y2="15"/></svg>';
+const ICON_CHECK_SVG = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>';
 
 function toFaDigits(n) {
   return Number(n).toLocaleString('fa-IR');
@@ -2733,6 +2752,9 @@ function processRastnevisTweet(article) {
     spelling: settings.rastnevisSpelling !== false,
     zwnj: settings.rastnevisZwnj !== false,
     hints: settings.rastnevisHints !== false,
+    punctuation: settings.rastnevisPunctuation !== false,
+    digits: settings.rastnevisDigits !== false,
+    ignoredWords: settings.rastnevisIgnoredWords || [],
   });
 
   if (!issues.length) return;
@@ -2747,6 +2769,580 @@ function processRastnevisTweet(article) {
   queueRastnevisStat();
 }
 
+let activeRastnevisPopover = null;
+
+function closeActiveRastnevisPopover() {
+  if (activeRastnevisPopover) {
+    const ed = activeRastnevisPopover._editor;
+    activeRastnevisPopover.remove();
+    activeRastnevisPopover = null;
+    if (ed && document.contains(ed)) {
+      try { ed.focus(); } catch (e) {}
+    }
+  }
+}
+
+function findAssociatedEditor(postBtn) {
+  if (!postBtn) return null;
+
+  let current = postBtn.parentElement;
+  while (current && current !== document.body) {
+    const found =
+      current.querySelector('[contenteditable="true"][role="textbox"]') ||
+      current.querySelector('[data-testid^="tweetTextarea_"][contenteditable="true"]') ||
+      current.querySelector('.public-DraftEditor-content[contenteditable="true"]') ||
+      current.querySelector('[contenteditable="true"]');
+
+    if (found) {
+      return found;
+    }
+    current = current.parentElement;
+  }
+
+  const modal =
+    postBtn.closest('[role="dialog"]') ||
+    postBtn.closest('[data-testid="primaryColumn"]') ||
+    document;
+
+  let fallback =
+    modal.querySelector('[contenteditable="true"][role="textbox"]') ||
+    modal.querySelector('[data-testid^="tweetTextarea_"][contenteditable="true"]') ||
+    modal.querySelector('.public-DraftEditor-content[contenteditable="true"]') ||
+    modal.querySelector('[contenteditable="true"]') ||
+    modal.querySelector('[data-testid^="tweetTextarea_"]');
+
+  if (fallback && fallback.getAttribute('contenteditable') !== 'true') {
+    const inner = fallback.querySelector('[contenteditable="true"]');
+    if (inner) fallback = inner;
+  }
+
+  return fallback;
+}
+
+function getEditorText(editor) {
+  if (!editor) return '';
+  return (editor.innerText || editor.textContent || '')
+    .replace(/​/g, '')
+    .replace(/\r?\n$/, '');
+}
+
+// جایگزینی ایمن و کامل متن در ادیتور توییتر (همگام با React State و Draft.js/Lexical)
+function replaceEditorText(editor, newText) {
+  if (!editor) return false;
+
+  let target = editor;
+  if (target.getAttribute('contenteditable') !== 'true') {
+    const inner = target.querySelector('[contenteditable="true"]');
+    if (inner) target = inner;
+  }
+
+  target.focus();
+
+  // گام ۱: انتخاب کامل تمام محتوای ادیتور
+  try {
+    const range = document.createRange();
+    range.selectNodeContents(target);
+    const sel = window.getSelection();
+    sel.removeAllRanges();
+    sel.addRange(range);
+  } catch (e) {}
+
+  try {
+    document.execCommand('selectAll', false, null);
+  } catch (e) {}
+
+  // گام ۲: اطلاع‌رسانی به Draft.js / React درباره تغییر انتخاب به کل متن
+  try {
+    document.dispatchEvent(new Event('selectionchange'));
+  } catch (e) {}
+
+  // گام ۳: جایگزینی مستقیم متن با دستور مرورگر (این دستور به صورت نیتیو دامنه انتخاب‌شده را پاک و متن جدید را می‌نشاند)
+  let success = false;
+  try {
+    success = document.execCommand('insertText', false, newText);
+  } catch (e) {}
+
+  // گام ۴: اگر دستور مرورگر موفق نبود، به عنوان پشتیبان از رویداد Paste استفاده شود
+  if (!success) {
+    try {
+      const dt = new DataTransfer();
+      dt.setData('text/plain', newText);
+      const pasteEv = new ClipboardEvent('paste', {
+        bubbles: true,
+        cancelable: true,
+        clipboardData: dt,
+      });
+      target.dispatchEvent(pasteEv);
+    } catch (e) {}
+  }
+
+  // گام ۵: اطلاع‌رسانی تغییر مکان‌نما به انتهای متن جدید جهت فعال ماندن آنی Backspace و کلیدهای ویرایشی
+  try {
+    document.dispatchEvent(new Event('selectionchange'));
+  } catch (e) {}
+
+  // گام ۶: کپی همزمان در کلیپ‌بورد برای اطمینان
+  try {
+    navigator.clipboard.writeText(newText).catch(() => {});
+  } catch (e) {}
+
+  // گام ۷: فوکوس مجدد روی ادیتور
+  try {
+    target.focus();
+  } catch (e) {}
+
+  return true;
+}
+
+function getRastnevisTwitterTheme() {
+  const t = detectTheme();
+  return `pfa-theme-${t}`;
+}
+
+function openComposerCheckMenu(btn, editor) {
+  closeActiveRastnevisPopover();
+
+  const text = getEditorText(editor);
+  if (!text) {
+    showComposerToast(btn, 'ابتدا متن توییت را بنویسید.');
+    return;
+  }
+
+  const issues = globalThis.RastNevisEngine.checkText(text, {
+    heksare: settings.rastnevisHeksare !== false,
+    arabic: settings.rastnevisArabic !== false,
+    spelling: settings.rastnevisSpelling !== false,
+    zwnj: settings.rastnevisZwnj !== false,
+    hints: settings.rastnevisHints !== false,
+    punctuation: settings.rastnevisPunctuation !== false,
+    digits: settings.rastnevisDigits !== false,
+    ignoredWords: settings.rastnevisIgnoredWords || [],
+  });
+
+  if (issues.length === 0) {
+    showComposerToast(btn, '✓ متن شما کاملاً درست است و ایرادی ندارد.', 2800);
+    return;
+  }
+
+  const popover = document.createElement('div');
+  const themeClass = getRastnevisTwitterTheme();
+  popover.className = `pfa-composer-popover ${themeClass}`;
+  popover._editor = editor;
+
+  renderComposerPopoverContent(popover, btn, editor, text);
+
+  document.body.appendChild(popover);
+  activeRastnevisPopover = popover;
+
+  positionComposerPopover(popover, btn);
+
+  const onDocClick = (e) => {
+    if (activeRastnevisPopover && !activeRastnevisPopover.contains(e.target) && !btn.contains(e.target)) {
+      closeActiveRastnevisPopover();
+      document.removeEventListener('click', onDocClick, true);
+    }
+  };
+  setTimeout(() => document.addEventListener('click', onDocClick, true), 10);
+}
+
+function positionComposerPopover(popover, btn) {
+  const r = btn.getBoundingClientRect();
+  const pw = popover.offsetWidth || 350;
+  const ph = popover.offsetHeight || 220;
+
+  let left = r.right + window.scrollX - pw;
+  if (left < 12) left = 12;
+  if (left + pw > window.innerWidth - 12) left = window.innerWidth - pw - 12;
+
+  let top = r.bottom + window.scrollY + 8;
+  if (r.bottom + ph > window.innerHeight - 10 && r.top - ph > 10) {
+    top = r.top + window.scrollY - ph - 8;
+  }
+
+  popover.style.left = left + 'px';
+  popover.style.top = top + 'px';
+}
+
+function positionComposerToast(toast, btn) {
+  const r = btn.getBoundingClientRect();
+  const tw = toast.offsetWidth || 220;
+  const th = toast.offsetHeight || 32;
+
+  let left = r.left + window.scrollX + (r.width / 2) - (tw / 2);
+  if (left < 12) left = 12;
+  if (left + tw > window.innerWidth - 12) left = window.innerWidth - tw - 12;
+
+  let top = r.bottom + window.scrollY + 8;
+  if (r.bottom + th > window.innerHeight - 10 && r.top - th > 10) {
+    top = r.top + window.scrollY - th - 6;
+  }
+
+  toast.style.left = left + 'px';
+  toast.style.top = top + 'px';
+}
+
+function showComposerAutoFixToast(btn, editor, originalText) {
+  closeActiveRastnevisPopover();
+
+  const toast = document.createElement('div');
+  const themeClass = getRastnevisTwitterTheme();
+  toast.className = `pfa-composer-toast ${themeClass}`;
+  toast._editor = editor;
+
+  toast.innerHTML = `
+    <span style="color:#00ba7c;display:inline-flex;align-items:center;gap:4px;">${ICON_CHECK_SVG} متن اصلاح شد</span>
+    <button class="pfa-toast-undo" id="pfaToastUndoBtn">بازگردانی (Undo)</button>
+    <button class="pfa-toast-close" title="بستن">✕</button>
+  `;
+
+  document.body.appendChild(toast);
+  activeRastnevisPopover = toast;
+  positionComposerToast(toast, btn);
+
+  const undoBtn = toast.querySelector('#pfaToastUndoBtn');
+  undoBtn.addEventListener('click', (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+    replaceEditorText(editor, originalText);
+    delete editor._pfaOriginalText;
+    toast.innerHTML = `<span style="color:#71767b;font-size:11.5px;">متن بازگردانی شد</span>`;
+    positionComposerToast(toast, btn);
+    setTimeout(() => {
+      if (activeRastnevisPopover === toast) closeActiveRastnevisPopover();
+    }, 1500);
+  });
+
+  toast.querySelector('.pfa-toast-close').addEventListener('click', (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+    closeActiveRastnevisPopover();
+  });
+
+  setTimeout(() => {
+    if (activeRastnevisPopover === toast) closeActiveRastnevisPopover();
+  }, 6000);
+}
+
+function showComposerToast(btn, msg, duration = 2500) {
+  closeActiveRastnevisPopover();
+  const toast = document.createElement('div');
+  const themeClass = getRastnevisTwitterTheme();
+  toast.className = `pfa-composer-toast ${themeClass}`;
+
+  toast.innerHTML = `
+    <span style="display:inline-flex;align-items:center;gap:5px;">${msg}</span>
+    <button class="pfa-toast-close" title="بستن">✕</button>
+  `;
+
+  document.body.appendChild(toast);
+  activeRastnevisPopover = toast;
+  positionComposerToast(toast, btn);
+
+  toast.querySelector('.pfa-toast-close').addEventListener('click', (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+    closeActiveRastnevisPopover();
+  });
+
+  setTimeout(() => {
+    if (activeRastnevisPopover === toast) closeActiveRastnevisPopover();
+  }, duration);
+}
+
+function renderComposerPopoverContent(popover, btn, editor, currentText) {
+  const issues = globalThis.RastNevisEngine.checkText(currentText, {
+    heksare: settings.rastnevisHeksare !== false,
+    arabic: settings.rastnevisArabic !== false,
+    spelling: settings.rastnevisSpelling !== false,
+    zwnj: settings.rastnevisZwnj !== false,
+    hints: settings.rastnevisHints !== false,
+    punctuation: settings.rastnevisPunctuation !== false,
+    digits: settings.rastnevisDigits !== false,
+    ignoredWords: settings.rastnevisIgnoredWords || [],
+  });
+
+  if (issues.length === 0) {
+    const hasUndo = Boolean(editor && editor._pfaOriginalText);
+    popover.innerHTML = `
+      <div class="pfa-pop-header">
+        <span class="pfa-pop-title">${ICON_FEATHER_SVG}بررسی راست‌نویس</span>
+        <button class="pfa-pop-close" title="بستن">✕</button>
+      </div>
+      <div class="pfa-pop-clean">
+        ${ICON_CHECK_SVG}
+        <div>متن شما از نظر املایی و نگارشی کاملاً درست است و هیچ ایرادی ندارد. آماده‌ی انتشار!</div>
+      </div>
+      ${hasUndo ? `
+        <div class="pfa-pop-actions" style="margin-top:12px;">
+          <button class="pfa-btn-undo" id="pfaBtnUndo">بازگردانی متن قبلی (Undo)</button>
+        </div>
+      ` : ''}
+    `;
+    popover.querySelector('.pfa-pop-close').addEventListener('click', closeActiveRastnevisPopover);
+    const undoBtn = popover.querySelector('#pfaBtnUndo');
+    if (undoBtn) {
+      undoBtn.addEventListener('click', (e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        const activeEditor = findAssociatedEditor(btn) || editor;
+        if (activeEditor && activeEditor._pfaOriginalText) {
+          const restored = activeEditor._pfaOriginalText;
+          delete activeEditor._pfaOriginalText;
+          replaceEditorText(activeEditor, restored);
+          renderComposerPopoverContent(popover, btn, activeEditor, restored);
+          positionComposerPopover(popover, btn);
+        }
+      });
+    }
+    return;
+  }
+
+  const hasUndo = Boolean(editor && editor._pfaOriginalText);
+
+  popover.innerHTML = `
+    <div class="pfa-pop-header">
+      <span class="pfa-pop-title">${ICON_FEATHER_SVG}بررسی درست‌نویسی</span>
+      <button class="pfa-pop-close" title="بستن">✕</button>
+    </div>
+
+    <div class="pfa-pop-summary">
+      <span class="pfa-badge-pill">${toFaDigits(issues.length)} مورد</span>
+      <span>خطاهای شناسایی‌شده در متن:</span>
+    </div>
+
+    <div class="pfa-pop-list">
+      ${issues.map((i, idx) => `
+        <div class="pfa-pop-item">
+          <div class="pfa-item-main">
+            <div class="pfa-item-words">
+              <span class="pfa-w">${escHtml(i.wrong)}</span>
+              <span class="pfa-arrow">←</span>
+              <span class="pfa-c">${escHtml(i.correct)}</span>
+            </div>
+            <div class="pfa-item-reason">${escHtml(i.reason)}</div>
+          </div>
+          <div class="pfa-item-btns">
+            <button class="pfa-btn-item-copy" data-copy="${escHtml(i.correct)}" title="کپی این واژه">کپی</button>
+            <button class="pfa-btn-ignore" data-idx="${idx}" title="افزودن به واژه‌نامه شخصی">نادیده</button>
+          </div>
+        </div>
+      `).join('')}
+    </div>
+
+    <div class="pfa-pop-actions">
+      <button class="pfa-btn-autofix" id="pfaBtnAutoFix">اصلاح خودکار در ادیتور</button>
+      <button class="pfa-btn-copy-comp" id="pfaBtnCopy">کپی متن اصلاح‌شده</button>
+      ${hasUndo ? '<button class="pfa-btn-undo" id="pfaBtnUndo">بازگردانی (Undo)</button>' : ''}
+    </div>
+    <div id="pfaToastMsg" class="pfa-toast-msg" style="display:none;"></div>
+  `;
+
+  popover.querySelector('.pfa-pop-close').addEventListener('click', closeActiveRastnevisPopover);
+
+  popover.querySelectorAll('.pfa-btn-item-copy').forEach((copyWordBtn) => {
+    copyWordBtn.addEventListener('click', async (e) => {
+      e.preventDefault();
+      e.stopPropagation();
+      const wordToCopy = copyWordBtn.dataset.copy;
+      if (!wordToCopy) return;
+      try {
+        await navigator.clipboard.writeText(wordToCopy);
+        const orig = copyWordBtn.textContent;
+        copyWordBtn.textContent = 'کپی شد';
+        copyWordBtn.style.color = '#00ba7c';
+        copyWordBtn.style.borderColor = '#00ba7c';
+        setTimeout(() => {
+          copyWordBtn.textContent = orig;
+          copyWordBtn.style.color = '';
+          copyWordBtn.style.borderColor = '';
+        }, 1400);
+      } catch {
+        copyWordBtn.textContent = 'خطا';
+      }
+    });
+  });
+
+  popover.querySelectorAll('.pfa-btn-ignore').forEach((ignBtn) => {
+    ignBtn.addEventListener('click', (e) => {
+      e.stopPropagation();
+      const idx = Number(ignBtn.dataset.idx);
+      const item = issues[idx];
+      if (!item) return;
+      const word = item.wrong.trim();
+      const list = Array.isArray(settings.rastnevisIgnoredWords) ? [...settings.rastnevisIgnoredWords] : [];
+      if (!list.includes(word)) {
+        list.push(word);
+        settings.rastnevisIgnoredWords = list;
+        try {
+          chrome.storage.sync.set({ rastnevisIgnoredWords: list });
+        } catch {}
+        renderComposerPopoverContent(popover, btn, editor, getEditorText(editor));
+        positionComposerPopover(popover, btn);
+      }
+    });
+  });
+
+  const autoFixBtn = popover.querySelector('#pfaBtnAutoFix');
+  if (autoFixBtn) {
+    autoFixBtn.addEventListener('click', (e) => {
+      e.preventDefault();
+      e.stopPropagation();
+
+      const activeEditor = findAssociatedEditor(btn) || editor;
+      if (!activeEditor) {
+        showComposerToast(btn, 'ادیتور توییت یافت نشد.');
+        return;
+      }
+
+      const latestText = getEditorText(activeEditor);
+      const latestIssues = globalThis.RastNevisEngine.checkText(latestText, {
+        heksare: settings.rastnevisHeksare !== false,
+        arabic: settings.rastnevisArabic !== false,
+        spelling: settings.rastnevisSpelling !== false,
+        zwnj: settings.rastnevisZwnj !== false,
+        hints: settings.rastnevisHints !== false,
+        punctuation: settings.rastnevisPunctuation !== false,
+        digits: settings.rastnevisDigits !== false,
+        ignoredWords: settings.rastnevisIgnoredWords || [],
+      });
+      if (!latestIssues.length) {
+        closeActiveRastnevisPopover();
+        return;
+      }
+
+      activeEditor._pfaOriginalText = latestText;
+      const fixed = globalThis.RastNevisEngine.applyCorrections(latestText, latestIssues);
+
+      replaceEditorText(activeEditor, fixed);
+      closeActiveRastnevisPopover();
+      showComposerAutoFixToast(btn, activeEditor, latestText);
+    });
+  }
+
+  const copyBtn = popover.querySelector('#pfaBtnCopy');
+  if (copyBtn) {
+    copyBtn.addEventListener('click', async (e) => {
+      e.preventDefault();
+      e.stopPropagation();
+      const activeEditor = findAssociatedEditor(btn) || editor;
+      const latestText = getEditorText(activeEditor);
+      const fixed = globalThis.RastNevisEngine.applyCorrections(latestText, issues);
+      try {
+        await navigator.clipboard.writeText(fixed);
+        const orig = copyBtn.textContent;
+        copyBtn.textContent = 'کپی شد!';
+        setTimeout(() => { copyBtn.textContent = orig; }, 1500);
+      } catch {
+        copyBtn.textContent = 'خطا در کپی';
+      }
+    });
+  }
+
+  const undoBtn = popover.querySelector('#pfaBtnUndo');
+  if (undoBtn) {
+    undoBtn.addEventListener('click', (e) => {
+      e.preventDefault();
+      e.stopPropagation();
+      const activeEditor = findAssociatedEditor(btn) || editor;
+      if (activeEditor && activeEditor._pfaOriginalText) {
+        const restored = activeEditor._pfaOriginalText;
+        delete activeEditor._pfaOriginalText;
+        replaceEditorText(activeEditor, restored);
+        renderComposerPopoverContent(popover, btn, activeEditor, restored);
+        positionComposerPopover(popover, btn);
+      }
+    });
+  }
+}
+
+function findComposerRowPlacement(postBtn) {
+  let el = postBtn;
+  while (el && el !== document.body) {
+    const parent = el.parentElement;
+    if (!parent) break;
+
+    const style = window.getComputedStyle(parent);
+    const isFlexRow =
+      style.display.includes('flex') &&
+      (style.flexDirection === 'row' || style.flexDirection === 'row-reverse');
+
+    if (isFlexRow) {
+      return { container: parent, target: el };
+    }
+
+    if (
+      parent.getAttribute('role') === 'toolbar' ||
+      parent.getAttribute('data-testid') === 'toolBar'
+    ) {
+      return { container: parent, target: el };
+    }
+
+    el = parent;
+    if (
+      el.matches &&
+      (el.matches('[data-testid="tweetBox"]') ||
+        el.matches('form') ||
+        el.matches('[role="dialog"]'))
+    ) {
+      break;
+    }
+  }
+
+  return { container: postBtn.parentElement, target: postBtn };
+}
+
+function injectRastnevisComposerButton(postBtn) {
+  if (!isShieldOn() || settings.rastnevisEnabled === false || settings.rastnevisComposerBtn === false) return;
+
+  const root =
+    postBtn.closest('[data-testid="tweetBox"]') ||
+    postBtn.closest('[role="dialog"]') ||
+    postBtn.closest('form') ||
+    postBtn.closest('[data-testid="toolBar"]') ||
+    postBtn.parentElement;
+
+  if (root && root.querySelector('.pfa-post-check-btn')) return;
+
+  const placement = findComposerRowPlacement(postBtn);
+  if (!placement || !placement.container) return;
+  if (placement.container.querySelector('.pfa-post-check-btn')) return;
+
+  const btn = document.createElement('button');
+  btn.type = 'button';
+  btn.className = 'pfa-post-check-btn';
+  btn.title = 'راست‌نویس — بررسی درست‌نویسی پیش از انتشار';
+  btn.innerHTML = `${ICON_FEATHER_SVG}<span>راست‌نویس</span>`;
+
+  btn.addEventListener('mousedown', (e) => {
+    e.preventDefault();
+  });
+
+  btn.addEventListener('click', (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+    const editor = findAssociatedEditor(postBtn);
+    openComposerCheckMenu(btn, editor);
+  });
+
+  placement.container.insertBefore(btn, placement.target);
+}
+
+function removeRastnevisComposerButtons() {
+  document.querySelectorAll('.pfa-post-check-btn').forEach((b) => b.remove());
+  closeActiveRastnevisPopover();
+}
+
+function scanRastnevisComposers() {
+  if (!isShieldOn() || settings.rastnevisEnabled === false || settings.rastnevisComposerBtn === false) {
+    removeRastnevisComposerButtons();
+    return;
+  }
+  const postButtons = document.querySelectorAll(
+    '[data-testid="tweetButtonInline"], [data-testid="tweetButton"]'
+  );
+  postButtons.forEach(injectRastnevisComposerButton);
+}
+
 document.addEventListener('click', (e) => {
   const span = e.target?.closest?.('.pfa-u');
   if (span) {
@@ -2759,7 +3355,747 @@ document.addEventListener('click', (e) => {
     hideRastnevisTip();
   }
 }, true);
+
+document.addEventListener('keydown', (e) => {
+  if (e.key === 'Escape') {
+    closeActiveRastnevisPopover();
+    hideRastnevisTip();
+  }
+});
 window.addEventListener('scroll', hideRastnevisTip, { passive: true, capture: true });
+
+// ============================================================================
+// Productivity & Media Suite (v3.5.2)
+// 1. Clean Share Links (Stripping Tracking Parameters)
+// 2. Original Quality Image Downloader
+// 3. Thread Reader Mode
+// 4. New Account Age Badge
+// 5. Quick User Search on Profile Header
+// ============================================================================
+
+const CLEAN_LINK_SVG = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M18.36 5.64c-1.95-1.96-5.11-1.96-7.07 0L9.88 7.05 8.46 5.64l1.41-1.41c2.73-2.74 7.16-2.74 9.9 0s2.73 7.16 0 9.9l-1.41 1.41-1.42-1.41 1.42-1.42c1.95-1.95 1.95-5.12 0-7.07zm-2.12 3.53l-1.41-1.41-7.07 7.07 1.41 1.41 7.07-7.07zm-4.95 4.95l1.41 1.41-1.41 1.42c-1.96 1.95-5.12 1.95-7.07 0-1.96-1.95-1.96-5.12 0-7.07l1.41-1.42-1.41-1.41-1.42 1.41c-2.73 2.74-2.73 7.17 0 9.9s7.16 2.73 9.9 0l1.42-1.41-1.42-1.42-1.41 1.42z"/></svg>';
+
+function createCleanLinkButton(tweet) {
+  if (settings.cleanShareLinks === false) return;
+  if (tweet.querySelector('.xe-clean-link-btn-wrapper')) return;
+
+  const actionBar = findActionBar(tweet);
+  if (!actionBar) return;
+
+  const btn = document.createElement('div');
+  btn.className = 'xe-clean-link-btn-wrapper';
+  btn.setAttribute('role', 'button');
+  btn.setAttribute('tabindex', '0');
+  const label = settings.language === 'fa' ? 'کپی لینک تمیز (بدون رهگیری)' : 'Copy clean link';
+  btn.setAttribute('aria-label', label);
+  btn.title = label;
+
+  btn.innerHTML = `
+    <div class="xe-clean-link-btn-inner">
+      <div class="xe-clean-link-btn-icon">
+        ${CLEAN_LINK_SVG}
+      </div>
+    </div>
+  `;
+
+  const copyCleanLink = async (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+    const handle = getHandleFromTweet(tweet);
+    const tweetId = getTweetId(tweet);
+    if (!tweetId) return;
+    const cleanUrl = handle ? `https://x.com/${handle}/status/${tweetId}` : `https://x.com/i/status/${tweetId}`;
+    try {
+      await navigator.clipboard.writeText(cleanUrl);
+      showToast(settings.language === 'fa' ? '✓ لینک تمیز کپی شد' : '✓ Clean link copied', { duration: 1800 });
+    } catch {
+      showToast(settings.language === 'fa' ? 'خطا در کپی لینک' : 'Failed to copy link', { isWarning: true });
+    }
+  };
+
+  btn.addEventListener('click', copyCleanLink);
+  btn.addEventListener('keydown', (e) => {
+    if (e.key === 'Enter' || e.key === ' ') copyCleanLink(e);
+  });
+
+  actionBar.appendChild(btn);
+}
+
+function addCleanLinkButtons(root = document) {
+  if (settings.cleanShareLinks === false) return;
+  const articles = root.matches?.('article') ? [root] : root.querySelectorAll('article');
+  for (let i = 0; i < articles.length; i++) {
+    createCleanLinkButton(articles[i]);
+  }
+}
+
+document.addEventListener('copy', (e) => {
+  if (settings.cleanShareLinks === false) return;
+  const sel = window.getSelection()?.toString() || '';
+  if (sel && /https?:\/\/(?:x|twitter)\.com\/[A-Za-z0-9_]+\/status\/\d+\?[^\s]+/i.test(sel)) {
+    const cleaned = sel.replace(/(https?:\/\/(?:x|twitter)\.com\/[A-Za-z0-9_]+\/status\/\d+)\?[^\s]+/gi, '$1');
+    if (cleaned !== sel) {
+      e.clipboardData?.setData('text/plain', cleaned);
+      e.preventDefault();
+      showToast(settings.language === 'fa' ? '✓ لینک تمیز بدون کدهای رهگیری کپی شد' : '✓ Clean link copied (tracking stripped)', { duration: 1600 });
+    }
+  }
+});
+
+const IMG_DOWNLOAD_SVG = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 2.25a.75.75 0 01.75.75v11.69l3.22-3.22a.75.75 0 111.06 1.06l-4.5 4.5a.75.75 0 01-1.06 0l-4.5-4.5a.75.75 0 111.06-1.06l3.22 3.22V3a.75.75 0 01.75-.75zm-9 13.5a.75.75 0 01.75.75v4.5c0 .414.336.75.75.75h15a.75.75 0 010 1.5H4.5A2.25 2.25 0 012.25 21v-4.5a.75.75 0 01.75-.75z"/></svg>';
+
+function injectImageDownloadButtons(root = document) {
+  if (settings.imageDownloadEnabled === false) return;
+
+  const photoContainers = root.querySelectorAll?.('[data-testid="tweetPhoto"]') || [];
+  for (let i = 0; i < photoContainers.length; i++) {
+    const container = photoContainers[i];
+    if (container.querySelector('.xe-img-download-btn')) continue;
+
+    const img = container.querySelector('img[src*="twimg.com/media/"]');
+    if (!img) continue;
+
+    const tweet = container.closest('article');
+    const handle = tweet ? getHandleFromTweet(tweet) : '';
+    const tweetId = tweet ? getTweetId(tweet) : '';
+
+    const btn = document.createElement('button');
+    btn.type = 'button';
+    btn.className = 'xe-img-download-btn';
+    btn.title = settings.language === 'fa' ? 'دانلود با کیفیت اصلی (Orig)' : 'Download original resolution';
+    btn.innerHTML = IMG_DOWNLOAD_SVG + '<span>Orig</span>';
+
+    btn.addEventListener('click', (e) => {
+      e.preventDefault();
+      e.stopPropagation();
+
+      let src = img.currentSrc || img.src || '';
+      try {
+        const u = new URL(src);
+        u.searchParams.set('name', 'orig');
+        src = u.href;
+      } catch {}
+
+      chrome.runtime.sendMessage(
+        { type: 'XWISE_DOWNLOAD_IMAGE', url: src, handle, tweetId },
+        (resp) => {
+          void chrome.runtime.lastError;
+          if (resp?.success) {
+            showToast(settings.language === 'fa' ? '✓ دانلود تصویر با کیفیت اصلی آغاز شد' : '✓ Original image download started');
+          } else {
+            showToast(settings.language === 'fa' ? 'دانلود تصویر ناموفق بود' : 'Failed to download image', { isWarning: true });
+          }
+        }
+      );
+    });
+
+    if (getComputedStyle(container).position === 'static') {
+      container.style.position = 'relative';
+    }
+    container.appendChild(btn);
+  }
+}
+
+const THREAD_ICON_SVG = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4.5 3.75A2.25 2.25 0 002.25 6v12a2.25 2.25 0 002.25 2.25h15A2.25 2.25 0 0021.75 18V6A2.25 2.25 0 0019.5 3.75h-15zm0 1.5h15c.414 0 .75.336.75.75v12a.75.75 0 01-.75.75h-15a.75.75 0 01-.75-.75V6c0-.414.336-.75.75-.75zm2.25 3.75a.75.75 0 000 1.5h10.5a.75.75 0 000-1.5H6.75zm0 3.75a.75.75 0 000 1.5h10.5a.75.75 0 000-1.5H6.75zm0 3.75a.75.75 0 000 1.5h7.5a.75.75 0 000-1.5H6.75z"/></svg>';
+
+function isReplyToAnotherUser(article, authorHandle) {
+  if (!article || !authorHandle) return false;
+  const normAuthor = String(authorHandle).toLowerCase().replace(/^@/, '');
+
+  const tweetTextEl = findTweetTextElement(article);
+  const userNameEl = article.querySelector('[data-testid="User-Name"]');
+  if (!userNameEl) return false;
+
+  // 1. Check all links in article above tweetText (excluding User-Name, quote tweets, cards)
+  const candidateLinks = [];
+  const links = article.querySelectorAll('a[role="link"][href^="/"]');
+
+  for (const a of links) {
+    if (userNameEl.contains(a)) continue;
+    if (tweetTextEl && tweetTextEl.contains(a)) continue;
+    if (a.closest('[data-testid="quoteTweet"], [data-testid="card.wrapper"], [role="group"]')) continue;
+
+    const href = (a.getAttribute('href') || '').toLowerCase();
+    if (href.includes('/status/')) continue;
+
+    const h = href.replace(/^\//, '').split('/')[0].replace(/^@/, '');
+    if (h && !['home', 'explore', 'notifications', 'messages', 'i', 'search', 'settings'].includes(h)) {
+      candidateLinks.push(h);
+    }
+  }
+
+  // If there are reply links, and ANY of them is NOT the author, it is replying to someone else!
+  if (candidateLinks.length > 0) {
+    if (candidateLinks.some((h) => h !== normAuthor)) {
+      return true; // Exclude! Replying to someone else
+    }
+  }
+
+  // 2. Check text content for "Replying to" or "در پاسخ به"
+  const allTextBlocks = article.querySelectorAll('div[dir="auto"], div[dir="ltr"]');
+  for (const block of allTextBlocks) {
+    if (userNameEl.contains(block)) continue;
+    if (tweetTextEl && tweetTextEl.contains(block)) continue;
+    if (block.closest('[data-testid="quoteTweet"], [data-testid="card.wrapper"], [role="group"]')) continue;
+
+    const txt = (block.textContent || '').trim();
+    if (
+      txt.includes('Replying to') ||
+      txt.includes('در پاسخ به') ||
+      txt.includes('En respuesta a') ||
+      txt.includes('En réponse à') ||
+      txt.includes('Antwort an')
+    ) {
+      const mentions = (txt.match(/@([A-Za-z0-9_]{1,15})/g) || []).map((m) => m.slice(1).toLowerCase());
+      if (mentions.length > 0 && mentions.some((h) => h !== normAuthor)) {
+        return true; // Exclude! Mentioning someone else in reply header
+      }
+    }
+  }
+
+  // 3. Preceding article check in same conversation branch:
+  // If the immediate previous article in the cell stream is from another user, this is a reply to that person
+  const cell = article.closest('[data-testid="cellInnerDiv"]');
+  if (cell) {
+    let prevCell = cell.previousElementSibling;
+    while (prevCell && !prevCell.querySelector('article')) {
+      prevCell = prevCell.previousElementSibling;
+    }
+    const prevArt = prevCell?.querySelector('article');
+    if (prevArt) {
+      const prevHandle = getHandleFromTweet(prevArt).toLowerCase().replace(/^@/, '');
+      if (prevHandle && prevHandle !== normAuthor) {
+        return true; // Preceded by another user's comment!
+      }
+    }
+  }
+
+  return false;
+}
+
+function isTweetPartOfThread(tweet, handle) {
+  if (!tweet || !handle) return false;
+  const normHandle = String(handle).toLowerCase().replace(/^@/, '');
+
+  // If the tweet itself is a reply to another user, it is NEVER a thread
+  if (isReplyToAnotherUser(tweet, normHandle)) {
+    return false;
+  }
+
+  // 1. In timeline or profile: check for Twitter's native "Show this thread" link
+  const links = tweet.querySelectorAll('a[href*="/status/"]');
+  for (const l of links) {
+    const txt = (l.textContent || '').toLowerCase();
+    if (
+      txt.includes('show this thread') ||
+      txt.includes('نمایش این رشته‌توییت') ||
+      txt.includes('نمایش این رشته‌پیام') ||
+      txt.includes('نمایش رشته‌توییت') ||
+      txt.includes('show thread')
+    ) {
+      return true;
+    }
+  }
+
+  // 2. On a /status/ page: Only if there are at least 2 connected self-thread tweets by the author
+  if (location.pathname.includes('/status/')) {
+    const thread = collectThreadTweetsFromPage(normHandle);
+    if (thread.length >= 2) {
+      const tweetId = getTweetId(tweet);
+      return !tweetId || thread.some((t) => t.id === tweetId);
+    }
+  }
+
+  return false;
+}
+
+function extractImagesFromArticle(art) {
+  const imgs = [];
+  const photoEls = art.querySelectorAll('[data-testid="tweetPhoto"] img, [data-testid="tweetPhoto"]');
+  for (const el of photoEls) {
+    const img = el.tagName === 'IMG' ? el : el.querySelector('img');
+    const src = img?.currentSrc || img?.src;
+    if (src && src.includes('twimg.com/media/')) {
+      try {
+        const u = new URL(src);
+        u.searchParams.set('name', 'large');
+        imgs.push(u.href);
+      } catch {
+        imgs.push(src);
+      }
+    }
+  }
+  return [...new Set(imgs)];
+}
+
+function collectThreadTweetsFromPage(targetHandle) {
+  const normAuthor = String(targetHandle || '').toLowerCase().replace(/^@/, '');
+  const allArticles = Array.from(document.querySelectorAll('article'));
+  if (allArticles.length === 0) return [];
+
+  const statusMatch = location.pathname.match(/\/status\/(\d+)/);
+  const focalId = statusMatch ? statusMatch[1] : '';
+
+  let startIndex = -1;
+  if (focalId) {
+    const idx = allArticles.findIndex((art) => getTweetId(art) === focalId);
+    if (idx !== -1) {
+      const focalHandle = getHandleFromTweet(allArticles[idx]).toLowerCase().replace(/^@/, '');
+      if (focalHandle === normAuthor) {
+        startIndex = idx;
+      }
+    }
+  }
+
+  const threadArticles = [];
+
+  if (startIndex !== -1) {
+    // 1. Trace upwards from focal tweet (only contiguous author tweets that aren't replies to others)
+    const ancestors = [];
+    for (let i = startIndex - 1; i >= 0; i--) {
+      const art = allArticles[i];
+      const h = getHandleFromTweet(art).toLowerCase().replace(/^@/, '');
+      if (h === normAuthor && !isReplyToAnotherUser(art, normAuthor)) {
+        ancestors.unshift(art);
+      } else {
+        break; // Stop at any non-author tweet or reply
+      }
+    }
+    threadArticles.push(...ancestors);
+
+    // 2. Add focal tweet
+    const focalArt = allArticles[startIndex];
+    if (focalArt && !isReplyToAnotherUser(focalArt, normAuthor)) {
+      threadArticles.push(focalArt);
+    }
+
+    // 3. Trace downwards from focal tweet: only CONTIGUOUS author self-thread tweets!
+    // STOP the moment we hit a comment from another user or an author reply to another user!
+    for (let i = startIndex + 1; i < allArticles.length; i++) {
+      const art = allArticles[i];
+      const h = getHandleFromTweet(art).toLowerCase().replace(/^@/, '');
+
+      // CRITICAL: Stop as soon as another user's comment appears
+      if (h !== normAuthor) {
+        break;
+      }
+
+      // Stop as soon as an author reply to a commenter appears
+      if (isReplyToAnotherUser(art, normAuthor)) {
+        break;
+      }
+
+      threadArticles.push(art);
+    }
+  } else {
+    // In timeline or profile view: only find the specific tweet that has "Show this thread"
+    const focalArt = allArticles.find((art) => {
+      const h = getHandleFromTweet(art).toLowerCase().replace(/^@/, '');
+      if (h !== normAuthor) return false;
+      const links = art.querySelectorAll('a[href*="/status/"]');
+      return Array.from(links).some((l) => {
+        const txt = (l.textContent || '').trim().toLowerCase();
+        return (
+          txt.includes('show this thread') ||
+          txt.includes('نمایش این رشته‌توییت') ||
+          txt.includes('نمایش این رشته‌پیام') ||
+          txt.includes('نمایش رشته‌توییت') ||
+          txt.includes('show thread')
+        );
+      });
+    });
+
+    if (focalArt) {
+      threadArticles.push(focalArt);
+    }
+  }
+
+  // Deduplicate by tweet ID
+  const foundMap = new Map();
+  for (const art of threadArticles) {
+    const textEl = findTweetTextElement(art);
+    const text = textEl ? textEl.innerText.trim() : '';
+    const id = getTweetId(art) || ('tw_' + Math.random().toString(36).substring(2, 8));
+    const images = extractImagesFromArticle(art);
+    const date = art.querySelector('time')?.textContent || '';
+
+    if (text || images.length > 0) {
+      if (!foundMap.has(id)) {
+        foundMap.set(id, {
+          id,
+          text,
+          images,
+          date,
+          url: id.startsWith('tw_') ? '' : `https://x.com/${targetHandle}/status/${id}`,
+        });
+      }
+    }
+  }
+
+  return Array.from(foundMap.values());
+}
+
+let threadReaderFontSize = 15;
+let threadReaderViewMode = 'cards';
+
+function createThreadReaderButton(tweet) {
+  if (settings.threadReaderEnabled === false) {
+    tweet.querySelector('.xe-thread-reader-btn')?.remove();
+    return;
+  }
+
+  const handle = getHandleFromTweet(tweet);
+  if (!handle) {
+    tweet.querySelector('.xe-thread-reader-btn')?.remove();
+    return;
+  }
+
+  const isThread = isTweetPartOfThread(tweet, handle);
+  if (!isThread) {
+    tweet.querySelector('.xe-thread-reader-btn')?.remove();
+    return;
+  }
+
+  if (tweet.querySelector('.xe-thread-reader-btn')) return;
+
+  const header = tweet.querySelector('[data-testid="User-Name"]');
+  if (!header) return;
+
+  const btn = document.createElement('button');
+  btn.type = 'button';
+  btn.className = 'xe-thread-reader-btn';
+  btn.title = settings.language === 'fa' ? 'مطالعه پیوسته رشته‌توییت (Thread Reader)' : 'Read Thread Mode';
+  btn.innerHTML = THREAD_ICON_SVG + `<span>${settings.language === 'fa' ? 'رشته‌توییت' : 'Thread'}</span>`;
+
+  btn.addEventListener('click', (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+    openThreadReaderModal(tweet, handle);
+  });
+
+  header.appendChild(btn);
+}
+
+function openThreadReaderModal(initialTweet, targetHandle) {
+  const existing = document.getElementById('xeThreadModal');
+  if (existing) existing.remove();
+
+  const isFa = settings.language === 'fa';
+  let threadTweets = collectThreadTweetsFromPage(targetHandle);
+
+  if (threadTweets.length < 2) {
+    const tweetId = getTweetId(initialTweet);
+    if (!location.pathname.includes('/status/') && tweetId) {
+      window.location.href = `https://x.com/${targetHandle}/status/${tweetId}?xwise_open_thread=1`;
+      return;
+    }
+    showToast(isFa ? 'این توییت رشته‌توییت نیست (توییت ادامه‌داری ندارد).' : 'This tweet is not a thread.', { isWarning: true });
+    return;
+  }
+
+  const avatarSrc = initialTweet.querySelector('[data-testid="Tweet-User-Avatar"] img')?.src || '';
+  const authorName = initialTweet.querySelector('[data-testid="User-Name"] span')?.textContent || targetHandle;
+
+  const modal = document.createElement('div');
+  modal.id = 'xeThreadModal';
+  modal.className = `xe-thread-modal ${getRastnevisTwitterTheme()}`;
+  modal.setAttribute('dir', isFa ? 'rtl' : 'ltr');
+
+  modal.innerHTML = `
+    <div class="xe-thread-backdrop"></div>
+    <div class="xe-thread-dialog">
+      <!-- Header -->
+      <div class="xe-thread-header">
+        <div class="xe-thread-author">
+          ${avatarSrc ? `<img src="${avatarSrc}" class="xe-thread-avatar" alt="Avatar"/>` : ''}
+          <div class="xe-thread-author-meta">
+            <div class="xe-thread-author-name">${escHtml(authorName)}</div>
+            <div class="xe-thread-author-handle">@${escHtml(targetHandle)}</div>
+          </div>
+        </div>
+
+        <div class="xe-thread-controls">
+          <div class="xe-thread-view-pills">
+            <button type="button" class="xe-thread-view-btn ${threadReaderViewMode === 'cards' ? 'active' : ''}" id="xeBtnViewCards" title="${isFa ? 'نمایش کارت‌ها' : 'Cards view'}">
+              ${isFa ? 'کارت‌ها' : 'Cards'}
+            </button>
+            <button type="button" class="xe-thread-view-btn ${threadReaderViewMode === 'article' ? 'active' : ''}" id="xeBtnViewArticle" title="${isFa ? 'نمایش مقاله منسجم' : 'Article view'}">
+              ${isFa ? 'مقاله منسجم' : 'Article'}
+            </button>
+          </div>
+
+          <div class="xe-thread-font-btns">
+            <button type="button" class="xe-thread-tool-btn" id="xeBtnFontMinus" title="${isFa ? 'کوچک‌تر' : 'Smaller'}">A-</button>
+            <button type="button" class="xe-thread-tool-btn" id="xeBtnFontPlus" title="${isFa ? 'بزرگ‌تر' : 'Larger'}">A+</button>
+          </div>
+
+          <button type="button" class="xe-thread-tool-btn" id="xeBtnFullscreen" title="${isFa ? 'تمام‌صفحه' : 'Toggle Fullscreen'}">
+            <svg viewBox="0 0 24 24" width="14" height="14" fill="currentColor"><path d="M7 14H5v5h5v-2H7v-3zm-2-4h2V7h3V5H5v5zm12 7h-3v2h5v-5h-2v3zM14 5v2h3v3h2V5h-5z"/></svg>
+          </button>
+
+          <button type="button" class="xe-thread-close" id="xeBtnCloseThread" title="${isFa ? 'بستن (Esc)' : 'Close'}">✕</button>
+        </div>
+      </div>
+
+      <!-- Stats Banner -->
+      <div class="xe-thread-stats-bar" id="xeThreadStatsBar"></div>
+
+      <!-- Content -->
+      <div class="xe-thread-content" id="xeThreadContent" style="font-size: ${threadReaderFontSize}px;"></div>
+
+      <!-- Footer Actions -->
+      <div class="xe-thread-footer">
+        <button type="button" class="xe-thread-action-btn xe-btn-fetch" id="xeBtnFetchMore">
+          <svg viewBox="0 0 24 24" width="14" height="14" fill="currentColor"><path d="M12 4V1L8 5l4 4V6c3.31 0 6 2.69 6 6 0 1.01-.25 1.97-.7 2.8l1.46 1.46C19.54 15.03 20 13.57 20 12c0-4.42-3.58-8-8-8zm0 14c-3.31 0-6-2.69-6-6 0-1.01.25-1.97.7-2.8L5.24 7.74C4.46 8.97 4 10.43 4 12c0 4.42 3.58 8 8 8v3l4-4-4-4v3z"/></svg>
+          <span>${isFa ? 'بارگذاری ادامه‌ی ثرد' : 'Fetch Remaining'}</span>
+        </button>
+
+        <div class="xe-thread-export-group">
+          <button type="button" class="xe-thread-action-btn" id="xeBtnCopyArticle">
+            ${isFa ? 'کپی متن منسجم' : 'Copy Article'}
+          </button>
+          <button type="button" class="xe-thread-action-btn" id="xeBtnCopyThread">
+            ${isFa ? 'کپی شماره‌دار (1/..)' : 'Copy Thread'}
+          </button>
+          <button type="button" class="xe-thread-action-btn" id="xeBtnExportMd" title="${isFa ? 'دانلود به عنوان فایل مارک‌داون' : 'Export as Markdown'}">
+            <span>Markdown (.md)</span>
+          </button>
+        </div>
+      </div>
+    </div>
+  `;
+
+  document.body.appendChild(modal);
+
+  function renderThreadContent() {
+    const container = modal.querySelector('#xeThreadContent');
+    const statsBar = modal.querySelector('#xeThreadStatsBar');
+    if (!container || !statsBar) return;
+
+    const allText = threadTweets.map((t) => t.text).join(' ');
+    const wordCount = (allText.match(/[\w؀-ۿ]+/g) || []).length;
+    const estTimeMinutes = Math.max(1, Math.ceil(wordCount / 180));
+    const totalTweets = threadTweets.length;
+
+    statsBar.innerHTML = `
+      <span class="xe-thread-stat-chip">🧵 ${toFaDigits(totalTweets)} ${isFa ? 'توییت' : 'tweets'}</span>
+      <span class="xe-thread-stat-chip">📝 ${toFaDigits(wordCount)} ${isFa ? 'کلمه' : 'words'}</span>
+      <span class="xe-thread-stat-chip">⏱️ ${isFa ? `تقریباً ${toFaDigits(estTimeMinutes)} دقیقه مطالعه` : `~${estTimeMinutes} min read`}</span>
+    `;
+
+    if (threadReaderViewMode === 'article') {
+      container.innerHTML = `
+        <div class="xe-thread-article-wrap">
+          <h2 class="xe-thread-article-title">${escHtml(threadTweets[0]?.text?.slice(0, 75) || 'رشته‌توییت')}...</h2>
+          <div class="xe-thread-article-byline">
+            <span>${escHtml(authorName)} (@${escHtml(targetHandle)})</span> • <span>${threadTweets[0]?.date || ''}</span>
+          </div>
+          <div class="xe-thread-article-body">
+            ${threadTweets.map((tw) => `
+              <p class="xe-thread-article-p">${escHtml(tw.text).replace(/\n/g, '<br/>')}</p>
+              ${tw.images && tw.images.length > 0 ? `
+                <div class="xe-thread-media-grid">
+                  ${tw.images.map((imgUrl) => `
+                    <a href="${imgUrl}" target="_blank" rel="noopener noreferrer" class="xe-thread-media-link">
+                      <img src="${imgUrl}" class="xe-thread-media-img" loading="lazy" alt="Thread image"/>
+                    </a>
+                  `).join('')}
+                </div>
+              ` : ''}
+            `).join('')}
+          </div>
+        </div>
+      `;
+    } else {
+      container.innerHTML = threadTweets.map((tw, idx) => `
+        <div class="xe-thread-tweet-card" id="xeThreadTweetCard_${idx}">
+          <div class="xe-thread-tweet-num">${toFaDigits(idx + 1)}</div>
+          <div class="xe-thread-card-body">
+            <div class="xe-thread-card-text">${escHtml(tw.text).replace(/\n/g, '<br/>')}</div>
+            ${tw.images && tw.images.length > 0 ? `
+              <div class="xe-thread-media-grid">
+                ${tw.images.map((imgUrl) => `
+                  <a href="${imgUrl}" target="_blank" rel="noopener noreferrer" class="xe-thread-media-link">
+                    <img src="${imgUrl}" class="xe-thread-media-img" loading="lazy" alt="Thread image"/>
+                  </a>
+                `).join('')}
+              </div>
+            ` : ''}
+            <div class="xe-thread-card-footer">
+              <span class="xe-thread-card-date">${tw.date}</span>
+              ${tw.url ? `<a href="${tw.url}" target="_blank" rel="noopener noreferrer" class="xe-thread-orig-link">${isFa ? 'مشاهده در X' : 'View on X'} ↗</a>` : ''}
+            </div>
+          </div>
+        </div>
+      `).join('');
+    }
+  }
+
+  renderThreadContent();
+
+  const closeModal = () => modal.remove();
+  modal.querySelector('#xeBtnCloseThread')?.addEventListener('click', closeModal);
+  modal.querySelector('.xe-thread-backdrop')?.addEventListener('click', closeModal);
+
+  const btnCards = modal.querySelector('#xeBtnViewCards');
+  const btnArticle = modal.querySelector('#xeBtnViewArticle');
+  btnCards?.addEventListener('click', () => {
+    threadReaderViewMode = 'cards';
+    btnCards.classList.add('active');
+    btnArticle?.classList.remove('active');
+    renderThreadContent();
+  });
+  btnArticle?.addEventListener('click', () => {
+    threadReaderViewMode = 'article';
+    btnArticle.classList.add('active');
+    btnCards?.classList.remove('active');
+    renderThreadContent();
+  });
+
+  modal.querySelector('#xeBtnFontPlus')?.addEventListener('click', () => {
+    if (threadReaderFontSize < 24) {
+      threadReaderFontSize += 1.5;
+      const content = modal.querySelector('#xeThreadContent');
+      if (content) content.style.fontSize = threadReaderFontSize + 'px';
+    }
+  });
+  modal.querySelector('#xeBtnFontMinus')?.addEventListener('click', () => {
+    if (threadReaderFontSize > 12) {
+      threadReaderFontSize -= 1.5;
+      const content = modal.querySelector('#xeThreadContent');
+      if (content) content.style.fontSize = threadReaderFontSize + 'px';
+    }
+  });
+
+  const dialog = modal.querySelector('.xe-thread-dialog');
+  modal.querySelector('#xeBtnFullscreen')?.addEventListener('click', () => {
+    dialog?.classList.toggle('xe-fullscreen');
+  });
+
+  const fetchBtn = modal.querySelector('#xeBtnFetchMore');
+  fetchBtn?.addEventListener('click', async () => {
+    const origText = fetchBtn.querySelector('span')?.textContent || '';
+    const span = fetchBtn.querySelector('span');
+    if (span) span.textContent = isFa ? 'در حال پویش...' : 'Scanning...';
+    fetchBtn.disabled = true;
+
+    const initialY = window.scrollY;
+    let foundNew = 0;
+
+    for (let step = 0; step < 4; step++) {
+      window.scrollBy({ top: 850, behavior: 'smooth' });
+      await new Promise((r) => setTimeout(r, 650));
+      const updated = collectThreadTweetsFromPage(targetHandle);
+      if (updated.length > threadTweets.length) {
+        foundNew += (updated.length - threadTweets.length);
+        threadTweets = updated;
+      }
+    }
+
+    window.scrollTo({ top: initialY, behavior: 'smooth' });
+    renderThreadContent();
+
+    fetchBtn.disabled = false;
+    if (span) span.textContent = origText;
+
+    if (foundNew > 0) {
+      showToast(isFa ? `✓ ${toFaDigits(foundNew)} توییت جدید به ثرد اضافه شد` : `✓ ${foundNew} new tweets loaded`);
+    } else {
+      showToast(isFa ? 'تمام توییت‌های بارگذاری‌شده دریافت شده‌اند' : 'All loaded tweets captured');
+    }
+  });
+
+  const copyThreadBtn = modal.querySelector('#xeBtnCopyThread');
+  copyThreadBtn?.addEventListener('click', async () => {
+    const text = threadTweets.map((tw, idx) => `${idx + 1}/ ${tw.text}`).join('\n\n---\n\n');
+    try {
+      await navigator.clipboard.writeText(text);
+      copyThreadBtn.textContent = isFa ? '✓ کپی شد!' : '✓ Copied!';
+      setTimeout(() => {
+        copyThreadBtn.textContent = isFa ? 'کپی شماره‌دار (1/..)' : 'Copy Thread';
+      }, 1600);
+    } catch {}
+  });
+
+  const copyArticleBtn = modal.querySelector('#xeBtnCopyArticle');
+  copyArticleBtn?.addEventListener('click', async () => {
+    const text = threadTweets.map((tw) => tw.text).join('\n\n');
+    try {
+      await navigator.clipboard.writeText(text);
+      copyArticleBtn.textContent = isFa ? '✓ کپی شد!' : '✓ Copied!';
+      setTimeout(() => {
+        copyArticleBtn.textContent = isFa ? 'کپی متن منسجم' : 'Copy Article';
+      }, 1600);
+    } catch {}
+  });
+
+  modal.querySelector('#xeBtnExportMd')?.addEventListener('click', () => {
+    let md = `# Thread by ${authorName} (@${targetHandle})\n\n`;
+    md += `*Date: ${threadTweets[0]?.date || new Date().toLocaleDateString()}*\n`;
+    md += `*Source: https://x.com/${targetHandle}*\n\n---\n\n`;
+
+    threadTweets.forEach((tw, idx) => {
+      md += `### Tweet ${idx + 1}\n\n${tw.text}\n\n`;
+      if (tw.images && tw.images.length > 0) {
+        tw.images.forEach((img) => {
+          md += `![Image](${img})\n\n`;
+        });
+      }
+      md += `---\n\n`;
+    });
+
+    const blob = new Blob([md], { type: 'text/markdown;charset=utf-8' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `thread-${targetHandle}-${Date.now()}.md`;
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    URL.revokeObjectURL(url);
+    showToast(isFa ? '✓ فایل Markdown دانلود شد' : '✓ Markdown file downloaded');
+  });
+
+  const onKey = (e) => {
+    if (e.key === 'Escape') {
+      closeModal();
+      document.removeEventListener('keydown', onKey);
+    }
+  };
+  document.addEventListener('keydown', onKey);
+}
+
+function addThreadReaderButtons(root = document) {
+  if (settings.threadReaderEnabled === false) return;
+  const articles = root.matches?.('article') ? [root] : root.querySelectorAll('article');
+  for (let i = 0; i < articles.length; i++) {
+    createThreadReaderButton(articles[i]);
+  }
+}
+
+function detectAccountAge(tweet, handle) {
+  if (!handle || settings.accountAgeBadge === false) return;
+  if (tweet.querySelector('.xe-account-age-badge')) return;
+
+  const header = tweet.querySelector('[data-testid="User-Name"]');
+  if (!header) return;
+
+  const cleanHandle = handle.toLowerCase();
+  const bio = (typeof userBioCache !== 'undefined' ? userBioCache.get(cleanHandle) : '') || '';
+
+  const currentYear = new Date().getFullYear();
+  const isRecent = bio.includes(`Joined ${currentYear}`) ||
+                   bio.includes(`عضویت از ${toFaDigits(currentYear)}`) ||
+                   bio.includes(`عضویت در ${toFaDigits(currentYear)}`);
+
+  if (isRecent) {
+    const badge = document.createElement('span');
+    badge.className = 'xe-account-age-badge';
+    badge.title = settings.language === 'fa' ? 'اکانت تازه‌تاسیس (سال جاری) — احتمال بات یا ترول' : 'New account (joined recently)';
+    badge.textContent = settings.language === 'fa' ? '🌱 جدید' : '🌱 New';
+    header.appendChild(badge);
+  }
+}
 
 // ============================================================================
 // Element Waiter Helper
@@ -3015,7 +4351,9 @@ const RESCAN_KEYS = new Set([
   'filterCaseSensitive', 'filterWholeWord', 'filterDefaultAvatars', 'filterEngagementBait',
   'blueCheckFilter', 'blueCheckAction', 'whitelist', 'boysWhitelist', 'hideBoysMode', 'adBlockerEnabled',
   'rastnevisEnabled', 'rastnevisHeksare', 'rastnevisArabic', 'rastnevisSpelling',
-  'rastnevisZwnj', 'rastnevisHints', 'rastnevisShowBadge', 'rastnevisUnderline',
+  'rastnevisZwnj', 'rastnevisHints', 'rastnevisPunctuation', 'rastnevisDigits',
+  'rastnevisShowBadge', 'rastnevisUnderline', 'rastnevisComposerBtn', 'rastnevisIgnoredWords',
+  'cleanShareLinks', 'imageDownloadEnabled', 'threadReaderEnabled', 'accountAgeBadge',
 ]);
 const QUIET_KEYS = new Set(['lastVolume', 'defaultPlaybackRate']);
 
@@ -3034,6 +4372,14 @@ chrome.storage?.onChanged?.addListener((changes, area) => {
 
   if ('whitelist' in changes) updateWhitelistSet();
   if ('boysWhitelist' in changes) updateBoysWhitelistSet();
+
+  if ('rastnevisComposerBtn' in changes || 'rastnevisEnabled' in changes) {
+    if (settings.rastnevisEnabled === false || settings.rastnevisComposerBtn === false) {
+      removeRastnevisComposerButtons();
+    } else {
+      scanRastnevisComposers();
+    }
+  }
 
   if ('blockButtonEnabled' in changes) {
     if (settings.blockButtonEnabled === false) {
@@ -3268,6 +4614,9 @@ function flushScan() {
 
     addVolumeSliders(root);
     addBlockButtons(root);
+    addCleanLinkButtons(root);
+    injectImageDownloadButtons(root);
+    addThreadReaderButtons(root);
 
     const articles = root.matches?.('article') ? [root] : root.querySelectorAll('article');
     for (let i = 0; i < articles.length; i++) {
@@ -3280,6 +4629,7 @@ function flushScan() {
   cleanZenSidebar();
 
   ensureInPageLauncher();
+  scanRastnevisComposers();
 }
 
 function scheduleScan(root) {
@@ -3303,8 +4653,8 @@ const domObserver = new MutationObserver((mutations) => {
       for (let j = 0; j < m.addedNodes.length; j++) {
         const node = m.addedNodes[j];
         if (node.nodeType === Node.ELEMENT_NODE) {
-          if (node.querySelector?.('article, video, [data-testid="cellInnerDiv"], [data-testid="UserCell"], aside, section, [data-testid="placementTracking"]') ||
-              node.matches?.('article, [data-testid="cellInnerDiv"], aside, section') ||
+          if (node.querySelector?.('article, video, [data-testid="cellInnerDiv"], [data-testid="UserCell"], aside, section, [data-testid="placementTracking"], [data-testid="tweetButtonInline"], [data-testid="tweetButton"]') ||
+              node.matches?.('article, [data-testid="cellInnerDiv"], aside, section, [data-testid="tweetButtonInline"], [data-testid="tweetButton"]') ||
               node.tagName === 'VIDEO') {
             pendingRoots.add(node);
             shouldScan = true;
@@ -3375,6 +4725,19 @@ const themeObserver = new MutationObserver(() => {
   const existingTweets = document.querySelectorAll('article');
   for (let i = 0; i < existingTweets.length; i++) {
     processTweetFilter(existingTweets[i]);
+  }
+
+  if (location.search.includes('xwise_open_thread=1')) {
+    try {
+      history.replaceState(null, '', location.href.replace(/[?&]xwise_open_thread=1/, ''));
+    } catch {}
+    setTimeout(() => {
+      const firstArt = document.querySelector('article');
+      const handle = firstArt ? getHandleFromTweet(firstArt) : '';
+      if (firstArt && handle) {
+        openThreadReaderModal(firstArt, handle);
+      }
+    }, 1000);
   }
 
   domObserver.observe(document.body, { childList: true, subtree: true });

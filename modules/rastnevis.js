@@ -1,8 +1,8 @@
 'use strict';
 
 /**
- * XWise Blocker v3.5.0 — RastNevis Engine Module
- * Local, zero-latency Persian spelling, grammar, heksare and ZWNJ engine.
+ * XWise Blocker v3.5.1 — RastNevis Engine Module
+ * Local, zero-latency Persian spelling, grammar, heksare, ZWNJ, punctuation & smart digits engine.
  * Fully offline, zero data collection.
  */
 
@@ -39,6 +39,11 @@
     'خداروشکر': 'خدا را شکر', 'دوستداشتن': 'دوست داشتن', 'دوستدارم': 'دوست دارم',
     'دوستداری': 'دوست داری', 'دوستداشت': 'دوست داشت', 'دوستداشتم': 'دوست داشتم',
     'دوستداشتی': 'دوست داشتی', 'موچکرم': 'متشکرم',
+    'راجعبه': 'راجع به', 'راجعب': 'راجع به', 'طپش': 'تپش', 'باطری': 'باتری',
+    'اطو': 'اتو', 'حتا': 'حتی', 'گاها': 'گاهی', 'گاهاً': 'گاهی',
+    'ناچارا': 'به‌ناچار', 'ناچاراً': 'به‌ناچار', 'دوما': 'ثانیاً', 'دوماً': 'ثانیاً',
+    'سوما': 'ثالثاً', 'سوماً': 'ثالثاً', 'پیشنهادات': 'پیشنهادها', 'گزارشات': 'گزارش‌ها',
+    'دستورات': 'دستورها', 'فرمایشات': 'فرمایش‌ها', 'سفارشات': 'سفارش‌ها',
   };
 
   const MI_EXCLUDE = new Set([
@@ -338,8 +343,6 @@
       regex: new RegExp('(?<=^|[^' + FA + ZWNJ + '])([' + FA + ']{2,}) (هایی|های|ها)(?![' + FA + ZWNJ + '])', 'gu'),
       fix: (m) => {
         if (HA_EXCLUDE.has(m[1])) return null;
-        const lastChar = m[1][m[1].length - 1];
-        if (NON_JOINING_ENDS.has(lastChar)) return null;
         return m[1] + '‌' + m[2];
       },
     },
@@ -479,20 +482,100 @@
       regex: new RegExp('(?<=^|[^' + FA + ZWNJ + '])(' + tanwinAlt + ')(?![' + FA + ZWNJ + '])', 'gu'),
       fix: (m) => TANWIN_WORDS[m[1]] || null,
     },
+    /* ۹) علائم نگارشی بین کلمات — استانداردسازی فاصله قبل/بعد و تبدیل به فارسی در یک مرحله */
+    {
+      category: 'punctuation', type: 'punctuation', severity: 'warning', reason: 'اصلاح فاصله‌گذاری و علامت نگارشی',
+      regex: /(?<=[؀-ۿ‌])([ \t]*)([،,؛;!?:؟]|\.(?!\.))([ \t]*)(?=[؀-ۿA-Za-z])/gu,
+      fix: (m) => {
+        const spBefore = m[1];
+        const p = m[2];
+        const spAfter = m[3];
+        const P_MAP = { ',': '،', '،': '،', ';': '؛', '؛': '؛', '?': '؟', '؟': '؟', '!': '!', ':': ':', '.': '.' };
+        const canonP = P_MAP[p] || p;
+        if (spBefore === '' && spAfter === ' ' && p === canonP) return null;
+        return canonP + ' ';
+      },
+    },
+    /* ۱۰) علائم نگارشی در پایان جمله یا قبل از نقل‌قول — حذف فاصله اضافی قبل از علامت */
+    {
+      category: 'punctuation', type: 'punctuation', severity: 'warning', reason: 'حذف فاصله اضافی قبل از علامت نگارشی',
+      regex: /(?<=[؀-ۿ‌])[ \t]+([،,؛;!?:؟]|\.(?!\.))(?=[ \t\n\r»"()]|$)(?!\.\.)/gu,
+      fix: (m) => {
+        const p = m[1];
+        const P_MAP = { ',': '،', '،': '،', ';': '؛', '؛': '؛', '?': '؟', '؟': '؟', '!': '!', ':': ':', '.': '.' };
+        return P_MAP[p] || p;
+      },
+    },
+    /* ۱۱) علائم نگارشی انگلیسی در پایان کلمات */
+    {
+      category: 'punctuation', type: 'punctuation', severity: 'warning', reason: 'تبدیل علامت انگلیسی به معادل فارسی',
+      regex: /(?<=[؀-ۿ‌])([?,;])(?=[ \t\n\r»"()]|$)/gu,
+      fix: (m) => {
+        const P_MAP = { '?': '؟', ',': '،', ';': '؛' };
+        return P_MAP[m[1]] || null;
+      },
+    },
+    /* ۱۲) فارسی‌سازی هوشمند ارقام (با مصونیت کامل مدل‌ها، کدها و کلمات انگلیسی) */
+    {
+      category: 'digits', type: 'digits', severity: 'hint', reason: 'فارسی‌سازی ارقام در متن فارسی',
+      regex: /\b[0-9]+(?:[:.,][0-9]+)*\b/gu,
+      fix: (m, text) => {
+        const num = m[0];
+        const idx = m.index;
+        const before = (text || '').slice(Math.max(0, idx - 25), idx);
+        const after = (text || '').slice(idx + num.length, Math.min((text || '').length, idx + num.length + 25));
+
+        // اگر متصل به حروف انگلیسی باشد (s500, iPhone16, GPT-4, 500s)
+        if (/[a-zA-Z]$/.test(before) || /^[a-zA-Z]/.test(after)) return null;
+        if (/[\-_][a-zA-Z]/.test(after) || /[a-zA-Z][\-_]$/.test(before)) return null;
+
+        // اگر قبل از آن یک کلمه یا مدل انگلیسی باشد (iPhone 16, s 500, RTX 4090, Benz s500)
+        if (/[a-zA-Z]+[ \t]+$/.test(before)) return null;
+
+        // اگر بعد از آن پسوند یا کلمه انگلیسی باشد (4090 Ti, 16 Pro)
+        if (/^[ \t]+[a-zA-Z]+/.test(after)) return null;
+
+        // اگر بخشی از آدرس وب، ایمیل، منشن، هشتگ یا کد باشد (@user123, #trend2024, https://...)
+        if (/(?:https?:|ftp:|@|#|\/|\.)[^\s]*$/.test(before)) return null;
+        if (/^[^\s]*(?:\.com|\.org|\.ir|\.net|\/)/.test(after)) return null;
+
+        const FA_DIGITS = { '0': '۰', '1': '۱', '2': '۲', '3': '۳', '4': '۴', '5': '۵', '6': '۶', '7': '۷', '8': '۸', '9': '۹' };
+        return num.replace(/[0-9]/g, (d) => FA_DIGITS[d] || d);
+      },
+    },
   ];
 
   const SEVERITY_RANK = { error: 0, warning: 1, hint: 2 };
 
-  function checkText(text, options = {}) {
+  function checkText(text, options = {}, ignoredWordsParam = null) {
     if (!text || typeof text !== 'string') return [];
 
-    const opts = {
-      heksare: options.heksare !== false,
-      arabic: options.arabic !== false,
-      spelling: options.spelling !== false,
-      zwnj: options.zwnj !== false,
-      hints: options.hints !== false,
+    let opts = {
+      heksare: true,
+      arabic: true,
+      spelling: true,
+      zwnj: true,
+      hints: true,
+      punctuation: true,
+      digits: true,
     };
+
+    let ignoredWords = ignoredWordsParam;
+
+    if (typeof options === 'boolean') {
+      opts.hints = options;
+    } else if (typeof options === 'object' && options !== null) {
+      if (options.heksare !== undefined) opts.heksare = Boolean(options.heksare);
+      if (options.arabic !== undefined) opts.arabic = Boolean(options.arabic);
+      if (options.spelling !== undefined) opts.spelling = Boolean(options.spelling);
+      if (options.zwnj !== undefined) opts.zwnj = Boolean(options.zwnj);
+      if (options.hints !== undefined) opts.hints = Boolean(options.hints);
+      if (options.punctuation !== undefined) opts.punctuation = Boolean(options.punctuation);
+      if (options.digits !== undefined) opts.digits = Boolean(options.digits);
+      if (options.ignoredWords !== undefined && !ignoredWords) ignoredWords = options.ignoredWords;
+    }
+
+    const ignoreSet = ignoredWords ? (ignoredWords instanceof Set ? ignoredWords : new Set(ignoredWords)) : null;
 
     const issues = [];
     for (const rule of RULES) {
@@ -501,12 +584,19 @@
       if (rule.category === 'spelling' && !opts.spelling) continue;
       if (rule.category === 'zwnj' && !opts.zwnj) continue;
       if (rule.category === 'hints' && !opts.hints) continue;
+      if (rule.category === 'punctuation' && !opts.punctuation) continue;
+      if (rule.category === 'digits' && !opts.digits) continue;
 
       rule.regex.lastIndex = 0;
       let m;
       while ((m = rule.regex.exec(text)) !== null) {
         const correct = rule.fix(m, text);
+        const wrongTrimmed = (m[0] || '').trim();
         if (correct !== null && correct !== m[0]) {
+          if (ignoreSet && (ignoreSet.has(wrongTrimmed) || ignoreSet.has(wrongTrimmed.replace(/‌/g, ' ')))) {
+            // کلمه در فهرست نادیده‌گرفته‌شده‌هاست
+            continue;
+          }
           issues.push({
             wrong: m[0],
             correct,
@@ -549,6 +639,9 @@
     checkText,
     applyCorrections,
     normalizeArabic,
-    version: '3.5.0',
+    RULES,
+    MISSPELLINGS,
+    SEVERITY_RANK,
+    version: '3.5.2',
   };
 });

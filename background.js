@@ -1,9 +1,9 @@
 'use strict';
 
 /**
- * XWise Blocker v3.5.0 - Background Service Worker
+ * XWise Blocker v3.5.2 - Background Service Worker
  * Settings storage and migration, scheduled relationship scans,
- * video download resolution, and runtime messaging.
+ * video and image download resolution, and runtime messaging.
  */
 
 import './modules/cache.js';
@@ -11,7 +11,7 @@ import './modules/twitterApi.js';
 import './modules/relationshipTracker.js';
 import './modules/rastnevis.js';
 
-const STORAGE_VERSION = 7;
+const STORAGE_VERSION = 8;
 const TRACKER_ALARM_NAME = 'xwise_periodic_tracker';
 const STATS_KEY = 'xwise.stats';
 const X_TAB_PATTERNS = ['*://*.x.com/*', '*://*.twitter.com/*'];
@@ -78,15 +78,25 @@ const DEFAULT_SETTINGS = {
   hideBoysMode: false,
   boysWhitelist: [],
 
-  // RastNevis Persian Editor (New in v3.5.0)
+  // RastNevis Persian Editor
   rastnevisEnabled: true,
   rastnevisHeksare: true,
   rastnevisArabic: true,
   rastnevisSpelling: true,
   rastnevisZwnj: true,
   rastnevisHints: true,
+  rastnevisPunctuation: true,
+  rastnevisDigits: true,
   rastnevisShowBadge: true,
   rastnevisUnderline: true,
+  rastnevisComposerBtn: true,
+  rastnevisIgnoredWords: [],
+
+  // Productivity & Media Suite (New in v3.5.2)
+  cleanShareLinks: true,
+  imageDownloadEnabled: true,
+  threadReaderEnabled: true,
+  accountAgeBadge: true,
 
   // Ads
   adBlockerEnabled: true,
@@ -209,6 +219,21 @@ async function migrateSettings(settings, fromVersion) {
     settings.rastnevisHints = settings.rastnevisHints ?? true;
     settings.rastnevisShowBadge = settings.rastnevisShowBadge ?? true;
     settings.rastnevisUnderline = settings.rastnevisUnderline ?? true;
+    settings.rastnevisPunctuation = settings.rastnevisPunctuation ?? true;
+    settings.rastnevisDigits = settings.rastnevisDigits ?? true;
+    settings.rastnevisComposerBtn = settings.rastnevisComposerBtn ?? true;
+    settings.rastnevisIgnoredWords = Array.isArray(settings.rastnevisIgnoredWords) ? settings.rastnevisIgnoredWords : [];
+  }
+
+  if (fromVersion < 8) {
+    settings.cleanShareLinks = settings.cleanShareLinks ?? true;
+    settings.imageDownloadEnabled = settings.imageDownloadEnabled ?? true;
+    settings.threadReaderEnabled = settings.threadReaderEnabled ?? true;
+    settings.accountAgeBadge = settings.accountAgeBadge ?? true;
+    settings.rastnevisPunctuation = settings.rastnevisPunctuation ?? true;
+    settings.rastnevisDigits = settings.rastnevisDigits ?? true;
+    settings.rastnevisComposerBtn = settings.rastnevisComposerBtn ?? true;
+    settings.rastnevisIgnoredWords = Array.isArray(settings.rastnevisIgnoredWords) ? settings.rastnevisIgnoredWords : [];
   }
 
   settings.__version = STORAGE_VERSION;
@@ -349,6 +374,31 @@ async function downloadVideo({ tweetId, url, handle }) {
   return { success: true, downloadId };
 }
 
+async function downloadImage({ url, handle, tweetId }) {
+  let target = String(url || '');
+  if (!target || !target.startsWith('https://')) {
+    return { success: false, error: 'NO_DOWNLOADABLE_SOURCE' };
+  }
+
+  // Ensure highest available resolution
+  try {
+    const parsed = new URL(target);
+    if (parsed.hostname.includes('twimg.com')) {
+      parsed.searchParams.set('name', 'orig');
+      target = parsed.href;
+    }
+  } catch {}
+
+  const safeHandle = String(handle || '').replace(/[^\w]/g, '');
+  const name = ['xwise-img', safeHandle, tweetId || Date.now()].filter(Boolean).join('-');
+  const downloadId = await chrome.downloads.download({
+    url: target,
+    filename: `XWise/${name}.jpg`,
+    saveAs: false,
+  });
+  return { success: true, downloadId };
+}
+
 // ----------------------------------------------------------------------------
 // Lifecycle
 // ----------------------------------------------------------------------------
@@ -364,10 +414,10 @@ chrome.runtime.onInstalled.addListener(async (details) => {
   if (details.reason === 'install') {
     await chrome.storage.sync.set(DEFAULT_SETTINGS);
     await chrome.storage.local.set({ 'xwise.activityLog': [], [STATS_KEY]: {} });
-    console.log('[XWise] Installed v3.5.0');
+    console.log('[XWise] Installed v3.5.2');
   } else if (details.reason === 'update') {
     await loadSettings();
-    console.log('[XWise] Updated to v3.5.0');
+    console.log('[XWise] Updated to v3.5.2');
   }
   await ensureTrackerAlarm();
 });
@@ -416,6 +466,9 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
 
     case 'XWISE_DOWNLOAD_VIDEO':
       return respondWith(downloadVideo(message));
+
+    case 'XWISE_DOWNLOAD_IMAGE':
+      return respondWith(downloadImage(message));
 
     default:
       return false;

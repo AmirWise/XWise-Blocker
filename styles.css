@@ -969,3 +969,931 @@ article.xe-tweet-hidden:not(.xe-tweet-revealed) {
   margin-top: 4px;
 }
 
+/* ═══════════════════════════════════════════════════════════════
+   دکمه و پاپ‌اور بررسی درست‌نویسی کنار دکمه Post توییتر (RastNevis v3.5.1)
+═══════════════════════════════════════════════════════════════ */
+
+/* دکمه کنار Post */
+.pfa-post-check-btn {
+  display: inline-flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  gap: 6px;
+  height: 36px !important;
+  min-height: 36px !important;
+  max-height: 36px !important;
+  padding: 0 14px !important;
+  margin-inline-end: 8px !important;
+  margin-inline-start: 4px !important;
+  border-radius: 9999px !important;
+  border: 1px solid rgba(29, 155, 240, 0.45) !important;
+  background: rgba(29, 155, 240, 0.08) !important;
+  color: #1d9bf0 !important;
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Vazirmatn, IRANSans, sans-serif !important;
+  font-size: 14px !important;
+  font-weight: 700 !important;
+  cursor: pointer !important;
+  direction: rtl !important;
+  transition: background-color .2s, border-color .2s, transform .1s;
+  user-select: none !important;
+  vertical-align: middle !important;
+  flex-shrink: 0 !important;
+  white-space: nowrap !important;
+  box-sizing: border-box !important;
+  order: unset !important;
+}
+.pfa-post-check-btn:hover {
+  background: rgba(29, 155, 240, 0.16);
+  border-color: #1d9bf0;
+}
+.pfa-post-check-btn:active {
+  transform: scale(0.97);
+}
+.pfa-post-check-btn svg {
+  width: 16px;
+  height: 16px;
+  flex-shrink: 0;
+}
+.pfa-btn-badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 18px;
+  height: 18px;
+  padding: 0 5px;
+  border-radius: 99px;
+  background: #f4212e;
+  color: #fff;
+  font-size: 11px;
+  font-weight: 800;
+  line-height: 1;
+}
+
+/* پاپ‌اور منوی بررسی کنار کامپوزر */
+.pfa-composer-popover {
+  position: absolute;
+  z-index: 999999;
+  direction: rtl;
+  width: 360px;
+  max-width: calc(100vw - 32px);
+  border-radius: 16px;
+  padding: 14px 16px;
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Vazirmatn, IRANSans, sans-serif;
+  box-shadow: 0 8px 30px rgba(0, 0, 0, 0.45), 0 0 1px 1px rgba(255, 255, 255, 0.1);
+  animation: pfa-in .15s cubic-bezier(0.16, 1, 0.3, 1);
+  box-sizing: border-box;
+}
+
+/* تم پیش‌فرض تاریک توییتر */
+.pfa-composer-popover.pfa-theme-dark {
+  background: #000000;
+  border: 1px solid #2f3336;
+  color: #e7e9ea;
+}
+/* تم Dim (سرمه‌ای) توییتر */
+.pfa-composer-popover.pfa-theme-dim {
+  background: #15202b;
+  border: 1px solid #38444d;
+  color: #f7f9f9;
+}
+/* تم روشن توییتر */
+.pfa-composer-popover.pfa-theme-light {
+  background: #ffffff;
+  border: 1px solid #cfd9de;
+  color: #0f1419;
+  box-shadow: 0 8px 30px rgba(0, 0, 0, 0.15), 0 0 1px 1px rgba(0, 0, 0, 0.05);
+}
+
+.pfa-pop-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 12px;
+  padding-bottom: 8px;
+  border-bottom: 1px solid rgba(113, 118, 123, 0.2);
+}
+.pfa-pop-title {
+  font-size: 14px;
+  font-weight: 800;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+.pfa-pop-title svg {
+  width: 17px;
+  height: 17px;
+  color: #1d9bf0;
+}
+.pfa-pop-close {
+  background: transparent;
+  border: none;
+  color: #71767b;
+  font-size: 18px;
+  line-height: 1;
+  cursor: pointer;
+  padding: 4px 6px;
+  border-radius: 50%;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  transition: background .15s, color .15s;
+}
+.pfa-pop-close:hover {
+  background: rgba(113, 118, 123, 0.15);
+  color: #e7e9ea;
+}
+.pfa-theme-light .pfa-pop-close:hover {
+  color: #0f1419;
+}
+
+/* وضعیت بدون خطا */
+.pfa-pop-clean {
+  padding: 12px;
+  border-radius: 12px;
+  background: rgba(0, 186, 124, 0.1);
+  border: 1px solid rgba(0, 186, 124, 0.3);
+  color: #00ba7c;
+  font-size: 13px;
+  line-height: 1.6;
+  font-weight: 600;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.pfa-pop-clean svg {
+  width: 20px;
+  height: 20px;
+  flex-shrink: 0;
+}
+
+/* وضعیت دارای خطا */
+.pfa-pop-summary {
+  font-size: 12px;
+  font-weight: 500;
+  color: #71767b;
+  margin-bottom: 8px;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+.pfa-badge-pill {
+  background: rgba(244, 33, 46, 0.15);
+  color: #f4212e;
+  border: 1px solid rgba(244, 33, 46, 0.3);
+  padding: 2px 7px;
+  border-radius: 999px;
+  font-size: 11px;
+  font-weight: 700;
+  line-height: 1.2;
+}
+
+.pfa-pop-list {
+  max-height: 230px;
+  overflow-y: auto;
+  margin-bottom: 10px;
+  padding-inline-end: 2px;
+}
+.pfa-pop-list::-webkit-scrollbar { width: 4px; }
+.pfa-pop-list::-webkit-scrollbar-thumb { background: rgba(113, 118, 123, 0.3); border-radius: 4px; }
+
+.pfa-pop-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 7px 9px;
+  margin-bottom: 6px;
+  border-radius: 10px;
+  background: rgba(113, 118, 123, 0.08);
+  border: 1px solid rgba(113, 118, 123, 0.14);
+  transition: background 0.15s ease;
+}
+.pfa-pop-item:hover {
+  background: rgba(113, 118, 123, 0.14);
+}
+.pfa-item-main {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+  flex: 1 1 auto;
+}
+.pfa-item-words {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-wrap: wrap;
+  font-size: 13px;
+  line-height: 1.4;
+}
+.pfa-pop-item .pfa-w {
+  color: #f4212e;
+  text-decoration: line-through;
+  text-decoration-color: rgba(244, 33, 46, 0.6);
+  font-weight: 500;
+  white-space: normal;
+  word-break: break-word;
+}
+.pfa-pop-item .pfa-arrow {
+  color: #71767b;
+  font-size: 10.5px;
+  flex-shrink: 0;
+}
+.pfa-pop-item .pfa-c {
+  color: #00ba7c;
+  font-weight: 700;
+  white-space: normal;
+  word-break: break-word;
+}
+.pfa-item-reason {
+  color: #71767b;
+  font-size: 11px;
+  line-height: 1.3;
+}
+.pfa-item-btns {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  flex-shrink: 0;
+}
+.pfa-btn-item-copy,
+.pfa-btn-ignore {
+  background: transparent;
+  border: 1px solid rgba(113, 118, 123, 0.35);
+  color: #e7e9ea;
+  border-radius: 9999px;
+  font-size: 11px;
+  font-weight: 600;
+  font-family: inherit;
+  padding: 3px 8px;
+  cursor: pointer;
+  transition: all 0.15s ease;
+  line-height: 1.3;
+}
+.pfa-theme-light .pfa-btn-item-copy,
+.pfa-theme-light .pfa-btn-ignore {
+  color: #0f1419;
+}
+.pfa-btn-item-copy:hover {
+  border-color: #00ba7c;
+  color: #00ba7c;
+  background: rgba(0, 186, 124, 0.12);
+}
+.pfa-btn-ignore:hover {
+  border-color: #1d9bf0;
+  color: #1d9bf0;
+  background: rgba(29, 155, 240, 0.12);
+}
+
+.pfa-composer-popover svg {
+  width: 15px !important;
+  height: 15px !important;
+  max-width: 15px !important;
+  max-height: 15px !important;
+  flex-shrink: 0;
+}
+
+/* دکمه‌های اقدام در پاپ‌اور */
+.pfa-pop-actions {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+  margin-top: 6px;
+}
+.pfa-btn-autofix {
+  flex: 1 1 auto;
+  background: #1d9bf0;
+  color: #ffffff;
+  border: none;
+  border-radius: 9999px;
+  padding: 8px 14px;
+  font-family: inherit;
+  font-size: 13px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: filter .15s, background .15s;
+}
+.pfa-btn-autofix:hover {
+  filter: brightness(1.15);
+}
+.pfa-btn-undo {
+  flex: 0 0 auto;
+  background: rgba(244, 33, 46, 0.12);
+  color: #f4212e;
+  border: 1px solid rgba(244, 33, 46, 0.3);
+  border-radius: 9999px;
+  padding: 8px 12px;
+  font-family: inherit;
+  font-size: 12.5px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: background .15s;
+}
+.pfa-btn-undo:hover {
+  background: rgba(244, 33, 46, 0.22);
+}
+.pfa-btn-copy-comp {
+  flex: 0 0 auto;
+  background: transparent;
+  color: inherit;
+  border: 1px solid rgba(113, 118, 123, 0.4);
+  border-radius: 9999px;
+  padding: 8px 12px;
+  font-family: inherit;
+  font-size: 12.5px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: background .15s;
+}
+.pfa-btn-copy-comp:hover {
+  background: rgba(113, 118, 123, 0.15);
+}
+
+.pfa-toast-msg {
+  font-size: 11.5px;
+  color: #00ba7c;
+  margin-top: 6px;
+  text-align: center;
+  animation: pfa-in .15s ease;
+}
+
+/* مینی‌توست شناور ظریف در کامپوزر بدون پوشاندن متن */
+.pfa-composer-toast {
+  position: absolute;
+  z-index: 999999;
+  direction: rtl;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 5px 12px;
+  border-radius: 9999px;
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Vazirmatn, IRANSans, sans-serif;
+  font-size: 12.5px;
+  font-weight: 600;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.45);
+  animation: pfa-in .15s ease;
+  white-space: nowrap;
+}
+.pfa-composer-toast.pfa-theme-dark {
+  background: #000000;
+  border: 1px solid rgba(0, 186, 124, 0.4);
+  color: #e7e9ea;
+}
+.pfa-composer-toast.pfa-theme-dim {
+  background: #15202b;
+  border: 1px solid rgba(0, 186, 124, 0.4);
+  color: #f7f9f9;
+}
+.pfa-composer-toast.pfa-theme-light {
+  background: #ffffff;
+  border: 1px solid rgba(0, 186, 124, 0.4);
+  color: #0f1419;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.15);
+}
+.pfa-toast-undo {
+  background: rgba(244, 33, 46, 0.12);
+  color: #f4212e;
+  border: 1px solid rgba(244, 33, 46, 0.35);
+  border-radius: 9999px;
+  font-size: 11.5px;
+  font-weight: 700;
+  font-family: inherit;
+  padding: 3px 9px;
+  cursor: pointer;
+  transition: all .15s;
+  line-height: 1.3;
+}
+.pfa-toast-undo:hover {
+  background: rgba(244, 33, 46, 0.22);
+}
+.pfa-toast-close {
+  background: transparent;
+  border: none;
+  color: #71767b;
+  font-size: 14px;
+  cursor: pointer;
+  padding: 0 2px;
+  line-height: 1;
+}
+.pfa-toast-close:hover {
+  color: #e7e9ea;
+}
+
+/* =====================================================================
+   PRODUCTIVITY & MEDIA SUITE (v3.5.2)
+   1. Clean Share Links Button
+   2. Original Quality Image Downloader Button
+   3. Thread Reader Mode Button & Modal
+   4. Account Age Badge
+   5. Quick User Search Button on Profile
+   ===================================================================== */
+
+/* 1. Clean Share Links Button */
+.xe-clean-link-btn-wrapper {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  user-select: none;
+  min-width: 34.75px;
+  align-self: stretch;
+}
+
+.xe-clean-link-btn-inner {
+  display: flex;
+  align-items: center;
+  transition: color 0.2s ease;
+  color: var(--xe-text-secondary, #71767b);
+}
+
+.xe-clean-link-btn-wrapper:hover .xe-clean-link-btn-inner {
+  color: var(--xe-accent, #1d9bf0);
+}
+
+.xe-clean-link-btn-icon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 34.75px;
+  height: 34.75px;
+  border-radius: 9999px;
+  transition: background-color 0.2s ease;
+}
+
+.xe-clean-link-btn-wrapper:hover .xe-clean-link-btn-icon {
+  background-color: rgba(29, 155, 240, 0.12);
+}
+
+.xe-clean-link-btn-icon svg {
+  width: 17px;
+  height: 17px;
+  fill: currentColor;
+}
+
+/* 2. Original Quality Image Downloader Button */
+.xe-img-download-btn {
+  position: absolute;
+  top: 10px;
+  inset-inline-end: 10px;
+  z-index: 10;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 4px 8px;
+  border-radius: 9999px;
+  background: rgba(0, 0, 0, 0.72);
+  backdrop-filter: blur(8px);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  color: #ffffff;
+  font-family: var(--xe-font);
+  font-size: 11px;
+  font-weight: 600;
+  cursor: pointer;
+  opacity: 0;
+  transition: opacity 0.18s ease, transform 0.18s ease, background 0.15s ease;
+  pointer-events: none;
+}
+
+[data-testid="tweetPhoto"]:hover .xe-img-download-btn {
+  opacity: 1;
+  pointer-events: auto;
+}
+
+.xe-img-download-btn:hover {
+  background: rgba(29, 155, 240, 0.9);
+  transform: scale(1.05);
+}
+
+.xe-img-download-btn svg {
+  width: 13px;
+  height: 13px;
+  fill: currentColor;
+}
+
+/* 3. Thread Reader Mode Button & Modal */
+.xe-thread-reader-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  margin-inline-start: 6px;
+  padding: 1px 7px;
+  height: 20px;
+  border-radius: 9999px;
+  border: 1px solid var(--xe-border, rgb(47, 51, 54));
+  background: var(--xe-bg-hover, rgba(255, 255, 255, 0.04));
+  color: var(--xe-accent, #1d9bf0);
+  font-family: var(--xe-font);
+  font-size: 11px;
+  font-weight: 600;
+  cursor: pointer;
+  vertical-align: middle;
+  transition: background 0.15s ease, border-color 0.15s ease;
+}
+
+.xe-thread-reader-btn:hover {
+  background: rgba(29, 155, 240, 0.12);
+  border-color: var(--xe-accent, #1d9bf0);
+}
+
+.xe-thread-reader-btn svg {
+  width: 12px;
+  height: 12px;
+  fill: currentColor;
+}
+
+.xe-thread-modal {
+  position: fixed;
+  inset: 0;
+  z-index: 2147483640;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-family: var(--xe-font);
+}
+
+.xe-thread-backdrop {
+  position: absolute;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.75);
+  backdrop-filter: blur(8px);
+}
+
+.xe-thread-dialog {
+  position: relative;
+  z-index: 2;
+  width: 680px;
+  max-width: calc(100vw - 32px);
+  height: 82vh;
+  max-height: 850px;
+  display: flex;
+  flex-direction: column;
+  background: var(--xe-bg-card, #0c0d0f);
+  border: 1px solid var(--xe-border, rgb(47, 51, 54));
+  border-radius: 16px;
+  box-shadow: 0 24px 70px rgba(0, 0, 0, 0.9), 0 0 1px rgba(255, 255, 255, 0.15);
+  overflow: hidden;
+  transition: width 0.2s ease, height 0.2s ease, max-width 0.2s ease;
+}
+
+.xe-thread-dialog.xe-fullscreen {
+  width: 96vw;
+  max-width: 96vw;
+  height: 94vh;
+  max-height: 94vh;
+  border-radius: 12px;
+}
+
+.xe-thread-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 12px 18px;
+  border-bottom: 1px solid var(--xe-border, rgb(47, 51, 54));
+  background: rgba(255, 255, 255, 0.02);
+  flex-shrink: 0;
+  gap: 12px;
+}
+
+.xe-thread-author {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-width: 0;
+}
+
+.xe-thread-avatar {
+  width: 36px;
+  height: 36px;
+  border-radius: 9999px;
+  object-fit: cover;
+  flex-shrink: 0;
+}
+
+.xe-thread-author-meta {
+  min-width: 0;
+}
+
+.xe-thread-author-name {
+  font-size: 14px;
+  font-weight: 700;
+  color: var(--xe-text-primary, #e7e9ea);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.xe-thread-author-handle {
+  font-size: 11.5px;
+  color: var(--xe-text-secondary, #71767b);
+}
+
+.xe-thread-controls {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-shrink: 0;
+}
+
+/* View switcher pills */
+.xe-thread-view-pills {
+  display: inline-flex;
+  padding: 2px;
+  background: rgba(255, 255, 255, 0.06);
+  border-radius: 9999px;
+  border: 1px solid var(--xe-border, rgb(47, 51, 54));
+}
+
+.xe-thread-view-btn {
+  border: none;
+  background: transparent;
+  color: var(--xe-text-secondary, #71767b);
+  font-family: var(--xe-font);
+  font-size: 11px;
+  font-weight: 600;
+  padding: 3px 9px;
+  border-radius: 9999px;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.xe-thread-view-btn.active {
+  background: var(--xe-accent, #1d9bf0);
+  color: #ffffff;
+}
+
+/* Font size & tool buttons */
+.xe-thread-font-btns {
+  display: inline-flex;
+  gap: 3px;
+}
+
+.xe-thread-tool-btn {
+  width: 26px;
+  height: 26px;
+  border-radius: 6px;
+  border: 1px solid var(--xe-border, rgb(47, 51, 54));
+  background: rgba(255, 255, 255, 0.03);
+  color: var(--xe-text-primary, #e7e9ea);
+  font-size: 10.5px;
+  font-weight: 700;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  transition: background 0.15s ease, border-color 0.15s ease;
+}
+
+.xe-thread-tool-btn:hover {
+  background: var(--xe-bg-hover, rgba(255, 255, 255, 0.08));
+  border-color: var(--xe-accent, #1d9bf0);
+}
+
+.xe-thread-close {
+  width: 28px;
+  height: 28px;
+  border-radius: 9999px;
+  border: none;
+  background: transparent;
+  color: var(--xe-text-secondary, #71767b);
+  font-size: 14px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: background 0.15s ease, color 0.15s ease;
+}
+
+.xe-thread-close:hover {
+  background: rgba(255, 255, 255, 0.08);
+  color: var(--xe-text-primary, #e7e9ea);
+}
+
+/* Stats bar */
+.xe-thread-stats-bar {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 18px;
+  background: rgba(29, 155, 240, 0.04);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.04);
+  flex-shrink: 0;
+  font-size: 11.5px;
+}
+
+.xe-thread-stat-chip {
+  color: var(--xe-text-secondary, #71767b);
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+}
+
+/* Content container */
+.xe-thread-content {
+  flex: 1;
+  overflow-y: auto;
+  padding: 18px 22px;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  line-height: 1.75;
+}
+
+/* Card Mode */
+.xe-thread-tweet-card {
+  position: relative;
+  display: flex;
+  gap: 12px;
+  padding: 14px 16px;
+  background: rgba(255, 255, 255, 0.025);
+  border: 1px solid var(--xe-border, rgb(47, 51, 54));
+  border-radius: 12px;
+  transition: border-color 0.15s ease;
+}
+
+.xe-thread-tweet-card:hover {
+  border-color: rgba(29, 155, 240, 0.4);
+}
+
+.xe-thread-tweet-badge {
+  font-size: 11px;
+  font-weight: 700;
+  color: var(--xe-accent, #1d9bf0);
+  background: rgba(29, 155, 240, 0.12);
+  width: 24px;
+  height: 24px;
+  border-radius: 9999px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.xe-thread-card-body {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.xe-thread-card-text {
+  color: var(--xe-text-primary, #e7e9ea);
+  word-break: break-word;
+}
+
+.xe-thread-card-footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  font-size: 11px;
+  color: var(--xe-text-secondary, #71767b);
+  margin-top: 4px;
+}
+
+.xe-thread-orig-link {
+  color: var(--xe-accent, #1d9bf0);
+  text-decoration: none;
+  font-size: 11px;
+}
+.xe-thread-orig-link:hover {
+  text-decoration: underline;
+}
+
+/* Article Mode */
+.xe-thread-article-wrap {
+  max-width: 620px;
+  margin: 0 auto;
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.xe-thread-article-title {
+  font-size: 1.35em;
+  font-weight: 800;
+  color: var(--xe-text-primary, #e7e9ea);
+  line-height: 1.4;
+  margin: 0;
+}
+
+.xe-thread-article-byline {
+  font-size: 0.85em;
+  color: var(--xe-text-secondary, #71767b);
+  padding-bottom: 8px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.xe-thread-article-body {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.xe-thread-article-p {
+  margin: 0;
+  color: var(--xe-text-primary, #e7e9ea);
+  line-height: 1.85;
+}
+
+/* Image grid in thread */
+.xe-thread-media-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  gap: 8px;
+  border-radius: 10px;
+  overflow: hidden;
+  max-width: 520px;
+}
+
+.xe-thread-media-link {
+  display: block;
+  border-radius: 8px;
+  overflow: hidden;
+  border: 1px solid var(--xe-border, rgb(47, 51, 54));
+}
+
+.xe-thread-media-img {
+  width: 100%;
+  max-height: 280px;
+  object-fit: cover;
+  display: block;
+  transition: transform 0.2s ease;
+}
+
+.xe-thread-media-link:hover .xe-thread-media-img {
+  transform: scale(1.02);
+}
+
+/* Footer & Actions */
+.xe-thread-footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 10px 18px;
+  border-top: 1px solid var(--xe-border, rgb(47, 51, 54));
+  background: rgba(255, 255, 255, 0.02);
+  flex-shrink: 0;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.xe-thread-export-group {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.xe-thread-action-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 5px 12px;
+  border-radius: 9999px;
+  border: 1px solid var(--xe-border, rgb(47, 51, 54));
+  background: rgba(255, 255, 255, 0.04);
+  color: var(--xe-text-primary, #e7e9ea);
+  font-family: var(--xe-font);
+  font-size: 11.5px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 0.15s ease, border-color 0.15s ease, color 0.15s ease;
+}
+
+.xe-thread-action-btn:hover {
+  background: rgba(29, 155, 240, 0.12);
+  border-color: var(--xe-accent, #1d9bf0);
+  color: var(--xe-accent, #1d9bf0);
+}
+
+.xe-btn-fetch {
+  background: rgba(29, 155, 240, 0.08);
+  border-color: rgba(29, 155, 240, 0.35);
+  color: var(--xe-accent, #1d9bf0);
+}
+
+.xe-btn-fetch:hover {
+  background: rgba(29, 155, 240, 0.18);
+  border-color: var(--xe-accent, #1d9bf0);
+}
+
+.xe-btn-fetch svg {
+  animation: none;
+}
+
+/* 4. New Account Age Badge */
+.xe-account-age-badge {
+  display: inline-flex;
+  align-items: center;
+  margin-inline-start: 6px;
+  padding: 1px 6px;
+  border-radius: 9999px;
+  font-size: 10.5px;
+  font-weight: 600;
+  color: #ff9800;
+  background: rgba(255, 152, 0, 0.12);
+  border: 1px solid rgba(255, 152, 0, 0.3);
+  vertical-align: middle;
+}
+
+

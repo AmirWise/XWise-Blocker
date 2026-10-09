@@ -1,7 +1,7 @@
 'use strict';
 
 /**
- * XWise Blocker v3.5.0 — Popup Controller
+ * XWise Blocker v3.5.2 — Popup Controller
  * Bilingual controller for the dashboard, filters, relationship tracker,
  * media settings, Persian RastNevis editor and cache tabs.
  */
@@ -87,16 +87,24 @@ const I18N = {
     unfollowersNotice: '⚠️ کاربران شناسایی‌شده که شما را آنفالو کرده‌اند:',
 
     // Media & Cleaner
-    videoSuiteHeading: 'سوئیت پیشرفته ویدیو (Pro Video)',
+    videoSuiteHeading: 'سوئیت پیشرفته رسانه و ویدیو (Pro Media)',
     volumeSliderTitle: 'اسلایدر ولوم و نوار ابزار روی ویدیوها',
     volumeSliderDesc: 'دسترسی سریع به کنترل صدا، سرعت و دانلود',
     rememberVolumeTitle: 'به‌خاطرسپاری بلندی صدا',
     rememberVolumeDesc: 'حفظ میزان صدای تنظیم‌شده برای تمام ویدیوهای بعدی',
     videoDownloadTitle: 'دکمه دانلود مستقیم ویدیوها (MP4)',
     videoDownloadDesc: 'دانلود ویدیوهای باکیفیت بدون نیاز به بات یا سایت جانبی',
+    imageDownloadTitle: 'دانلود تصویر با کیفیت اصلی (Orig)',
+    imageDownloadDesc: 'دکمه دانلود سریع تصاویر با بالاترین رزولوشن واقعی توییتر',
     videoLoopTitle: 'پخش مکرر خودکار (Loop)',
     videoLoopDesc: 'تکرار نامحدود ویدیوها پس از پایان',
     defaultSpeedLabel: 'سرعت پیش‌فرض پخش:',
+    cleanShareLinksTitle: 'کپی لینک تمیز (حذف رهگیری)',
+    cleanShareLinksDesc: 'حذف خودکار کدهای رهگیری (مانند ?s=20&t=...) هنگام کپی لینک توییت',
+    threadReaderTitle: 'حالت مطالعه رشته‌توییت (Thread Reader)',
+    threadReaderDesc: 'دکمه مطالعه پیوسته ثردها در یک پنجره منسجم با فونت زیبا',
+    accountAgeBadgeTitle: 'نشانگر اکانت‌های تازه‌تاسیس',
+    accountAgeBadgeDesc: 'نمایش برچسب سن برای اکانت‌های زیر ۳ ماه جهت تشخیص سریع بات‌ها و ترول‌ها',
     cleanerHeading: 'پاک‌سازی تایم‌لاین و خلوت‌سازی',
     adBlockerTitle: 'مسدودساز تبلیغات و اسپانسرها (Ad Blocker)',
     adBlockerDesc: 'حذف بدون پرش و کامل توییت‌های Promoted و تبلیغاتی',
@@ -145,7 +153,13 @@ const I18N = {
     rnRuleZwnjDesc: 'پیشوندهای «می/نمی» و پسوندهای «ها/تر/ترین» با بررسی حروف جدانویس',
     rnRuleHintsTitle: 'پیشنهادهای نگارشی ظریف',
     rnRuleHintsDesc: 'تنوین نصب (واقعا ➔ واقعاً) و تکرار بیش‌ازحد حروف (عالییی ➔ عالی)',
-    rnDisplayHeading: 'نحوه نمایش در تایم‌لاین X',
+    rnRulePunctuationTitle: 'اصلاح علائم نگارشی و فاصله‌گذاری',
+    rnRulePunctuationDesc: 'استانداردسازی فاصله قبل/بعد و تبدیل کاما و علامت سوال انگلیسی به فارسی',
+    rnRuleDigitsTitle: 'فارسی‌سازی هوشمند ارقام',
+    rnRuleDigitsDesc: 'تبدیل ارقام به فارسی با مصونیت مدل‌ها، کدها، هشتگ‌ها و کلمات انگلیسی',
+    rnDisplayHeading: 'نحوه نمایش در تایم‌لاین و کامپوزر X',
+    rnOptComposerBtnTitle: 'دکمه بررسی در کادر نگارش (Composer)',
+    rnOptComposerBtnDesc: 'تزریق دکمه راست‌نویس کنار Post برای خطایابی، اصلاح خودکار و بازگردانی متن',
     rnOptUnderlineTitle: 'زیرخط زدن تعاملی کلمات مشکل‌دار',
     rnOptUnderlineDesc: 'نمایش خط‌چین مواج رنگی با تول‌تیپ توضیحی و شکل اصلاح‌شده',
     rnOptShowBadgeTitle: 'نشان و پنل اصلاح زیر توییت',
@@ -155,8 +169,15 @@ const I18N = {
     rnTestPlaceholder: 'متن تستی را اینجا بنویسید... مثلاً: توییته تستی برایه پروژه راست‌نویس اسفاده شد و خاهش میکنم کارو چک کن...',
     rnFixedLabel: 'متن اصلاح‌شده:',
     rnBtnCopy: 'کپی متن',
+    rnBtnAutoFix: 'اصلاح در کادر',
     rnCopied: 'کپی شد',
     rnCopyFailed: 'خطا در کپی',
+    rnDictHeading: 'واژه‌نامه شخصی (کلمات نادیده‌گرفته‌شده)',
+    rnDictDesc: 'کلماتی که هنگام نگارش توییت نادیده می‌گیرید، در این لیست قرار می‌گیرند تا دیگر خطایی به آن‌ها گرفته نشود.',
+    rnDictEmpty: 'هنوز کلمه‌ای به واژه‌نامه شخصی افزوده نشده است.',
+    rnBtnClearDict: 'پاکسازی واژه‌نامه',
+    rnDictCleared: 'واژه‌نامه با موفقیت پاک شد',
+    rnWordDeleted: 'کلمه از واژه‌نامه حذف شد',
     rnStatsHeading: 'آمار و حریم خصوصی',
     rnMarkedLabel: 'توییت نشانه‌گذاری‌شده',
     rnBtnReset: 'صفر کردن شمارنده',
@@ -322,16 +343,24 @@ const I18N = {
     unfollowersNotice: '⚠️ Accounts that have unfollowed you:',
 
     // Media & Cleaner
-    videoSuiteHeading: 'Pro Video Suite',
+    videoSuiteHeading: 'Pro Media & Video Suite',
     volumeSliderTitle: 'Floating Toolbar on Videos',
     volumeSliderDesc: 'Quick access to volume, speed and download controls',
     rememberVolumeTitle: 'Remember Volume Level',
     rememberVolumeDesc: 'Persist customized volume across all videos',
     videoDownloadTitle: 'Direct MP4 Download Button',
     videoDownloadDesc: 'One-click high quality video downloads',
+    imageDownloadTitle: 'Original Quality Image Downloader',
+    imageDownloadDesc: 'Fast download button on images with maximum original resolution',
     videoLoopTitle: 'Auto Loop Video',
     videoLoopDesc: 'Loop videos seamlessly',
     defaultSpeedLabel: 'Default Playback Speed:',
+    cleanShareLinksTitle: 'Clean Share Links (No Tracking)',
+    cleanShareLinksDesc: 'Auto-strip tracking parameters (?s=20&t=...) when copying tweet links',
+    threadReaderTitle: 'Thread Reader Mode',
+    threadReaderDesc: 'Clean distraction-free window for reading entire tweet threads',
+    accountAgeBadgeTitle: 'New Account Badge',
+    accountAgeBadgeDesc: 'Highlight accounts under 3 months old to quickly spot bots and trolls',
     cleanerHeading: 'Timeline Cleaner',
     adBlockerTitle: 'Ad & Sponsored Tweet Blocker',
     adBlockerDesc: 'Instant zero-flicker removal of promoted tweets',
@@ -380,7 +409,13 @@ const I18N = {
     rnRuleZwnjDesc: 'Smart spacing for «می/نمی» and «ها/تر/ترین» suffixes',
     rnRuleHintsTitle: 'Subtle Stylistic Hints',
     rnRuleHintsDesc: 'Tanwin (واقعا ➔ واقعاً) and repeated character reduction (عالییی ➔ عالی)',
-    rnDisplayHeading: 'Timeline Appearance on X',
+    rnRulePunctuationTitle: 'Punctuation & Spacing Correction',
+    rnRulePunctuationDesc: 'Standardize spaces before/after marks and convert English commas & question marks',
+    rnRuleDigitsTitle: 'Smart Persian Digits',
+    rnRuleDigitsDesc: 'Convert digits to Persian with immunity for models, codes, hashtags, and English words',
+    rnDisplayHeading: 'Timeline & Composer Appearance on X',
+    rnOptComposerBtnTitle: 'Composer Check Button',
+    rnOptComposerBtnDesc: 'Inject RastNevis button next to Post for 1-click checking, auto-fix, and undo',
     rnOptUnderlineTitle: 'Interactive Underline on Typos',
     rnOptUnderlineDesc: 'Wavy colored underlines with interactive tooltips on click',
     rnOptShowBadgeTitle: 'Inline Badge & Revision Panel',
@@ -390,8 +425,15 @@ const I18N = {
     rnTestPlaceholder: 'Type sample text here... e.g. توییته تستی برایه پروژه راست‌نویس اسفاده شد...',
     rnFixedLabel: 'Corrected Text:',
     rnBtnCopy: 'Copy Text',
+    rnBtnAutoFix: 'Apply in Box',
     rnCopied: 'Copied',
     rnCopyFailed: 'Copy failed',
+    rnDictHeading: 'Personal Dictionary (Ignored Words)',
+    rnDictDesc: 'Words you ignore during composition are kept here and will not trigger errors.',
+    rnDictEmpty: 'No ignored words added yet.',
+    rnBtnClearDict: 'Clear Dictionary',
+    rnDictCleared: 'Dictionary cleared successfully',
+    rnWordDeleted: 'Word removed from dictionary',
     rnStatsHeading: 'Statistics & Privacy',
     rnMarkedLabel: 'Tweets Marked & Edited',
     rnBtnReset: 'Reset Counter',
@@ -504,7 +546,8 @@ const PRESET_PACKS = {
 };
 
 const MEDIA_TOGGLES = [
-  'volumeSliderEnabled', 'rememberVolume', 'videoDownloadEnabled', 'videoLoopEnabled',
+  'volumeSliderEnabled', 'rememberVolume', 'videoDownloadEnabled', 'imageDownloadEnabled', 'videoLoopEnabled',
+  'cleanShareLinks', 'threadReaderEnabled', 'accountAgeBadge',
   'adBlockerEnabled', 'zenModeEnabled', 'zenKeepSearch', 'hideWhoToFollow', 'hideProfileWhoToFollow',
   'hideGrokDrawer', 'hidePremiumUpsell', 'hideViewCounts', 'filterDefaultAvatars',
   'filterEngagementBait', 'hideBoysMode',
@@ -512,7 +555,8 @@ const MEDIA_TOGGLES = [
 
 const BOOLEAN_SETTINGS = [
   'shieldEnabled', 'trackerEnabled', 'trackerBadgeAlerts', 'volumeSliderEnabled', 'rememberVolume',
-  'videoLoopEnabled', 'videoDownloadEnabled', 'cleanTimelineEnabled', 'hideWhoToFollow',
+  'videoLoopEnabled', 'videoDownloadEnabled', 'imageDownloadEnabled', 'cleanShareLinks', 'threadReaderEnabled',
+  'accountAgeBadge', 'cleanTimelineEnabled', 'hideWhoToFollow',
   'hideProfileWhoToFollow', 'hideGrokDrawer', 'hidePremiumUpsell', 'hideViewCounts', 'zenModeEnabled',
   'zenKeepSearch', 'scrollToTopEnabled', 'highResImagesEnabled', 'filterEngineEnabled',
   'filterCaseSensitive', 'filterWholeWord', 'filterDefaultAvatars', 'filterEngagementBait',
@@ -520,6 +564,7 @@ const BOOLEAN_SETTINGS = [
   'shortcutCtrl', 'shortcutAlt', 'shortcutShift', 'confirmDelayOnShortcut', 'showMatchBadges',
   'showBlockToasts', 'rastnevisEnabled', 'rastnevisHeksare', 'rastnevisArabic', 'rastnevisSpelling',
   'rastnevisZwnj', 'rastnevisHints', 'rastnevisShowBadge', 'rastnevisUnderline',
+  'rastnevisPunctuation', 'rastnevisDigits', 'rastnevisComposerBtn',
 ];
 const ENUM_SETTINGS = {
   filterMode: ['hide', 'auto-mute', 'auto-block', 'dry-run'],
@@ -599,6 +644,10 @@ document.addEventListener('DOMContentLoaded', async () => {
     rastnevisHints: true,
     rastnevisShowBadge: true,
     rastnevisUnderline: true,
+    rastnevisPunctuation: true,
+    rastnevisDigits: true,
+    rastnevisComposerBtn: true,
+    rastnevisIgnoredWords: [],
     ...loaded,
   };
   currentLang = currentSettings.language || 'fa';
@@ -807,8 +856,12 @@ function syncControlsFromSettings() {
   setChecked('rnRuleSpelling', s.rastnevisSpelling !== false);
   setChecked('rnRuleZwnj', s.rastnevisZwnj !== false);
   setChecked('rnRuleHints', s.rastnevisHints !== false);
+  setChecked('rnRulePunctuation', s.rastnevisPunctuation !== false);
+  setChecked('rnRuleDigits', s.rastnevisDigits !== false);
+  setChecked('rnOptComposerBtn', s.rastnevisComposerBtn !== false);
   setChecked('rnOptUnderline', s.rastnevisUnderline !== false);
   setChecked('rnOptShowBadge', s.rastnevisShowBadge !== false);
+  renderRastnevisDict();
 
   const setValue = (id, value) => {
     const el = $(id);
@@ -1882,6 +1935,16 @@ function sanitizeImportedSettings(raw) {
       clean[key] = [...new Set(raw[key].map(normalizeHandle).filter(Boolean))];
     }
   }
+
+  if (Array.isArray(raw.rastnevisIgnoredWords)) {
+    clean.rastnevisIgnoredWords = [
+      ...new Set(
+        raw.rastnevisIgnoredWords
+          .filter((w) => typeof w === 'string' && w.trim())
+          .map((w) => w.trim())
+      ),
+    ];
+  }
   return clean;
 }
 
@@ -1902,6 +1965,9 @@ function setupRastnevisTab() {
   bindToggle('rnRuleSpelling', 'rastnevisSpelling');
   bindToggle('rnRuleZwnj', 'rastnevisZwnj');
   bindToggle('rnRuleHints', 'rastnevisHints');
+  bindToggle('rnRulePunctuation', 'rastnevisPunctuation');
+  bindToggle('rnRuleDigits', 'rastnevisDigits');
+  bindToggle('rnOptComposerBtn', 'rastnevisComposerBtn');
   bindToggle('rnOptUnderline', 'rastnevisUnderline');
   bindToggle('rnOptShowBadge', 'rastnevisShowBadge');
 
@@ -1915,6 +1981,14 @@ function setupRastnevisTab() {
     showPopupToast(t('rnCounterReset'));
   });
 
+  // Personal Dictionary (Ignored Words)
+  $('rnBtnClearDict')?.addEventListener('click', async () => {
+    await saveSettings({ rastnevisIgnoredWords: [] });
+    renderRastnevisDict();
+    if (testInput?.value?.trim()) runTestBench();
+    showPopupToast(t('rnDictCleared'));
+  });
+
   // Interactive Live Test Bench
   let testTimer = null;
   const testInput = $('rnTestInput');
@@ -1923,6 +1997,7 @@ function setupRastnevisTab() {
   const testFixedBox = $('rnTestFixedBox');
   const testFixedText = $('rnTestFixedText');
   const btnCopyFixed = $('rnBtnCopyFixed');
+  const btnAutoFix = $('rnBtnAutoFix');
 
   function runTestBench() {
     const engine = globalThis.RastNevisEngine;
@@ -1945,6 +2020,9 @@ function setupRastnevisTab() {
       spelling: currentSettings.rastnevisSpelling !== false,
       zwnj: currentSettings.rastnevisZwnj !== false,
       hints: currentSettings.rastnevisHints !== false,
+      punctuation: currentSettings.rastnevisPunctuation !== false,
+      digits: currentSettings.rastnevisDigits !== false,
+      ignoredWords: currentSettings.rastnevisIgnoredWords || [],
     });
 
     if (testBadge) {
@@ -2019,7 +2097,60 @@ function setupRastnevisTab() {
     }
   });
 
+  btnAutoFix?.addEventListener('click', () => {
+    const fixed = testFixedText?.textContent || '';
+    if (!fixed || !testInput) return;
+    testInput.value = fixed;
+    runTestBench();
+  });
+
+  renderRastnevisDict();
   updateRastnevisStats();
+}
+
+function renderRastnevisDict() {
+  const container = $('rnDictList');
+  const badge = $('rnDictCountBadge');
+  if (!container) return;
+
+  const words = Array.isArray(currentSettings.rastnevisIgnoredWords) ? currentSettings.rastnevisIgnoredWords : [];
+  if (badge) badge.textContent = formatCount(words.length);
+
+  container.textContent = '';
+  if (words.length === 0) {
+    const empty = document.createElement('span');
+    empty.className = 'xe-dict-empty';
+    empty.textContent = t('rnDictEmpty');
+    container.appendChild(empty);
+    return;
+  }
+
+  words.forEach((word, idx) => {
+    const tag = document.createElement('span');
+    tag.className = 'xe-dict-tag';
+
+    const wordSpan = document.createElement('span');
+    wordSpan.textContent = word;
+
+    const delBtn = document.createElement('button');
+    delBtn.type = 'button';
+    delBtn.className = 'xe-dict-tag-del';
+    delBtn.textContent = '✕';
+    delBtn.title = t('delete');
+    delBtn.addEventListener('click', async (e) => {
+      e.stopPropagation();
+      const updated = [...(currentSettings.rastnevisIgnoredWords || [])];
+      updated.splice(idx, 1);
+      await saveSettings({ rastnevisIgnoredWords: updated });
+      renderRastnevisDict();
+      const testInput = $('rnTestInput');
+      if (testInput?.value?.trim()) runTestBench();
+      showPopupToast(t('rnWordDeleted'));
+    });
+
+    tag.append(wordSpan, delBtn);
+    container.appendChild(tag);
+  });
 }
 
 function setupSettingsTab() {

@@ -1,4 +1,4 @@
-# XWise Blocker v3.5.0 🛡️✍️⚡
+# XWise Blocker v3.5.1 🛡️✍️⚡
 
 A powerful, ultra-fast, and native-feeling Chrome extension for X (Twitter). XWise Blocker purifies your timeline, protects your attention, and manages your social graph: **RastNevis Smart Persian Editor & Proofreader**, **Follow/Unfollow Tracker**, **Relationship Manager (Non-followers, Fans, Mutuals, Lost followers)**, **Anti-Limit Safety Queue**, **Two-Tier LRU & TTL Caching**, **Instant CSS-First Ad Blocker**, **Pro Video Suite with MP4 Downloader & Loop**, **No-Boys Mode (Timeline Gender Filter)**, and **10/10 Modern Bilingual UI (FA/EN)** with embedded Vazirmatn font.
 
@@ -68,16 +68,46 @@ A powerful, ultra-fast, and native-feeling Chrome extension for X (Twitter). XWi
 - **Native Inline Re-hide Action Button**: Clicking "Show" reveals the tweet completely normally, placing a sleek native action button in the bottom action bar (`[role="group"]`) to instantly re-collapse it without breaking tweet balance.
 - **Disabled by Default**: Safe, optional, and easily toggled in the "Media & Zen" tab under "Fun & Special Filters".
 
-### 8️⃣ RastNevis (راست‌نویس) — Smart Persian Editor & Proofreader ✍️ (Mega New in v3.5.0)
+### 8️⃣ RastNevis (راست‌نویس) — Smart Persian Editor & Proofreader ✍️ (Supercharged in v3.5.1)
+- **Tweet Composer Check Button**: Injects a sleek RastNevis feather button right next to the Post/Reply button in Twitter/X composer. Check text in real-time, inspect errors, 1-click Auto-Fix directly into the editor with full Undo support, or copy corrected text.
+- **Punctuation & Spacing Correction Pipeline**: Automatically standardizes spaces before and after commas, periods, colons, and question marks; converts English punctuation (?, ;) to standard Persian (؟ ، ؛).
+- **Smart Persian Digits Normalization**: Converts numbers to Persian digits while strictly preserving hardware models (e.g. iPhone 16, RTX 4090, s500), English codes, hashtags, mentions (@user123), URLs, and emails.
+- **Personal Dictionary (واژه‌نامه شخصی)**: Add custom words to ignore directly from the composer popover or manage and delete them from the popup dictionary panel.
 - **Intelligent Syntactic Heksare Pipeline**: Precision multi-tier distinction between inherent «ه» (خانه، پروژه، توسعه), verbal copulas (هوا سرده = سرد است), colloquial definite markers (این پسره), and true heksare errors (کتابه من ➔ کتاب من) with zero false positives.
 - **Reverse Heksare Detection**: Fixes trailing kasrah used erroneously in place of copula (آرادِ ➔ آراده).
 - **Arabic to Persian Character Normalization**: Auto-replaces Arabic «ي» and «ك» with Persian «ی» and «ک» and standardizes «ة/ۀ».
 - **Structural Half-Space (ZWNJ) Engine**: Distinguishes «می/نمی» prefixes and «ها/تر/ترین» suffixes while strictly honoring Persian non-joining letters (ر، ز، د، و، ا...).
 - **Native Misspelling Dictionary**: Fixes high-frequency everyday typos (اسفاده ➔ استفاده، مشگل ➔ مشکل).
 - **Subtle Stylistic Hints**: Optional suggestions for tanwin (واقعا ➔ واقعاً) and repeated character reduction (عالییی ➔ عالی).
-- **Interactive Live Test Bench**: A built-in scratchpad inside the extension popup to paste or type any Persian text and receive instantaneous corrections with 1-click copy.
+- **Interactive Live Test Bench**: A built-in scratchpad inside the extension popup to paste or type any Persian text and receive instantaneous corrections with 1-click Auto-Fix and copy.
 - **Timeline Underline, Tooltips & Revision Panel**: Wavy underlines on problematic words, hover/click tooltips with explanations, summary tweet badges, and interactive revision panels with 1-click full-text copy.
 - **100% Offline & Private (Zero Data Collection)**: All natural language processing happens locally in the browser. Zero network requests, zero telemetry.
+
+## 🆕 What's new in 3.5.2
+
+- **Clean Share Links (کپی لینک تمیز)**: Auto-strips tracking parameters (`?s=...&t=...`) from copied X URLs with an instant action bar clean copy button.
+- **Original Quality Image Downloader (دانلود تصویر با کیفیت اصلی)**: 1-click hover download on tweet images resolving directly to the uncompressed `name=orig` variant.
+- **Pro Thread Reader Suite (سوئیت حرفه‌ای مطالعه رشته‌توییت)**:
+  - **تشخیص دقیق رشته‌توییت واقعی**: تفکیک هوشمند ثردهای واقعی از توییت‌های تکی، و حذف کامل پاسخ‌های متفرقه نویسنده به کامنت‌ها و منشن‌های دیگران از داخل ثرد.
+  - **دو حالت نمایش**: حالت کارت‌های مجزا یا حالت مقاله منسجم (Article/Blog View) بدون شماره‌های توییت برای مطالعه یکدست.
+  - **پشتیبانی از تصاویر**: نمایش تصاویر پیوست‌شده به توییت‌ها درون پنجره ثرد با رزولوشن بالا.
+  - **پویش خودکار (Deep Fetch)**: دکمه «بارگذاری ادامه‌ی ثرد» با اسکرول خودکار هوشمند جهت جمع‌آوری تمام بخش‌های ثرد از دامنه توییتر.
+  - **آمار مطالعه زنده**: نمایش زمان تخمینی مطالعه، تعداد کل کلمات و تعداد توییت‌ها.
+  - **کنترل فونت و حالت تمام‌صفحه**: دکمه‌های تغییر اندازه قلم (`A-` / `A+`) و دکمه فول‌اسکرین.
+  - **سه روش خروجی**: کپی متن منسجم (برای وبلاگ/تلگرام)، کپی شماره‌دار (`1/..`) و دانلود به عنوان فایل Markdown (`.md`).
+- **New Account Age Warning Badge (نشانگر اکانت‌های تازه‌تاسیس)**: Highlights accounts under 3 months old in timeline headers to identify bot/troll waves early.
+- **RastNevis Precision Fixes**: Fixed ZWNJ conversion before «ها» for non-joining letters («کار ها» ➔ «کار‌ها»), expanded high-frequency typo dictionary (راجعبه, طپش, باطری, اطو, حتا, گاهاً, ناچاراً, دوماً, سوماً, پیشنهادات, گزارشات).
+- **Blue Check Replies-Only Fix**: Fixed main focal tweet falsely collapsing on `/status/` URLs when blue check filter is set to replies-only.
+- **Settings & Dictionary Preservation**: Fixed `sanitizeImportedSettings` and `background.js` default migrations preserving personal dictionaries and new toggles.
+- **Composer Layout Optimization**: Removed aggressive container styling overrides on Twitter's native post toolbar.
+
+## 🆕 What's new in 3.5.1
+
+- **Tweet Composer Check Button**: Added instant RastNevis check button beside Twitter's Post/Reply button with auto-fix, undo, single-word copy, and ignore.
+- **Punctuation Standardizer**: Intelligent spacing and conversion of punctuation marks (، ؛ ؟).
+- **Smart Persian Digits**: Automated conversion of numbers to Persian with immunity for English models, code identifiers, hashtags, and links.
+- **Personal Dictionary**: Save ignored words across sessions with a management chip list in the popup.
+- **Live Test Bench Auto-Fix**: Added 1-click "Apply in Box" (اصلاح در کادر) button to the interactive test bench.
 
 ## 🆕 What's new in 3.5.0 (The Mega Update)
 

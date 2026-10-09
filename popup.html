@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>XWise Blocker v3.5.0</title>
+  <title>XWise Blocker v3.5.1</title>
   <link rel="stylesheet" href="popup.css" />
 </head>
 <body>
@@ -15,7 +15,7 @@
         <div class="xe-header-text">
           <div class="xe-title-row">
             <h1>XWise Blocker</h1>
-            <span class="xe-badge">v3.5.0</span>
+            <span class="xe-badge">v3.5.1</span>
           </div>
           <p class="xe-sub" data-i18n="appSubtitle">سوئیت فیلتر هوشمند، ردیاب آنفالو و پاک‌ساز X</p>
         </div>
@@ -451,6 +451,17 @@
 
         <div class="xe-row">
           <div class="xe-row-content">
+            <p class="xe-row-title" data-i18n="imageDownloadTitle">دانلود تصویر با کیفیت اصلی (Orig)</p>
+            <p class="xe-row-desc" data-i18n="imageDownloadDesc">دکمه دانلود سریع تصاویر با بالاترین رزولوشن واقعی توییتر</p>
+          </div>
+          <label class="xe-switch">
+            <input type="checkbox" id="imageDownloadEnabled" />
+            <span></span>
+          </label>
+        </div>
+
+        <div class="xe-row">
+          <div class="xe-row-content">
             <p class="xe-row-title" data-i18n="videoLoopTitle">پخش مکرر خودکار (Loop)</p>
             <p class="xe-row-desc" data-i18n="videoLoopDesc">تکرار نامحدود ویدیوها پس از پایان</p>
           </div>
@@ -561,11 +572,44 @@
             <span></span>
           </label>
         </div>
+
+        <div class="xe-row">
+          <div class="xe-row-content">
+            <p class="xe-row-title" data-i18n="cleanShareLinksTitle">کپی لینک تمیز (حذف رهگیری)</p>
+            <p class="xe-row-desc" data-i18n="cleanShareLinksDesc">حذف خودکار کدهای رهگیری (مانند ?s=20&t=...) هنگام کپی لینک توییت</p>
+          </div>
+          <label class="xe-switch">
+            <input type="checkbox" id="cleanShareLinks" checked />
+            <span></span>
+          </label>
+        </div>
+
+        <div class="xe-row">
+          <div class="xe-row-content">
+            <p class="xe-row-title" data-i18n="threadReaderTitle">حالت مطالعه رشته‌توییت (Thread Reader)</p>
+            <p class="xe-row-desc" data-i18n="threadReaderDesc">دکمه مطالعه پیوسته ثردها در یک پنجره منسجم با فونت زیبا</p>
+          </div>
+          <label class="xe-switch">
+            <input type="checkbox" id="threadReaderEnabled" checked />
+            <span></span>
+          </label>
+        </div>
       </section>
 
       <!-- Anti-Spam & Bot Detection -->
       <section class="xe-card">
         <h2 class="xe-section-title" data-i18n="antiSpamHeading">مقابله با بات‌ها و هرزنامه‌ها</h2>
+
+        <div class="xe-row">
+          <div class="xe-row-content">
+            <p class="xe-row-title" data-i18n="accountAgeBadgeTitle">نشانگر اکانت‌های تازه‌تاسیس</p>
+            <p class="xe-row-desc" data-i18n="accountAgeBadgeDesc">نمایش برچسب سن برای اکانت‌های زیر ۳ ماه جهت تشخیص سریع بات‌ها و ترول‌ها</p>
+          </div>
+          <label class="xe-switch">
+            <input type="checkbox" id="accountAgeBadge" checked />
+            <span></span>
+          </label>
+        </div>
 
         <div class="xe-row">
           <div class="xe-row-content">
@@ -716,11 +760,44 @@
             <span></span>
           </label>
         </div>
+
+        <div class="xe-row">
+          <div class="xe-row-content">
+            <p class="xe-row-title" data-i18n="rnRulePunctuationTitle">اصلاح علائم نگارشی و فاصله‌گذاری</p>
+            <p class="xe-row-desc" data-i18n="rnRulePunctuationDesc">استانداردسازی فاصله قبل/بعد و تبدیل کاما و علامت سوال انگلیسی به فارسی</p>
+          </div>
+          <label class="xe-switch">
+            <input type="checkbox" id="rnRulePunctuation" checked />
+            <span></span>
+          </label>
+        </div>
+
+        <div class="xe-row">
+          <div class="xe-row-content">
+            <p class="xe-row-title" data-i18n="rnRuleDigitsTitle">فارسی‌سازی هوشمند ارقام</p>
+            <p class="xe-row-desc" data-i18n="rnRuleDigitsDesc">تبدیل ارقام به فارسی با مصونیت مدل‌ها، کدها، هشتگ‌ها و کلمات انگلیسی</p>
+          </div>
+          <label class="xe-switch">
+            <input type="checkbox" id="rnRuleDigits" checked />
+            <span></span>
+          </label>
+        </div>
       </section>
 
-      <!-- Appearance in Timeline -->
+      <!-- Appearance in Timeline & Composer -->
       <section class="xe-card">
-        <h2 class="xe-section-title" data-i18n="rnDisplayHeading">نحوه نمایش در تایم‌لاین X</h2>
+        <h2 class="xe-section-title" data-i18n="rnDisplayHeading">نحوه نمایش در تایم‌لاین و کامپوزر X</h2>
+
+        <div class="xe-row">
+          <div class="xe-row-content">
+            <p class="xe-row-title" data-i18n="rnOptComposerBtnTitle">دکمه بررسی در کادر نگارش (Composer)</p>
+            <p class="xe-row-desc" data-i18n="rnOptComposerBtnDesc">تزریق دکمه راست‌نویس کنار Post برای خطایابی، اصلاح خودکار و بازگردانی متن</p>
+          </div>
+          <label class="xe-switch">
+            <input type="checkbox" id="rnOptComposerBtn" checked />
+            <span></span>
+          </label>
+        </div>
 
         <div class="xe-row">
           <div class="xe-row-content">
@@ -761,9 +838,29 @@
         <div id="rnTestFixedBox" class="xe-rn-fixed-box" style="display: none;">
           <div class="xe-rn-fixed-header">
             <span class="xe-rn-fixed-label" data-i18n="rnFixedLabel">متن اصلاح‌شده:</span>
-            <button type="button" id="rnBtnCopyFixed" class="xe-btn-primary xe-btn-compact" data-i18n="rnBtnCopy">کپی متن</button>
+            <div class="xe-btn-group">
+              <button type="button" id="rnBtnAutoFix" class="xe-btn-accent xe-btn-compact" data-i18n="rnBtnAutoFix">اصلاح در کادر</button>
+              <button type="button" id="rnBtnCopyFixed" class="xe-btn-primary xe-btn-compact" data-i18n="rnBtnCopy">کپی متن</button>
+            </div>
           </div>
           <p id="rnTestFixedText" class="xe-rn-fixed-text"></p>
+        </div>
+      </section>
+
+      <!-- Personal Dictionary (Ignored Words) -->
+      <section class="xe-card">
+        <div class="xe-card-header-row">
+          <h2 class="xe-section-title">
+            <span data-i18n="rnDictHeading">واژه‌نامه شخصی (کلمات نادیده‌گرفته‌شده)</span>
+            <span class="xe-count-badge" id="rnDictCountBadge">0</span>
+          </h2>
+          <button type="button" id="rnBtnClearDict" class="xe-text-btn xe-text-danger" data-i18n="rnBtnClearDict">پاکسازی واژه‌نامه</button>
+        </div>
+        <p class="xe-card-note" data-i18n="rnDictDesc">کلماتی که هنگام نگارش توییت نادیده می‌گیرید، در این لیست قرار می‌گیرند تا دیگر خطایی به آن‌ها گرفته نشود.</p>
+        <div class="xe-dict-box">
+          <div id="rnDictList" class="xe-dict-list">
+            <span class="xe-dict-empty" data-i18n="rnDictEmpty">هنوز کلمه‌ای به واژه‌نامه شخصی افزوده نشده است.</span>
+          </div>
         </div>
       </section>
 
