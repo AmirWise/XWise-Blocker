@@ -1421,7 +1421,21 @@ function isAdLabel(text) {
 }
 
 function cleanAdElement(node) {
-  if (processedAdNodes.has(node)) return;
+  if (!node || processedAdNodes.has(node)) return;
+
+  // Never hide video modal dialogs / theater overlay
+  if (node.closest?.('[role="dialog"][aria-modal="true"] [data-testid="videoPlayer"]') ||
+      node.closest?.('#layers [data-testid="videoPlayer"]')) {
+    return;
+  }
+
+  // Safety guard: if node contains a video, DO NOT hide unless verified as a genuine ad!
+  if (node.querySelector?.('video, [data-testid="videoPlayer"], [data-testid="videoComponent"]')) {
+    if (!isGenuinePromotedAd(node)) {
+      return;
+    }
+  }
+
   processedAdNodes.add(node);
 
   const cell = node.closest('[data-testid="cellInnerDiv"]') || node;
@@ -1473,12 +1487,12 @@ function isGenuinePromotedAd(tweetNode) {
     return true;
   }
 
-  // 4. Placement tracking outside the video player component
-  const trackings = tweetNode.querySelectorAll('[data-testid="placementTracking"]');
-  for (let i = 0; i < trackings.length; i++) {
-    const t = trackings[i];
-    // If tracking is outside videoComponent/videoPlayer, this is an ad cell placement tracking!
-    if (!t.closest('[data-testid="videoPlayer"], [data-testid="videoComponent"]')) {
+  // 4. Placement tracking ONLY if tweet has NO video
+  // Twitter places placementTracking on all video tweets for view/playback telemetry!
+  const hasVideo = !!tweetNode.querySelector('video, [data-testid="videoPlayer"], [data-testid="videoComponent"]');
+  if (!hasVideo) {
+    const tracking = tweetNode.querySelector('[data-testid="placementTracking"]');
+    if (tracking) {
       return true;
     }
   }
@@ -1498,7 +1512,8 @@ function scanAndPurgeAds(root = document) {
         continue;
       }
       const cell = node.closest('[data-testid="cellInnerDiv"]') || node.closest('article');
-      if (cell) {
+      // Verify cell is genuinely an ad before hiding (prevents hiding video tweets/modals)
+      if (cell && isGenuinePromotedAd(cell)) {
         cleanAdElement(cell);
       }
     }

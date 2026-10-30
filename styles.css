@@ -95,8 +95,7 @@
    ===================================================================== */
 
 /* CSS-First Ad Blocker: eliminates layout shift before JS runs */
-:root:not(.xe-adblock-off) [data-testid="cellInnerDiv"]:has(article > [data-testid="placementTracking"]),
-:root:not(.xe-adblock-off) [data-testid="cellInnerDiv"]:has(> div > [data-testid="placementTracking"]),
+:root:not(.xe-adblock-off) [data-testid="cellInnerDiv"]:has([data-testid="placementTracking"]):not(:has([data-testid="videoPlayer"], [data-testid="videoComponent"], video)),
 :root:not(.xe-adblock-off) [data-testid="cellInnerDiv"]:has(a[href*="/quick_promote_web/"]),
 :root:not(.xe-adblock-off) [data-testid="cellInnerDiv"]:has(a[href*="ads.x.com"]),
 :root:not(.xe-adblock-off) [data-testid="cellInnerDiv"]:has(a[href*="ads.twitter.com"]),

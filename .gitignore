@@ -37,3 +37,6 @@ coverage/
 .env
 .env.local
 .env.*.local
+
+# User exported settings / backups
+xwise-settings*.json
