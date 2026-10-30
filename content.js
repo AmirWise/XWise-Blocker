@@ -1,8 +1,9 @@
 'use strict';
 
 /**
- * XWise Blocker v3.5.0 — Content Script
+ * XWise Blocker v3.5.5 — Content Script
  * Seamless in-page native Twitter integration, flawless ad cleaner, and smart filter suite.
+ * Follower/Following list filter, API-direct block/mute for UserCell, and UI improvements.
  */
 
 const DEFAULT_SETTINGS = {
@@ -42,6 +43,7 @@ const DEFAULT_SETTINGS = {
     displayName: true,
     bio: true,
     tweetText: false,
+    userLists: true,
   },
   filters: [],
   filterCaseSensitive: false,
@@ -72,11 +74,14 @@ const DEFAULT_SETTINGS = {
   // Ad Cleaner
   adBlockerEnabled: true,
 
-  // Productivity & Media Suite (New in v3.5.2)
+  // Productivity & Media Suite (New in v3.5.2 & v3.5.5)
   cleanShareLinks: true,
   imageDownloadEnabled: true,
   threadReaderEnabled: true,
   accountAgeBadge: true,
+  autoExpandTweets: true,
+  quoteFinderEnabled: true,
+  autoRevealSensitiveMedia: true,
 
   // Blue Checkmark Filter (Default off)
   blueCheckFilter: 'off',
@@ -107,6 +112,7 @@ let currentTheme = 'dark';
 // Fast WeakSets to prevent redundant processing
 const processedVideos = new WeakSet();
 let scannedTweetNodes = new WeakSet();
+let scannedUserCells = new WeakSet();  // for followers/following pages
 const hiddenTweetNodes = new WeakSet();
 let processedAdNodes = new WeakSet();
 const hideMeta = new WeakMap();
@@ -613,10 +619,26 @@ function findActionBar(tweet) {
 
 function getTweetId(tweet) {
   const links = tweet.querySelectorAll('a[href*="/status/"]');
+  // First pass: prefer links that contain a <time> (most reliable)
   for (const link of links) {
     if (!link.querySelector('time') || isInsideQuoteTweet(link, tweet)) continue;
     const match = link.getAttribute('href').match(/\/status\/(\d+)/);
     if (match) return match[1];
+  }
+  // Fallback: any non-quote-tweet /status/ link (handles detail & notification views)
+  for (const link of links) {
+    if (isInsideQuoteTweet(link, tweet)) continue;
+    const match = link.getAttribute('href').match(/\/status\/(\d+)/);
+    if (match) return match[1];
+  }
+  // Last resort: data-testid="tweet" or time element with datetime
+  const timeEl = tweet.querySelector('time[datetime]');
+  if (timeEl) {
+    const parentLink = timeEl.closest('a[href*="/status/"]');
+    if (parentLink) {
+      const match = parentLink.getAttribute('href').match(/\/status\/(\d+)/);
+      if (match) return match[1];
+    }
   }
   return '';
 }
@@ -761,10 +783,17 @@ function restoreMissingBars() {
 
 function rescanAllTweets() {
   document.querySelectorAll('article[data-xe-hidden], article[data-xe-revealed]').forEach((tweet) => unhideTweet(tweet));
+  document.querySelectorAll('[data-xe-uc-hidden], [data-testid="cellInnerDiv"]:has(> .xe-uc-filtered-bar)').forEach((cell) => {
+    cell.removeAttribute('data-xe-uc-hidden');
+    cell.classList.remove('xe-usercell-hidden', 'xe-usercell-revealed');
+    cell.querySelectorAll('.xe-uc-filtered-bar').forEach((b) => b.remove());
+  });
   document.querySelectorAll('.xe-filter-badge').forEach((badge) => badge.remove());
   clearAllRastnevisMarks();
   scannedTweetNodes = new WeakSet();
+  scannedUserCells = new WeakSet();
   document.querySelectorAll('article').forEach((tweet) => processTweetFilter(tweet));
+  document.querySelectorAll('[data-testid="UserCell"]').forEach((cell) => processUserCell(cell));
 }
 
 function scheduleTweetRetry(tweet) {
@@ -940,6 +969,11 @@ function cleanZenSidebar() {
 
 const USER_LIST_PATH = /\/(followers|following|verified_followers|followers_you_follow|retweets|reposts|likes|members|subscribers|blocked|muted)(\/|$)/;
 
+function isFollowerFollowingView() {
+  const path = window.location.pathname.toLowerCase();
+  return /\/(followers|following|verified_followers|followers_you_follow)(\/|$)/.test(path);
+}
+
 function isUserListView() {
   const path = window.location.pathname.toLowerCase();
   return (
@@ -951,6 +985,342 @@ function isUserListView() {
     path.includes('/lists/') ||
     path.includes('/communities/')
   );
+}
+
+// ============================================================================
+// UserCell Filter — Followers / Following Pages (v3.5.5)
+// ============================================================================
+
+function getUserCellDetails(cell) {
+  if (!cell) return null;
+
+  let handle = '';
+  let displayName = '';
+  let bio = '';
+
+  // 1. Extract Handle:
+  // Check for @handle text
+  const textNodes = cell.querySelectorAll('span, div');
+  for (let i = 0; i < textNodes.length; i++) {
+    const t = textNodes[i].textContent.trim();
+    const m = t.match(/^@([A-Za-z0-9_]{1,15})$/);
+    if (m) {
+      handle = m[1];
+      break;
+    }
+  }
+
+  // Fallback: examine links
+  const links = Array.from(cell.querySelectorAll('a[role="link"][href^="/"], a[href^="/"]'));
+  if (!handle) {
+    for (const l of links) {
+      const href = l.getAttribute('href') || '';
+      const clean = href.replace(/^\//, '').split('/')[0].split('?')[0];
+      if (clean && !['home', 'explore', 'notifications', 'messages', 'i', 'settings'].includes(clean.toLowerCase())) {
+        handle = clean;
+        break;
+      }
+    }
+  }
+
+  if (!handle) return null;
+
+  // 2. Extract Display Name:
+  // Look for the non-avatar link pointing to the user
+  for (const l of links) {
+    const href = (l.getAttribute('href') || '').replace(/^\//, '').split('/')[0].split('?')[0];
+    if (href.toLowerCase() === handle.toLowerCase()) {
+      if (l.querySelector('img[src*="profile_images"], [data-testid*="Avatar"]')) continue;
+      const text = extractFullTextWithAlt(l).trim();
+      if (text.startsWith('@')) continue;
+      if (text.length > 0) {
+        displayName = text;
+        break;
+      }
+    }
+  }
+
+  // Fallback for Display Name: search containers outside buttons
+  if (!displayName) {
+    const textEls = cell.querySelectorAll('div[dir="auto"], div[dir="ltr"], span[dir="auto"], span[dir="ltr"]');
+    for (const el of textEls) {
+      if (el.closest('button') || el.closest('[role="button"]')) continue;
+      const text = extractFullTextWithAlt(el).trim();
+      if (!text || text.startsWith('@') || text.toLowerCase() === `@${handle.toLowerCase()}`) continue;
+      displayName = text;
+      break;
+    }
+  }
+
+  // 3. Extract Bio:
+  const containers = cell.querySelectorAll('div[dir="auto"], div[dir="ltr"]');
+  for (const el of containers) {
+    if (el.closest('a') || el.closest('button') || el.closest('[role="button"]')) continue;
+    const text = extractFullTextWithAlt(el).trim();
+    if (!text || text.startsWith('@')) continue;
+    if (displayName && text === displayName) continue;
+    if (['Follow', 'Following', 'Blocked', 'Follows you', 'دنبال کردن', 'دنبال شده', 'مسدود'].includes(text)) continue;
+    bio = text;
+    break;
+  }
+
+  const rawCellText = extractFullTextWithAlt(cell);
+
+  return { handle, displayName, bio, rawCellText };
+}
+
+function markUserCellButtonBlocked(cell) {
+  const btns = cell.querySelectorAll('button, [role="button"]');
+  for (const b of btns) {
+    const txt = b.textContent.trim();
+    if (['Follow', 'Following', 'دنبال کردن', 'دنبال شده'].includes(txt) || b.querySelector('[data-testid$="-follow"], [data-testid$="-unfollow"]')) {
+      const span = b.querySelector('span');
+      const label = settings.language === 'fa' ? 'مسدود' : 'Blocked';
+      if (span) span.textContent = label;
+      else b.textContent = label;
+      b.style.setProperty('background-color', 'rgb(244, 33, 46)', 'important');
+      b.style.setProperty('border-color', 'rgb(244, 33, 46)', 'important');
+      b.style.setProperty('color', '#ffffff', 'important');
+      b.disabled = true;
+      break;
+    }
+  }
+}
+
+function applyHideUserCell(cell, { rule = '', handle = '', action = 'hide' } = {}) {
+  const container = cell.closest('[data-testid="cellInnerDiv"]') || cell;
+  if (container.hasAttribute('data-xe-uc-hidden') || container.querySelector('.xe-uc-filtered-bar')) return;
+
+  container.setAttribute('data-xe-uc-hidden', 'true');
+  container.classList.add('xe-usercell-hidden');
+
+  const bar = document.createElement('div');
+  bar.className = 'xe-filtered-bar xe-uc-filtered-bar';
+  bar.setAttribute('role', 'region');
+
+  const label = document.createElement('span');
+  label.className = 'xe-filtered-label';
+  const cleanRule = rule || 'Filter';
+  const actionText = action === 'auto-block'
+    ? (settings.language === 'fa' ? 'مسدود شد' : 'Blocked')
+    : (settings.language === 'fa' ? 'پنهان شد' : 'Hidden');
+  label.textContent = `${settings.language === 'fa' ? 'اکانت' : 'Account'} ${actionText} (${cleanRule} - @${handle})`;
+
+  const showBtn = document.createElement('button');
+  showBtn.type = 'button';
+  showBtn.className = 'xe-filtered-show-btn';
+  showBtn.textContent = settings.language === 'fa' ? 'مشاهده' : 'View';
+  showBtn.addEventListener('click', (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+    bar.remove();
+    container.removeAttribute('data-xe-uc-hidden');
+    container.classList.remove('xe-usercell-hidden');
+    container.classList.add('xe-usercell-revealed');
+  });
+
+  bar.addEventListener('click', (e) => e.stopPropagation());
+  bar.appendChild(label);
+  bar.appendChild(showBtn);
+
+  container.prepend(bar);
+
+  incrementBlockMetric(action === 'auto-block' ? 'filterBlockCount' : 'hideCount');
+  recordActivity({ handle, action, rule, scope: 'userlist' });
+}
+
+async function performApiBlockForCell(handle, source = 'filter', rule = '') {
+  const cleanHandle = String(handle || '').replace(/^@/, '').trim();
+  if (!cleanHandle) return false;
+  const handleKey = cleanHandle.toLowerCase();
+
+  if (isHandleWhitelisted(cleanHandle)) return false;
+  if (blockedHandles.has(handleKey) || inProgressHandles.has(handleKey)) return false;
+
+  inProgressHandles.add(handleKey);
+
+  let success = false;
+
+  // 1. Try content script direct API
+  try {
+    if (typeof XWiseTwitterApi !== 'undefined' && XWiseTwitterApi.blockUser) {
+      success = await XWiseTwitterApi.blockUser('', cleanHandle);
+    }
+  } catch {}
+
+  // 2. Fallback to background service worker
+  if (!success && typeof chrome !== 'undefined' && chrome.runtime?.sendMessage) {
+    try {
+      const resp = await new Promise((resolve) => {
+        chrome.runtime.sendMessage({ type: 'XWISE_BLOCK_USER', handle: cleanHandle }, (res) => {
+          void chrome.runtime.lastError;
+          resolve(res);
+        });
+      });
+      if (resp?.success) success = true;
+    } catch {}
+  }
+
+  inProgressHandles.delete(handleKey);
+
+  if (success) {
+    blockedHandles.add(handleKey);
+    incrementBlockMetric(source === 'filter' ? 'filterBlockCount' : 'blockCount');
+    recordActivity({ handle: cleanHandle, action: 'block', rule, scope: source });
+    if (settings.showBlockToasts !== false) {
+      const msg = settings.language === 'fa'
+        ? `حساب @${cleanHandle} طبق فیلتر (${rule || 'بلاک'}) مسدود شد`
+        : `@${cleanHandle} blocked by filter (${rule || 'block'})`;
+      showToast(msg);
+    }
+    return true;
+  }
+
+  return false;
+}
+
+async function performApiMuteForCell(handle, source = 'filter', rule = '') {
+  const cleanHandle = String(handle || '').replace(/^@/, '').trim();
+  if (!cleanHandle) return false;
+  const handleKey = cleanHandle.toLowerCase();
+
+  if (isHandleWhitelisted(cleanHandle)) return false;
+  if (mutedHandles.has(handleKey) || blockedHandles.has(handleKey) || inProgressHandles.has(handleKey)) return false;
+
+  inProgressHandles.add(handleKey);
+
+  let success = false;
+
+  // 1. Try content script direct API
+  try {
+    if (typeof XWiseTwitterApi !== 'undefined' && XWiseTwitterApi.muteUser) {
+      success = await XWiseTwitterApi.muteUser('', cleanHandle);
+    }
+  } catch {}
+
+  // 2. Fallback to background service worker
+  if (!success && typeof chrome !== 'undefined' && chrome.runtime?.sendMessage) {
+    try {
+      const resp = await new Promise((resolve) => {
+        chrome.runtime.sendMessage({ type: 'XWISE_MUTE_USER', handle: cleanHandle }, (res) => {
+          void chrome.runtime.lastError;
+          resolve(res);
+        });
+      });
+      if (resp?.success) success = true;
+    } catch {}
+  }
+
+  inProgressHandles.delete(handleKey);
+
+  if (success) {
+    mutedHandles.add(handleKey);
+    incrementBlockMetric('muteCount');
+    recordActivity({ handle: cleanHandle, action: 'mute', rule, scope: source });
+    if (settings.showBlockToasts !== false) {
+      const msg = settings.language === 'fa'
+        ? `حساب @${cleanHandle} بی‌صدا شد (${rule || 'Mute'})`
+        : `@${cleanHandle} muted by filter (${rule || 'Mute'})`;
+      showToast(msg);
+    }
+    return true;
+  }
+
+  return false;
+}
+
+async function processUserCell(cell) {
+  if (!cell || scannedUserCells.has(cell) || !isShieldOn()) return;
+  if (!settings.filterEngineEnabled) return;
+
+  const info = getUserCellDetails(cell);
+  if (!info || !info.handle) return;
+  scannedUserCells.add(cell);
+
+  const { handle, displayName, bio, rawCellText } = info;
+
+  if (isHandleWhitelisted(handle)) return;
+
+  // Cache bio for subsequent tweet filters
+  if (bio) {
+    const cleanH = handle.toLowerCase();
+    userBioCache.set(cleanH, bio);
+    if (typeof XWiseCache !== 'undefined' && XWiseCache.set) XWiseCache.set('bios', cleanH, bio);
+  }
+
+  // Blue check filter on UserCell
+  if (settings.blueCheckFilter && settings.blueCheckFilter !== 'off') {
+    const hasCheck = !!(
+      cell.querySelector('[data-testid="icon-verified"]') &&
+      !cell.querySelector('[data-testid="icon-verified-business"], [data-testid="icon-verified-government"]')
+    );
+    if (hasCheck) {
+      const act = settings.blueCheckAction || 'hide';
+      if (act === 'hide') {
+        applyHideUserCell(cell, { rule: 'Blue Check', handle, action: 'hide' });
+        return;
+      } else if (act === 'block') {
+        markUserCellButtonBlocked(cell);
+        performApiBlockForCell(handle, 'blue-check', 'Blue Check');
+        applyHideUserCell(cell, { rule: 'Blue Check', handle, action: 'auto-block' });
+        return;
+      } else if (act === 'mute') {
+        performApiMuteForCell(handle, 'blue-check', 'Blue Check');
+        applyHideUserCell(cell, { rule: 'Blue Check', handle, action: 'auto-mute' });
+        return;
+      }
+    }
+  }
+
+  // Run filter engine
+  const filters = settings.filters || [];
+  if (!filters.length) return;
+
+  const scopes = settings.filterScopes || { displayName: true, bio: true, userLists: true };
+  if (settings.filterScopes?.userLists === false) return;
+
+  for (const filter of filters) {
+    if (filter.enabled === false) continue;
+    const testOpts = {
+      caseSensitive: settings.filterCaseSensitive,
+      wholeWord: settings.filterWholeWord,
+      isRegex: !!filter.isRegex,
+    };
+    const pat = filter.pattern;
+
+    let matched = false;
+    if (scopes.displayName && displayName && testPatternMatch(displayName, pat, testOpts)) {
+      matched = true;
+    }
+    if (!matched && scopes.bio && bio && testPatternMatch(bio, pat, testOpts)) {
+      matched = true;
+    }
+    // Safety net: check raw full text if either name or bio scope is active
+    if (!matched && (scopes.displayName || scopes.bio) && rawCellText && testPatternMatch(rawCellText, pat, testOpts)) {
+      // Ensure pattern does not match the handle itself unless intended
+      if (!testPatternMatch('@' + handle, pat, testOpts)) {
+        matched = true;
+      }
+    }
+
+    if (!matched) continue;
+
+    const rawAction = (filter.action && filter.action !== 'default') ? filter.action : (settings.filterMode || 'hide');
+    const ACTION_ALIASES = { block: 'auto-block', mute: 'auto-mute' };
+    const action = ACTION_ALIASES[rawAction] || rawAction;
+
+    if (action === 'hide' || action === 'dry-run') {
+      applyHideUserCell(cell, { rule: pat, handle, action: 'hide' });
+    } else if (action === 'auto-block') {
+      markUserCellButtonBlocked(cell);
+      performApiBlockForCell(handle, 'filter', pat);
+      applyHideUserCell(cell, { rule: pat, handle, action: 'auto-block' });
+    } else if (action === 'auto-mute') {
+      performApiMuteForCell(handle, 'filter', pat);
+      applyHideUserCell(cell, { rule: pat, handle, action: 'auto-mute' });
+    }
+    return;
+  }
 }
 
 function cleanSidebarRecommendations() {
@@ -1034,20 +1404,20 @@ function cleanWhoToFollowRecommendations(root = document) {
 const cleanProfileRecommendations = cleanWhoToFollowRecommendations;
 
 // ============================================================================
-// Flawless Ad Cleaner (Fix: NEVER hides tweets on video playback)
+// Flawless Ad Cleaner (Modern Twitter / X Promoted & Sponsored Tweets)
 // ============================================================================
 
 const AD_INDICATORS = [
-  'ad', 'promoted', 'sponsored', 'تبلیغ', 'تبلیغات', 'مروّج',
+  'ad', 'promoted', 'sponsored', 'آگهی', 'تبلیغ', 'تبلیغات', 'مروّج',
   'реклама', 'anuncio', 'sponsorisé', 'gesponsert', 'sponsorizzato',
-  'sponsorlu', 'iklan',
+  'sponsorlu', 'iklan', 'publicidad', 'werbung',
 ];
 
 function isAdLabel(text) {
   const label = String(text).trim().toLowerCase();
   if (!label) return false;
   if (AD_INDICATORS.includes(label)) return true;
-  return AD_INDICATORS.some((k) => k.length > 3 && (label.startsWith(k + ' ') || label.startsWith(k + ':')));
+  return AD_INDICATORS.some((k) => k.length > 2 && (label.startsWith(k + ' ') || label.startsWith(k + ':') || label.startsWith(k + ' ·')));
 }
 
 function cleanAdElement(node) {
@@ -1068,12 +1438,11 @@ function cleanAdElement(node) {
 
 /**
  * Checks if an element is a genuine sponsored/promoted ad
- * Explicitly guards against video player view tracking!
  */
 function isGenuinePromotedAd(tweetNode) {
   if (!tweetNode) return false;
 
-  // 1. Check socialContext (Standard Promoted Tweet label)
+  // 1. Standard socialContext label (Promoted / Sponsored / آگهی)
   const socialContext = tweetNode.querySelector('[data-testid="socialContext"]');
   if (socialContext) {
     const text = socialContext.textContent.trim().toLowerCase();
@@ -1082,30 +1451,34 @@ function isGenuinePromotedAd(tweetNode) {
     }
   }
 
-  // 2. Check header text for ad/promoted indicators
-  const spans = tweetNode.querySelectorAll('[dir] > span');
+  // 2. Direct Ad/Promoted badge in header or metadata (including Persian 'آگهی')
+  const spans = tweetNode.querySelectorAll('span');
   for (let i = 0; i < spans.length; i++) {
-    if (spans[i].closest('[data-testid="tweetText"], [data-testid="User-Name"]')) continue;
-    const text = spans[i].textContent.trim().toLowerCase();
-    if (text && AD_INDICATORS.includes(text)) {
+    const span = spans[i];
+    if (span.closest('[data-testid="tweetText"]')) continue;
+    const text = span.textContent.trim().toLowerCase();
+    if (!text) continue;
+    if (AD_INDICATORS.includes(text)) {
+      // Ensure it's not a normal username/handle link
+      const link = span.closest('a');
+      if (link && link.getAttribute('href')?.startsWith('/') && !link.getAttribute('href')?.includes('/status/')) {
+        if (link.textContent.trim().startsWith('@')) continue;
+      }
       return true;
     }
   }
 
-  // 3. Promoted product URLs
-  if (tweetNode.querySelector('a[href*="/quick_promote_web/"], a[href*="promoted-tweets"]')) {
+  // 3. Links to promoted ad products, Twitter Ads, or campaign urls
+  if (tweetNode.querySelector('a[href*="/quick_promote_web/"], a[href*="promoted-tweets"], a[href*="ads.x.com"], a[href*="ads.twitter.com"]')) {
     return true;
   }
 
-  // 4. Placement tracking ONLY if outside video player and tweet has no video
-  const tracking = tweetNode.querySelector('[data-testid="placementTracking"]');
-  if (tracking) {
-    // If tracking is inside a video player, it is video analytics, NOT an ad!
-    if (tracking.closest('[data-testid="videoPlayer"], [data-testid="videoComponent"]')) {
-      return false;
-    }
-    // If it has video, do NOT treat as ad unless explicitly marked promoted
-    if (!tweetNode.querySelector('video')) {
+  // 4. Placement tracking outside the video player component
+  const trackings = tweetNode.querySelectorAll('[data-testid="placementTracking"]');
+  for (let i = 0; i < trackings.length; i++) {
+    const t = trackings[i];
+    // If tracking is outside videoComponent/videoPlayer, this is an ad cell placement tracking!
+    if (!t.closest('[data-testid="videoPlayer"], [data-testid="videoComponent"]')) {
       return true;
     }
   }
@@ -1116,27 +1489,26 @@ function isGenuinePromotedAd(tweetNode) {
 function scanAndPurgeAds(root = document) {
   if (!isShieldOn() || !settings.adBlockerEnabled) return;
 
-  // 1. Selector search on genuine ad cells
+  // 1. Selector search on placement tracking ads
   const tracked = root.querySelectorAll?.('[data-testid="placementTracking"]');
   if (tracked) {
     for (let i = 0; i < tracked.length; i++) {
       const node = tracked[i];
-      // Skip if inside video player!
       if (node.closest('[data-testid="videoPlayer"], [data-testid="videoComponent"]')) {
         continue;
       }
-      const cell = node.closest('[data-testid="cellInnerDiv"]');
-      if (cell && isGenuinePromotedAd(cell)) {
+      const cell = node.closest('[data-testid="cellInnerDiv"]') || node.closest('article');
+      if (cell) {
         cleanAdElement(cell);
       }
     }
   }
 
   // 2. Links to promoted ad products
-  const promoLinks = root.querySelectorAll?.('a[href*="/quick_promote_web/"], a[href*="promoted-tweets"]');
+  const promoLinks = root.querySelectorAll?.('a[href*="/quick_promote_web/"], a[href*="promoted-tweets"], a[href*="ads.x.com"], a[href*="ads.twitter.com"]');
   if (promoLinks) {
     for (let i = 0; i < promoLinks.length; i++) {
-      const cell = promoLinks[i].closest('[data-testid="cellInnerDiv"]');
+      const cell = promoLinks[i].closest('[data-testid="cellInnerDiv"]') || promoLinks[i].closest('article');
       if (cell) cleanAdElement(cell);
     }
   }
@@ -1145,8 +1517,7 @@ function scanAndPurgeAds(root = document) {
   const promoTrends = root.querySelectorAll?.('[data-testid="trend"]:has([data-testid="placementTracking"])');
   if (promoTrends) {
     for (let i = 0; i < promoTrends.length; i++) {
-      promoTrends[i].classList.add('xe-ad-hidden');
-      promoTrends[i].style.setProperty('display', 'none', 'important');
+      cleanAdElement(promoTrends[i]);
     }
   }
 }
@@ -3373,7 +3744,8 @@ window.addEventListener('scroll', hideRastnevisTip, { passive: true, capture: tr
 // 5. Quick User Search on Profile Header
 // ============================================================================
 
-const CLEAN_LINK_SVG = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M18.36 5.64c-1.95-1.96-5.11-1.96-7.07 0L9.88 7.05 8.46 5.64l1.41-1.41c2.73-2.74 7.16-2.74 9.9 0s2.73 7.16 0 9.9l-1.41 1.41-1.42-1.41 1.42-1.42c1.95-1.95 1.95-5.12 0-7.07zm-2.12 3.53l-1.41-1.41-7.07 7.07 1.41 1.41 7.07-7.07zm-4.95 4.95l1.41 1.41-1.41 1.42c-1.96 1.95-5.12 1.95-7.07 0-1.96-1.95-1.96-5.12 0-7.07l1.41-1.42-1.41-1.41-1.42 1.41c-2.73 2.74-2.73 7.17 0 9.9s7.16 2.73 9.9 0l1.42-1.41-1.42-1.42-1.41 1.42z"/></svg>';
+// Modern, razor-sharp vector link chain icon matching Twitter outline style
+const CLEAN_LINK_SVG = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/></svg>';
 
 function createCleanLinkButton(tweet) {
   if (settings.cleanShareLinks === false) return;
@@ -3402,12 +3774,26 @@ function createCleanLinkButton(tweet) {
     e.preventDefault();
     e.stopPropagation();
     const handle = getHandleFromTweet(tweet);
-    const tweetId = getTweetId(tweet);
-    if (!tweetId) return;
+    let tweetId = getTweetId(tweet);
+    if (!tweetId) {
+      const pageMatch = location.pathname.match(/\/status\/(\d+)/);
+      if (pageMatch) tweetId = pageMatch[1];
+    }
+    if (!tweetId) {
+      showToast(settings.language === 'fa' ? 'شناسه توییت یافت نشد' : 'Tweet ID not found', { isWarning: true });
+      return;
+    }
     const cleanUrl = handle ? `https://x.com/${handle}/status/${tweetId}` : `https://x.com/i/status/${tweetId}`;
     try {
       await navigator.clipboard.writeText(cleanUrl);
-      showToast(settings.language === 'fa' ? '✓ لینک تمیز کپی شد' : '✓ Clean link copied', { duration: 1800 });
+      const iconContainer = btn.querySelector('.xe-clean-link-btn-icon');
+      if (iconContainer) {
+        iconContainer.innerHTML = '<svg viewBox="0 0 24 24" fill="none" stroke="#00ba7c" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" style="width:18.75px;height:18.75px;"><polyline points="20 6 9 17 4 12"/></svg>';
+        setTimeout(() => {
+          iconContainer.innerHTML = CLEAN_LINK_SVG;
+        }, 1500);
+      }
+      showToast(settings.language === 'fa' ? '✓ لینک تمیز بدون کدهای رهگیری کپی شد' : '✓ Clean link copied (tracking stripped)', { duration: 1800 });
     } catch {
       showToast(settings.language === 'fa' ? 'خطا در کپی لینک' : 'Failed to copy link', { isWarning: true });
     }
@@ -3429,16 +3815,203 @@ function addCleanLinkButtons(root = document) {
   }
 }
 
+// 1-Click Quote Tweets Finder Icon
+const QUOTE_SEARCH_SVG = '<svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M4.583 17.321C3.553 16.227 3 15 3 13.011c0-3.5 2.457-6.637 6.03-8.188l.893 1.378c-3.335 1.804-3.987 4.145-4.247 5.621.537-.278 1.24-.375 1.929-.311 1.804.167 3.226 1.648 3.226 3.489a3.5 3.5 0 01-3.5 3.5c-1.073 0-2.099-.49-2.748-1.179zm10 0C13.553 16.227 13 15 13 13.011c0-3.5 2.457-6.637 6.03-8.188l.893 1.378c-3.335 1.804-3.987 4.145-4.247 5.621.537-.278 1.24-.375 1.929-.311 1.804.167 3.226 1.648 3.226 3.489a3.5 3.5 0 01-3.5 3.5c-1.073 0-2.099-.49-2.748-1.179z"/></svg>';
+
+function createQuoteFinderButton(tweet) {
+  if (settings.quoteFinderEnabled === false) return;
+  if (tweet.querySelector('.xe-quote-search-btn-wrapper')) return;
+
+  const actionBar = findActionBar(tweet);
+  if (!actionBar) return;
+
+  const btn = document.createElement('div');
+  btn.className = 'xe-quote-search-btn-wrapper';
+  btn.setAttribute('role', 'button');
+  btn.setAttribute('tabindex', '0');
+  const label = settings.language === 'fa' ? 'مشاهده کوت‌ها (نقل‌قول‌ها)' : 'View Quote Tweets';
+  btn.setAttribute('aria-label', label);
+  btn.title = label;
+
+  btn.innerHTML = `
+    <div class="xe-quote-search-btn-inner">
+      <div class="xe-quote-search-btn-icon">
+        ${QUOTE_SEARCH_SVG}
+      </div>
+    </div>
+  `;
+
+  const openQuotes = (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+    const handle = getHandleFromTweet(tweet);
+    let tweetId = getTweetId(tweet);
+    if (!tweetId) {
+      const pageMatch = location.pathname.match(/\/status\/(\d+)/);
+      if (pageMatch) tweetId = pageMatch[1];
+    }
+    if (!tweetId) {
+      showToast(settings.language === 'fa' ? 'شناسه توییت یافت نشد' : 'Tweet ID not found', { isWarning: true });
+      return;
+    }
+    const targetUrl = handle
+      ? `https://x.com/${handle}/status/${tweetId}/quotes`
+      : `https://x.com/i/status/${tweetId}/quotes`;
+
+    if (e.ctrlKey || e.metaKey || e.button === 1) {
+      window.open(targetUrl, '_blank');
+    } else {
+      window.location.href = targetUrl;
+    }
+  };
+
+  btn.addEventListener('click', openQuotes);
+  btn.addEventListener('keydown', (e) => {
+    if (e.key === 'Enter' || e.key === ' ') openQuotes(e);
+  });
+
+  const cleanLinkBtn = actionBar.querySelector('.xe-clean-link-btn-wrapper');
+  if (cleanLinkBtn) {
+    actionBar.insertBefore(btn, cleanLinkBtn);
+  } else {
+    actionBar.appendChild(btn);
+  }
+}
+
+function addQuoteFinderButtons(root = document) {
+  if (settings.quoteFinderEnabled === false) return;
+  const articles = root.matches?.('article') ? [root] : root.querySelectorAll('article');
+  for (let i = 0; i < articles.length; i++) {
+    createQuoteFinderButton(articles[i]);
+  }
+}
+
+// ----------------------------------------------------------------------------
+// Auto-Expand Long Tweets (Show More)
+// ----------------------------------------------------------------------------
+const expandedShowMoreNodes = new WeakSet();
+const SHOW_MORE_REGEX = /^(show more|نمایش بیشتر|إظهار المزيد|mostrar más|voir plus|afficher plus|mehr anzeigen|mostra altro|daha fazla göster|показать ещ[её])/i;
+
+function expandLongTweets(root = document) {
+  if (settings.autoExpandTweets === false) return;
+  const scope = root.querySelectorAll ? root : document;
+  const candidates = scope.querySelectorAll('[data-testid="tweet-text-show-more-link"], [data-testid="tweetText"] [role="button"], [data-testid="tweetText"] span[role="button"], [data-testid="tweetText"] a[role="link"]');
+
+  for (let i = 0; i < candidates.length; i++) {
+    const btn = candidates[i];
+    if (expandedShowMoreNodes.has(btn)) continue;
+    if (btn.closest('.xe-hidden-tweet, .xe-ad-hidden, .xe-ad-cell-hidden, .xe-rehide-collapsed')) continue;
+
+    if (!btn.matches('[data-testid="tweet-text-show-more-link"]') && !btn.closest('[data-testid="tweetText"]')) {
+      continue;
+    }
+
+    const txt = btn.textContent.trim();
+    if (btn.matches('[data-testid="tweet-text-show-more-link"]') || SHOW_MORE_REGEX.test(txt)) {
+      expandedShowMoreNodes.add(btn);
+      try {
+        btn.click();
+      } catch {}
+    }
+  }
+}
+
+// ----------------------------------------------------------------------------
+// Auto-Reveal Sensitive Media Warnings
+// ----------------------------------------------------------------------------
+const revealedSensitiveNodes = new WeakSet();
+const SENSITIVE_BTN_REGEX = /^(view|show|نمایش|مشاهده|إظهار|ver|voir|ansehen)$/i;
+const SENSITIVE_KEYWORD_REGEX = /(sensitive|محتوای حساس|محتوى حساس|sensible|sensibile|empfindlich|чувствительн)/i;
+
+function revealSensitiveMedia(root = document) {
+  if (settings.autoRevealSensitiveMedia === false) return;
+  const scope = root.querySelectorAll ? root : document;
+  const candidates = scope.querySelectorAll('[role="button"], button');
+
+  for (let i = 0; i < candidates.length; i++) {
+    const btn = candidates[i];
+    if (revealedSensitiveNodes.has(btn)) continue;
+    if (btn.closest('.xe-hidden-tweet, .xe-ad-hidden, .xe-ad-cell-hidden, .xe-rehide-collapsed')) continue;
+
+    const txt = btn.textContent.trim();
+    if (!SENSITIVE_BTN_REGEX.test(txt)) continue;
+
+    const mediaContainer = btn.closest('[data-testid="tweetPhoto"], [data-testid="videoPlayer"], [data-testid="videoComponent"], article, [data-testid="cellInnerDiv"]');
+    if (!mediaContainer) continue;
+
+    const tweetTextEl = mediaContainer.querySelector('[data-testid="tweetText"]');
+    let testContent = mediaContainer.textContent;
+    if (tweetTextEl) {
+      testContent = testContent.replace(tweetTextEl.textContent, '');
+    }
+
+    if (SENSITIVE_KEYWORD_REGEX.test(testContent)) {
+      revealedSensitiveNodes.add(btn);
+      try {
+        btn.click();
+      } catch {}
+    }
+  }
+}
+
+// Track last shared tweet to sanitize Twitter's native "Copy link to post" action
+let lastSharedTweetNode = null;
+document.addEventListener('click', (e) => {
+  const shareBtn = e.target.closest?.('[data-testid="share"], [data-testid="bookmark"], [aria-label*="Share" i], [aria-label*="اشتراک" i], [aria-label*="پیوند" i]');
+  if (shareBtn) {
+    lastSharedTweetNode = shareBtn.closest('article');
+  }
+}, { capture: true, passive: true });
+
+// Auto-sanitize clipboard when native "Copy link" is clicked in X dropdown menu
+document.addEventListener('click', (e) => {
+  if (settings.cleanShareLinks === false) return;
+  const item = e.target.closest?.('[role="menuitem"], [data-testid="Dropdown"] [role="menuitem"]');
+  if (!item) return;
+  const text = (item.textContent || '').toLowerCase();
+  const isCopyLink = text.includes('copy link') ||
+                     text.includes('کپی پیوند') ||
+                     text.includes('کپی لینک') ||
+                     item.querySelector('[data-testid="copy_link"]');
+  if (isCopyLink) {
+    const tweet = lastSharedTweetNode || item.closest('article');
+    let tweetId = tweet ? getTweetId(tweet) : '';
+    let handle = tweet ? getHandleFromTweet(tweet) : '';
+    if (!tweetId) {
+      const pageMatch = location.pathname.match(/\/status\/(\d+)/);
+      if (pageMatch) tweetId = pageMatch[1];
+    }
+    if (tweetId) {
+      const cleanUrl = handle ? `https://x.com/${handle}/status/${tweetId}` : `https://x.com/i/status/${tweetId}`;
+      setTimeout(async () => {
+        try {
+          await navigator.clipboard.writeText(cleanUrl);
+          showToast(settings.language === 'fa' ? '✓ لینک تمیز بدون کدهای رهگیری کپی شد' : '✓ Clean link copied (tracking stripped)', { duration: 1600 });
+        } catch {}
+      }, 60);
+    }
+  }
+}, { capture: true });
+
 document.addEventListener('copy', (e) => {
   if (settings.cleanShareLinks === false) return;
   const sel = window.getSelection()?.toString() || '';
-  if (sel && /https?:\/\/(?:x|twitter)\.com\/[A-Za-z0-9_]+\/status\/\d+\?[^\s]+/i.test(sel)) {
-    const cleaned = sel.replace(/(https?:\/\/(?:x|twitter)\.com\/[A-Za-z0-9_]+\/status\/\d+)\?[^\s]+/gi, '$1');
-    if (cleaned !== sel) {
-      e.clipboardData?.setData('text/plain', cleaned);
-      e.preventDefault();
-      showToast(settings.language === 'fa' ? '✓ لینک تمیز بدون کدهای رهگیری کپی شد' : '✓ Clean link copied (tracking stripped)', { duration: 1600 });
-    }
+  if (!sel) return;
+
+  // 1. Clean Twitter/X status links removing tracking query strings (?s=20&t=..., etc.)
+  let cleaned = sel.replace(/(https?:\/\/(?:[\w-]+\.)?(?:x|twitter)\.com\/[A-Za-z0-9_]+\/status\/\d+)\?[^\s"')]+/gi, '$1');
+  // 2. Clean Twitter/X profile links with tracking params
+  cleaned = cleaned.replace(/(https?:\/\/(?:[\w-]+\.)?(?:x|twitter)\.com\/[A-Za-z0-9_]+)\?(?:s|t|ref_src|ref_url|twclid)=[^&\s"')]+(?:&[^\s"')]+)*/gi, '$1');
+  // 3. Normalize twitter.com -> x.com
+  cleaned = cleaned.replace(/https?:\/\/(?:www\.)?twitter\.com\//gi, 'https://x.com/');
+  // 4. Strip common UTM and marketing tracking parameters
+  cleaned = cleaned.replace(/([?&])(?:utm_[a-z_]+|fbclid|gclid|igshid|twclid|mc_[ce]id|si)=[^&\s"')]+/gi, (match, prefix) => prefix === '?' ? '?' : '');
+  cleaned = cleaned.replace(/\?&/g, '?').replace(/\?$/g, '').replace(/&&+/g, '&');
+
+  if (cleaned !== sel) {
+    e.clipboardData?.setData('text/plain', cleaned);
+    e.preventDefault();
+    showToast(settings.language === 'fa' ? '✓ لینک تمیز بدون کدهای رهگیری کپی شد' : '✓ Clean link copied (tracking stripped)', { duration: 1600 });
   }
 });
 
@@ -4082,16 +4655,31 @@ function detectAccountAge(tweet, handle) {
 
   const cleanHandle = handle.toLowerCase();
   const bio = (typeof userBioCache !== 'undefined' ? userBioCache.get(cleanHandle) : '') || '';
+  if (!bio) return;
 
-  const currentYear = new Date().getFullYear();
-  const isRecent = bio.includes(`Joined ${currentYear}`) ||
-                   bio.includes(`عضویت از ${toFaDigits(currentYear)}`) ||
-                   bio.includes(`عضویت در ${toFaDigits(currentYear)}`);
+  // Cover current year + last 3 months of previous year (Q4 accounts under 90 days)
+  const now = new Date();
+  const currentYear = now.getFullYear();
+  const prevYear = currentYear - 1;
+  // Month is 0-indexed; Oct=9, Nov=10, Dec=11
+  const isQ4Prev = now.getMonth() <= 2; // Jan/Feb/Mar of current year means Q4 prev is ≤3mo
 
-  if (isRecent) {
+  const joinedRecently =
+    bio.includes(`Joined ${currentYear}`) ||
+    bio.includes(`عضویت از ${toFaDigits(currentYear)}`) ||
+    bio.includes(`عضویت در ${toFaDigits(currentYear)}`) ||
+    (isQ4Prev && (
+      bio.includes(`Joined ${prevYear}`) ||
+      bio.includes(`عضویت از ${toFaDigits(prevYear)}`) ||
+      bio.includes(`عضویت در ${toFaDigits(prevYear)}`)
+    ));
+
+  if (joinedRecently) {
     const badge = document.createElement('span');
     badge.className = 'xe-account-age-badge';
-    badge.title = settings.language === 'fa' ? 'اکانت تازه‌تاسیس (سال جاری) — احتمال بات یا ترول' : 'New account (joined recently)';
+    badge.title = settings.language === 'fa'
+      ? 'اکانت تازه‌تاسیس (زیر ۳ ماه) — احتمال بات یا ترول'
+      : 'New account (under 3 months old)';
     badge.textContent = settings.language === 'fa' ? '🌱 جدید' : '🌱 New';
     header.appendChild(badge);
   }
@@ -4157,6 +4745,9 @@ function toggleInPageDrawer() {
     createInPageDrawer();
   }
   const isOpen = inPageDrawer.classList.toggle('xe-open');
+  if (inPageLauncher) {
+    inPageLauncher.classList.toggle('xe-active', isOpen);
+  }
   if (isOpen) {
     renderInPageDrawerContent();
   }
@@ -4165,6 +4756,9 @@ function toggleInPageDrawer() {
 function closeInPageDrawer() {
   if (inPageDrawer) {
     inPageDrawer.classList.remove('xe-open');
+    if (inPageLauncher) {
+      inPageLauncher.classList.remove('xe-active');
+    }
   }
 }
 
@@ -4177,10 +4771,15 @@ function ensureInPageLauncher() {
   launcher.setAttribute('aria-label', 'XWise Settings');
   launcher.title = settings.language === 'fa' ? 'تنظیمات XWise Blocker' : 'XWise Blocker Settings';
 
-  // Crisp official-style verified protection shield SVG
+  // Crisp native-matching verified protection shield & close SVGs
   launcher.innerHTML = `
-    <svg viewBox="0 0 24 24" width="26" height="26" fill="currentColor">
-      <path d="M12 1L3 5v6c0 5.55 3.84 10.74 9 12 5.16-1.26 9-6.45 9-12V5l-9-4zm-1 15.5l-3.5-3.5 1.41-1.41L11 13.67l5.09-5.09 1.41 1.41L11 16.5z"/>
+    <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" class="xe-launcher-icon">
+      <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/>
+      <path d="M9 12l2 2 4-4" stroke-width="2.2"/>
+    </svg>
+    <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" class="xe-launcher-close">
+      <line x1="18" y1="6" x2="6" y2="18"/>
+      <line x1="6" y1="6" x2="18" y2="18"/>
     </svg>
   `;
 
@@ -4354,6 +4953,7 @@ const RESCAN_KEYS = new Set([
   'rastnevisZwnj', 'rastnevisHints', 'rastnevisPunctuation', 'rastnevisDigits',
   'rastnevisShowBadge', 'rastnevisUnderline', 'rastnevisComposerBtn', 'rastnevisIgnoredWords',
   'cleanShareLinks', 'imageDownloadEnabled', 'threadReaderEnabled', 'accountAgeBadge',
+  'autoExpandTweets', 'quoteFinderEnabled', 'autoRevealSensitiveMedia',
 ]);
 const QUIET_KEYS = new Set(['lastVolume', 'defaultPlaybackRate']);
 
@@ -4420,6 +5020,20 @@ async function runPageSync(onProgress) {
 
   await tracker.init();
   const categories = await tracker.sync(onProgress);
+
+  // Background fetch of total blocked accounts from X API
+  try {
+    const totalBlocked = await globalThis.XWiseTwitterApi?.fetchTotalBlockedCount?.();
+    if (typeof totalBlocked === 'number' && chrome?.storage?.local) {
+      await chrome.storage.local.set({
+        'xwise.totalBlockedCount': totalBlocked,
+        'xwise.totalBlockedLastSync': Date.now(),
+      });
+    }
+  } catch {
+    // Non-blocking for relationship sync
+  }
+
   return {
     isInitialScan: categories.isInitialScan,
     newUnfollowerCount: categories.newUnfollowerCount,
@@ -4516,6 +5130,25 @@ chrome.runtime?.onMessage?.addListener((message, sender, sendResponse) => {
       runSingleAction(message.targets, message.actionType).then(sendResponse);
       return true;
 
+    case 'XWISE_GET_TOTAL_BLOCKED':
+      (async () => {
+        try {
+          const api = globalThis.XWiseTwitterApi;
+          if (!api) throw new Error('API_NOT_LOADED');
+          const count = await api.fetchTotalBlockedCount();
+          if (chrome?.storage?.local) {
+            await chrome.storage.local.set({
+              'xwise.totalBlockedCount': count,
+              'xwise.totalBlockedLastSync': Date.now(),
+            });
+          }
+          sendResponse({ success: true, count });
+        } catch (err) {
+          sendResponse({ success: false, error: err.message });
+        }
+      })();
+      return true;
+
     default:
       return false;
   }
@@ -4578,6 +5211,12 @@ function handleNavigation() {
     cleanWhoToFollowRecommendations(document);
     cleanZenSidebar();
 
+    // Reset UserCell scan cache on navigation so new pages get re-filtered
+    if (urlChanged) {
+      scannedUserCells = new WeakSet();
+      scheduleScan(document);
+    }
+
     // If leaving For You tab (switching to Following or navigating to a Profile):
     if (!curForYou && settings.hideBoysMode) {
       document.querySelectorAll('article[data-xe-reason="gender"]').forEach((tw) => unhideTweet(tw));
@@ -4615,12 +5254,31 @@ function flushScan() {
     addVolumeSliders(root);
     addBlockButtons(root);
     addCleanLinkButtons(root);
+    addQuoteFinderButtons(root);
     injectImageDownloadButtons(root);
     addThreadReaderButtons(root);
+    expandLongTweets(root);
+    revealSensitiveMedia(root);
 
     const articles = root.matches?.('article') ? [root] : root.querySelectorAll('article');
     for (let i = 0; i < articles.length; i++) {
       processTweetFilter(articles[i]);
+    }
+
+    // Process user list cells (Followers, Following, Lists, etc.)
+    const userCells = root.matches?.('[data-testid="UserCell"]')
+      ? [root]
+      : root.querySelectorAll('[data-testid="UserCell"]');
+    for (let i = 0; i < userCells.length; i++) {
+      processUserCell(userCells[i]);
+    }
+  }
+
+  // Guarantee scanning on user lists (Followers, Following, Members, etc.)
+  if (isFollowerFollowingView() || isUserListView()) {
+    const allCells = document.querySelectorAll('[data-testid="UserCell"]');
+    for (let i = 0; i < allCells.length; i++) {
+      processUserCell(allCells[i]);
     }
   }
 
@@ -4679,8 +5337,14 @@ const hoverObserver = new MutationObserver((mutations) => {
       if (node.nodeType === Node.ELEMENT_NODE) {
         const bioEl = node.querySelector?.('[data-testid="UserDescription"]') ||
                       (node.matches?.('[data-testid="UserDescription"]') ? node : null);
-        if (bioEl) {
-          const text = extractFullTextWithAlt(bioEl);
+        if (bioEl || node.querySelector?.('[data-testid="UserProfileHeader_Items"]')) {
+          let text = bioEl ? extractFullTextWithAlt(bioEl) : '';
+          const joinSpan = Array.from(node.querySelectorAll?.('span') || []).find(
+            (s) => /(?:joined|عضویت)\s+(?:در\s+|از\s+)?[\w\d\s]+/i.test(s.textContent)
+          );
+          if (joinSpan) {
+            text += ' ' + joinSpan.textContent;
+          }
           const handleEl = node.querySelector?.('a[href^="/"]');
           const href = handleEl?.getAttribute('href');
           if (href && href.length > 1) {
@@ -4725,6 +5389,11 @@ const themeObserver = new MutationObserver(() => {
   const existingTweets = document.querySelectorAll('article');
   for (let i = 0; i < existingTweets.length; i++) {
     processTweetFilter(existingTweets[i]);
+  }
+
+  const existingUserCells = document.querySelectorAll('[data-testid="UserCell"]');
+  for (let i = 0; i < existingUserCells.length; i++) {
+    processUserCell(existingUserCells[i]);
   }
 
   if (location.search.includes('xwise_open_thread=1')) {

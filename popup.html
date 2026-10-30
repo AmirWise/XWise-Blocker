@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>XWise Blocker v3.5.1</title>
+  <title>XWise Blocker v3.5.5</title>
   <link rel="stylesheet" href="popup.css" />
 </head>
 <body>
@@ -15,7 +15,7 @@
         <div class="xe-header-text">
           <div class="xe-title-row">
             <h1>XWise Blocker</h1>
-            <span class="xe-badge">v3.5.1</span>
+            <span class="xe-badge">v3.5.5</span>
           </div>
           <p class="xe-sub" data-i18n="appSubtitle">سوئیت فیلتر هوشمند، ردیاب آنفالو و پاک‌ساز X</p>
         </div>
@@ -152,6 +152,10 @@
             <span class="xe-stat-num" id="statRastnevisCount">0</span>
             <span class="xe-stat-lbl" data-i18n="statRastnevis">ویرایش راست‌نویس</span>
           </div>
+          <div class="xe-stat-box" id="dashTotalBlockedBox" style="cursor: pointer;" title="مجموع اکانت‌های مسدود در حساب X">
+            <span class="xe-stat-num" id="statTotalBlockedCount">-</span>
+            <span class="xe-stat-lbl" data-i18n="statTotalBlocked">کل بلاک‌های حساب</span>
+          </div>
         </div>
       </section>
 
@@ -227,6 +231,10 @@
               <label class="xe-checkbox-label">
                 <input type="checkbox" id="scopeTweetText" />
                 <span data-i18n="scopeTweetText">متن توییت</span>
+              </label>
+              <label class="xe-checkbox-label">
+                <input type="checkbox" id="scopeUserLists" checked />
+                <span data-i18n="scopeUserLists">فالوور و فالووینگ</span>
               </label>
             </div>
           </div>
@@ -594,6 +602,39 @@
             <span></span>
           </label>
         </div>
+
+        <div class="xe-row">
+          <div class="xe-row-content">
+            <p class="xe-row-title" data-i18n="autoExpandTweetsTitle">باز کردن خودکار توییت‌های بلند</p>
+            <p class="xe-row-desc" data-i18n="autoExpandTweetsDesc">نمایش خودکار متن کامل بدون نیاز به کلیک مداوم روی «نمایش بیشتر»</p>
+          </div>
+          <label class="xe-switch">
+            <input type="checkbox" id="autoExpandTweets" checked />
+            <span></span>
+          </label>
+        </div>
+
+        <div class="xe-row">
+          <div class="xe-row-content">
+            <p class="xe-row-title" data-i18n="quoteFinderTitle">دکمه مشاهده کوت‌ها (نقل‌قول‌ها)</p>
+            <p class="xe-row-desc" data-i18n="quoteFinderDesc">افزودن دکمه دسترسی ۱ کلیکی به کوت‌های هر توییت در نوار اکشن</p>
+          </div>
+          <label class="xe-switch">
+            <input type="checkbox" id="quoteFinderEnabled" checked />
+            <span></span>
+          </label>
+        </div>
+
+        <div class="xe-row">
+          <div class="xe-row-content">
+            <p class="xe-row-title" data-i18n="autoRevealSensitiveMediaTitle">رفع خودکار تاری محتوای حساس</p>
+            <p class="xe-row-desc" data-i18n="autoRevealSensitiveMediaDesc">حذف لایه هشدار و نمایش مستقیم تصاویر و ویدیوهای محتوای حساس</p>
+          </div>
+          <label class="xe-switch">
+            <input type="checkbox" id="autoRevealSensitiveMedia" checked />
+            <span></span>
+          </label>
+        </div>
       </section>
 
       <!-- Anti-Spam & Bot Detection -->
@@ -926,6 +967,22 @@
             <option value="720" data-i18n="interval12h">هر ۱۲ ساعت</option>
             <option value="1440" data-i18n="interval24h">روزی یک‌بار</option>
           </select>
+        </div>
+      </section>
+
+      <!-- Account Block Statistics -->
+      <section class="xe-card">
+        <h2 class="xe-section-title" data-i18n="accountBlockStatsHeading">آمار بلاک‌های حساب کاربری X</h2>
+        <p class="xe-card-note" data-i18n="accountBlockStatsDesc">تعداد کل اکانت‌هایی که تا به امروز با این حساب در توییتر مسدود (بلاک) کرده‌اید.</p>
+
+        <div class="xe-cache-stats-row">
+          <div class="xe-cache-stat">
+            <span class="xe-cache-val" id="settingTotalBlockedCount">-</span>
+            <span class="xe-cache-lbl" data-i18n="totalBlockedLabel">کل اکانت‌های بلاک‌شده</span>
+          </div>
+          <button type="button" id="btnSyncTotalBlocked" class="xe-btn-secondary xe-btn-compact" data-i18n="btnRefreshBlocked">
+            استعلام و به‌روزرسانی
+          </button>
         </div>
       </section>
 

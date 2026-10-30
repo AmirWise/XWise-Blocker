@@ -1,7 +1,7 @@
 'use strict';
 
 /**
- * XWise Blocker v3.5.2 — Popup Controller
+ * XWise Blocker v3.5.5 — Popup Controller
  * Bilingual controller for the dashboard, filters, relationship tracker,
  * media settings, Persian RastNevis editor and cache tabs.
  */
@@ -29,6 +29,7 @@ const I18N = {
     statAds: 'تبلیغات مسدود',
     statFiltered: 'توییت فیلترشده',
     statBlocked: 'بلاک رسمی',
+    statTotalBlocked: 'کل بلاک‌های حساب',
     statLost: 'آنفالو کرده‌اند',
     statRastnevis: 'ویرایش راست‌نویس',
     activityHeading: 'گزارش آخرین اقدامات',
@@ -49,6 +50,7 @@ const I18N = {
     scopeDisplayName: 'نام',
     scopeBio: 'بایو',
     scopeTweetText: 'متن توییت',
+    scopeUserLists: 'فالوور/فالووینگ',
     presetPacksHeading: 'پک‌های فیلتر آماده',
     packGovTitle: '🎒 سایبری و ارزشی',
     packBaitTitle: '🎣 طعمه تعامل',
@@ -103,6 +105,12 @@ const I18N = {
     cleanShareLinksDesc: 'حذف خودکار کدهای رهگیری (مانند ?s=20&t=...) هنگام کپی لینک توییت',
     threadReaderTitle: 'حالت مطالعه رشته‌توییت (Thread Reader)',
     threadReaderDesc: 'دکمه مطالعه پیوسته ثردها در یک پنجره منسجم با فونت زیبا',
+    autoExpandTweetsTitle: 'باز کردن خودکار توییت‌های بلند',
+    autoExpandTweetsDesc: 'نمایش خودکار متن کامل بدون نیاز به کلیک مداوم روی «نمایش بیشتر»',
+    quoteFinderTitle: 'دکمه مشاهده کوت‌ها (نقل‌قول‌ها)',
+    quoteFinderDesc: 'افزودن دکمه دسترسی ۱ کلیکی به کوت‌های هر توییت در نوار اکشن',
+    autoRevealSensitiveMediaTitle: 'رفع خودکار تاری محتوای حساس',
+    autoRevealSensitiveMediaDesc: 'حذف لایه هشدار و نمایش مستقیم تصاویر و ویدیوهای محتوای حساس',
     accountAgeBadgeTitle: 'نشانگر اکانت‌های تازه‌تاسیس',
     accountAgeBadgeDesc: 'نمایش برچسب سن برای اکانت‌های زیر ۳ ماه جهت تشخیص سریع بات‌ها و ترول‌ها',
     cleanerHeading: 'پاک‌سازی تایم‌لاین و خلوت‌سازی',
@@ -199,6 +207,10 @@ const I18N = {
     interval4h: 'هر ۴ ساعت',
     interval12h: 'هر ۱۲ ساعت',
     interval24h: 'روزی یک‌بار',
+    accountBlockStatsHeading: 'آمار بلاک‌های حساب کاربری X',
+    accountBlockStatsDesc: 'تعداد کل اکانت‌هایی که تا به امروز با این حساب در توییتر مسدود (بلاک) کرده‌اید.',
+    totalBlockedLabel: 'کل اکانت‌های بلاک‌شده',
+    btnRefreshBlocked: 'استعلام و به‌روزرسانی',
     cacheManagerHeading: 'مدیریت حافظه کش هوشمند',
     cacheManagerDesc: 'کش دو لایه باعث کاهش ۹۰٪ مصرف رم مرورگر و حذف لگ می‌شود.',
     cacheItemsLabel: 'آیتم ذخیره‌شده',
@@ -215,6 +227,9 @@ const I18N = {
     syncSuccess: 'ارتباطات با موفقیت همگام‌سازی شد',
     syncFailed: 'خطا در همگام‌سازی. لطفاً لاگین بودن در توییتر را بررسی کنید.',
     actionComplete: 'عملیات با موفقیت پایان یافت',
+    totalBlockedUpdated: 'آمار بلاک‌های حساب به‌روزرسانی شد: {n} نفر',
+    totalBlockedFailed: 'خطا در دریافت آمار بلاک‌ها از توییتر',
+    queryingBlocks: 'در حال استعلام از توییتر...',
 
     storageError: 'ذخیره‌سازی ناموفق بود؛ احتمالاً حافظه همگام‌سازی پر است',
     filterExists: 'این فیلتر قبلاً افزوده شده است',
@@ -285,6 +300,7 @@ const I18N = {
     statAds: 'Ads Blocked',
     statFiltered: 'Filtered Tweets',
     statBlocked: 'Accounts Blocked',
+    statTotalBlocked: 'Total X Blocks',
     statLost: 'Unfollowers',
     statRastnevis: 'RastNevis Edits',
     activityHeading: 'Recent Activity Log',
@@ -305,6 +321,7 @@ const I18N = {
     scopeDisplayName: 'Name',
     scopeBio: 'Bio',
     scopeTweetText: 'Tweet',
+    scopeUserLists: 'Followers & Following',
     presetPacksHeading: 'Quick Preset Packs',
     packGovTitle: '🎒 State Trolls',
     packBaitTitle: '🎣 Engagement Bait',
@@ -359,6 +376,12 @@ const I18N = {
     cleanShareLinksDesc: 'Auto-strip tracking parameters (?s=20&t=...) when copying tweet links',
     threadReaderTitle: 'Thread Reader Mode',
     threadReaderDesc: 'Clean distraction-free window for reading entire tweet threads',
+    autoExpandTweetsTitle: 'Auto-Expand Long Tweets',
+    autoExpandTweetsDesc: 'Automatically expand full text without clicking "Show more"',
+    quoteFinderTitle: '1-Click Quote Tweets Finder',
+    quoteFinderDesc: 'Direct action bar button to search and view all quote tweets',
+    autoRevealSensitiveMediaTitle: 'Auto-Reveal Sensitive Media',
+    autoRevealSensitiveMediaDesc: 'Automatically dismiss sensitivity warning overlays on photos and videos',
     accountAgeBadgeTitle: 'New Account Badge',
     accountAgeBadgeDesc: 'Highlight accounts under 3 months old to quickly spot bots and trolls',
     cleanerHeading: 'Timeline Cleaner',
@@ -455,6 +478,10 @@ const I18N = {
     interval4h: 'Every 4 hours',
     interval12h: 'Every 12 hours',
     interval24h: 'Once daily',
+    accountBlockStatsHeading: 'X Account Block Statistics',
+    accountBlockStatsDesc: 'Total number of accounts blocked on this X account to date.',
+    totalBlockedLabel: 'Total Blocked Accounts',
+    btnRefreshBlocked: 'Query & Refresh',
     cacheManagerHeading: 'Smart Cache Manager',
     cacheManagerDesc: 'Two-tier cache reduces RAM by 90% and eliminates lag.',
     cacheItemsLabel: 'Items in Cache',
@@ -471,6 +498,9 @@ const I18N = {
     syncSuccess: 'Relationships synced successfully',
     syncFailed: 'Sync failed. Please ensure you are logged into X.com',
     actionComplete: 'Actions completed successfully',
+    totalBlockedUpdated: 'Total blocked accounts updated: {n}',
+    totalBlockedFailed: 'Failed to fetch blocked accounts from X',
+    queryingBlocks: 'Querying from X...',
 
     storageError: 'Saving failed. Sync storage may be full.',
     filterExists: 'Filter already exists',
@@ -548,6 +578,7 @@ const PRESET_PACKS = {
 const MEDIA_TOGGLES = [
   'volumeSliderEnabled', 'rememberVolume', 'videoDownloadEnabled', 'imageDownloadEnabled', 'videoLoopEnabled',
   'cleanShareLinks', 'threadReaderEnabled', 'accountAgeBadge',
+  'autoExpandTweets', 'quoteFinderEnabled', 'autoRevealSensitiveMedia',
   'adBlockerEnabled', 'zenModeEnabled', 'zenKeepSearch', 'hideWhoToFollow', 'hideProfileWhoToFollow',
   'hideGrokDrawer', 'hidePremiumUpsell', 'hideViewCounts', 'filterDefaultAvatars',
   'filterEngagementBait', 'hideBoysMode',
@@ -556,7 +587,8 @@ const MEDIA_TOGGLES = [
 const BOOLEAN_SETTINGS = [
   'shieldEnabled', 'trackerEnabled', 'trackerBadgeAlerts', 'volumeSliderEnabled', 'rememberVolume',
   'videoLoopEnabled', 'videoDownloadEnabled', 'imageDownloadEnabled', 'cleanShareLinks', 'threadReaderEnabled',
-  'accountAgeBadge', 'cleanTimelineEnabled', 'hideWhoToFollow',
+  'accountAgeBadge', 'autoExpandTweets', 'quoteFinderEnabled', 'autoRevealSensitiveMedia',
+  'cleanTimelineEnabled', 'hideWhoToFollow',
   'hideProfileWhoToFollow', 'hideGrokDrawer', 'hidePremiumUpsell', 'hideViewCounts', 'zenModeEnabled',
   'zenKeepSearch', 'scrollToTopEnabled', 'highResImagesEnabled', 'filterEngineEnabled',
   'filterCaseSensitive', 'filterWholeWord', 'filterDefaultAvatars', 'filterEngagementBait',
@@ -630,7 +662,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     shieldEnabled: true,
     filterEngineEnabled: true,
     filterMode: 'hide',
-    filterScopes: { displayName: true, bio: true, tweetText: false },
+    filterScopes: { displayName: true, bio: true, tweetText: false, userLists: true },
     filters: [],
     whitelist: [],
     language: 'fa',
@@ -845,6 +877,7 @@ function syncControlsFromSettings() {
   setChecked('scopeDisplayName', scopes.displayName !== false);
   setChecked('scopeBio', scopes.bio !== false);
   setChecked('scopeTweetText', scopes.tweetText);
+  setChecked('scopeUserLists', scopes.userLists !== false);
 
   MEDIA_TOGGLES.forEach((key) => setChecked(key, s[key]));
   const zenSub = $('zenSubOptions');
@@ -927,6 +960,7 @@ function setupDashboard() {
   }
 
   $('dashRastnevisStatBox')?.addEventListener('click', () => activateTab('rastnevis'));
+  $('dashTotalBlockedBox')?.addEventListener('click', () => refreshTotalBlockedAccounts());
 
   $('btnClearActivity')?.addEventListener('click', async () => {
     if (!chrome?.storage?.local) return;
@@ -958,7 +992,7 @@ async function updateRastnevisStats() {
 }
 
 async function renderDashboard() {
-  const local = await readLocal([STATS_KEY, ACTIVITY_KEY, 'marked']);
+  const local = await readLocal([STATS_KEY, ACTIVITY_KEY, 'marked', 'xwise.totalBlockedCount']);
   const stats = local[STATS_KEY] || {};
 
   $('statAdBlockCount').textContent = formatCount(stats.adBlockCount);
@@ -969,6 +1003,11 @@ async function renderDashboard() {
   if (rnStatEl) rnStatEl.textContent = formatCount(local.marked || 0);
   const rnMarkedEl = $('rnMarkedCount');
   if (rnMarkedEl) rnMarkedEl.textContent = formatCount(local.marked || 0);
+
+  const totalBlocked = local['xwise.totalBlockedCount'];
+  const formattedTotal = typeof totalBlocked === 'number' ? formatCount(totalBlocked) : '-';
+  if ($('statTotalBlockedCount')) $('statTotalBlockedCount').textContent = formattedTotal;
+  if ($('settingTotalBlockedCount')) $('settingTotalBlockedCount').textContent = formattedTotal;
 
   const snapshot = globalThis.XWiseRelationshipTracker?.latestSnapshot;
   if (snapshot?.account) {
@@ -1055,7 +1094,12 @@ function setupFiltersTab() {
     });
   });
 
-  const scopeControls = { scopeDisplayName: 'displayName', scopeBio: 'bio', scopeTweetText: 'tweetText' };
+  const scopeControls = {
+    scopeDisplayName: 'displayName',
+    scopeBio: 'bio',
+    scopeTweetText: 'tweetText',
+    scopeUserLists: 'userLists',
+  };
   for (const [id, scopeKey] of Object.entries(scopeControls)) {
     $(id)?.addEventListener('change', (e) => {
       const scopes = { ...(currentSettings.filterScopes || {}), [scopeKey]: e.target.checked };
@@ -1910,6 +1954,7 @@ function sanitizeImportedSettings(raw) {
       displayName: raw.filterScopes.displayName !== false,
       bio: raw.filterScopes.bio !== false,
       tweetText: !!raw.filterScopes.tweetText,
+      userLists: raw.filterScopes.userLists !== false,
     };
   }
 
@@ -2153,8 +2198,29 @@ function renderRastnevisDict() {
   });
 }
 
+async function refreshTotalBlockedAccounts() {
+  const btn = $('btnSyncTotalBlocked');
+  if (btn) btn.disabled = true;
+  showPopupToast(t('queryingBlocks'));
+
+  try {
+    const tab = await requireXTab();
+    const res = await sendToTab(tab.id, { type: 'XWISE_GET_TOTAL_BLOCKED' });
+    if (!res?.success) throw new Error(res?.error || 'FETCH_FAILED');
+    const count = typeof res.count === 'number' ? res.count : 0;
+    if ($('statTotalBlockedCount')) $('statTotalBlockedCount').textContent = formatCount(count);
+    if ($('settingTotalBlockedCount')) $('settingTotalBlockedCount').textContent = formatCount(count);
+    showPopupToast(t('totalBlockedUpdated', { n: formatCount(count) }), 2500);
+  } catch (err) {
+    showPopupToast(t('totalBlockedFailed'), 3000);
+  } finally {
+    if (btn) btn.disabled = false;
+  }
+}
+
 function setupSettingsTab() {
   $('settingLanguage')?.addEventListener('change', (e) => changeLanguage(e.target.value));
+  $('btnSyncTotalBlocked')?.addEventListener('click', () => refreshTotalBlockedAccounts());
 
   $('trackerCheckInterval')?.addEventListener('change', async (e) => {
     await saveSettings({ trackerCheckInterval: parseInt(e.target.value, 10) });

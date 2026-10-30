@@ -1,7 +1,7 @@
 'use strict';
 
 /**
- * XWise Blocker v3.5.2 - Background Service Worker
+ * XWise Blocker v3.5.5 - Background Service Worker
  * Settings storage and migration, scheduled relationship scans,
  * video and image download resolution, and runtime messaging.
  */
@@ -11,7 +11,7 @@ import './modules/twitterApi.js';
 import './modules/relationshipTracker.js';
 import './modules/rastnevis.js';
 
-const STORAGE_VERSION = 8;
+const STORAGE_VERSION = 10;
 const TRACKER_ALARM_NAME = 'xwise_periodic_tracker';
 const STATS_KEY = 'xwise.stats';
 const X_TAB_PATTERNS = ['*://*.x.com/*', '*://*.twitter.com/*'];
@@ -65,6 +65,7 @@ const DEFAULT_SETTINGS = {
     displayName: true,
     bio: true,
     tweetText: false,
+    userLists: true,
   },
   filters: [], // { id, pattern, action, isRegex, enabled, createdAt }
   filterCaseSensitive: false,
@@ -92,11 +93,14 @@ const DEFAULT_SETTINGS = {
   rastnevisComposerBtn: true,
   rastnevisIgnoredWords: [],
 
-  // Productivity & Media Suite (New in v3.5.2)
+  // Productivity & Media Suite (New in v3.5.2 & v3.5.5)
   cleanShareLinks: true,
   imageDownloadEnabled: true,
   threadReaderEnabled: true,
   accountAgeBadge: true,
+  autoExpandTweets: true,
+  quoteFinderEnabled: true,
+  autoRevealSensitiveMedia: true,
 
   // Ads
   adBlockerEnabled: true,
@@ -234,6 +238,22 @@ async function migrateSettings(settings, fromVersion) {
     settings.rastnevisDigits = settings.rastnevisDigits ?? true;
     settings.rastnevisComposerBtn = settings.rastnevisComposerBtn ?? true;
     settings.rastnevisIgnoredWords = Array.isArray(settings.rastnevisIgnoredWords) ? settings.rastnevisIgnoredWords : [];
+  }
+
+  if (fromVersion < 9) {
+    // v3.5.5: add userLists scope to filter engine
+    if (settings.filterScopes && typeof settings.filterScopes === 'object') {
+      settings.filterScopes.userLists = settings.filterScopes.userLists ?? true;
+    } else {
+      settings.filterScopes = { displayName: true, bio: true, tweetText: false, userLists: true };
+    }
+  }
+
+  if (fromVersion < 10) {
+    // v3.5.5+: Auto-expand show more, quote finder, auto-reveal sensitive media
+    settings.autoExpandTweets = settings.autoExpandTweets ?? true;
+    settings.quoteFinderEnabled = settings.quoteFinderEnabled ?? true;
+    settings.autoRevealSensitiveMedia = settings.autoRevealSensitiveMedia ?? true;
   }
 
   settings.__version = STORAGE_VERSION;
@@ -380,10 +400,15 @@ async function downloadImage({ url, handle, tweetId }) {
     return { success: false, error: 'NO_DOWNLOADABLE_SOURCE' };
   }
 
-  // Ensure highest available resolution
+  let ext = 'jpg';
+  // Ensure highest available resolution and proper extension
   try {
     const parsed = new URL(target);
     if (parsed.hostname.includes('twimg.com')) {
+      const fmt = parsed.searchParams.get('format');
+      if (fmt) ext = fmt;
+      else if (parsed.pathname.endsWith('.png')) ext = 'png';
+      else if (parsed.pathname.endsWith('.webp')) ext = 'webp';
       parsed.searchParams.set('name', 'orig');
       target = parsed.href;
     }
@@ -393,7 +418,7 @@ async function downloadImage({ url, handle, tweetId }) {
   const name = ['xwise-img', safeHandle, tweetId || Date.now()].filter(Boolean).join('-');
   const downloadId = await chrome.downloads.download({
     url: target,
-    filename: `XWise/${name}.jpg`,
+    filename: `XWise/${name}.${ext}`,
     saveAs: false,
   });
   return { success: true, downloadId };
@@ -414,10 +439,10 @@ chrome.runtime.onInstalled.addListener(async (details) => {
   if (details.reason === 'install') {
     await chrome.storage.sync.set(DEFAULT_SETTINGS);
     await chrome.storage.local.set({ 'xwise.activityLog': [], [STATS_KEY]: {} });
-    console.log('[XWise] Installed v3.5.2');
+    console.log('[XWise] Installed v3.5.5');
   } else if (details.reason === 'update') {
     await loadSettings();
-    console.log('[XWise] Updated to v3.5.2');
+    console.log('[XWise] Updated to v3.5.5');
   }
   await ensureTrackerAlarm();
 });
@@ -469,6 +494,32 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
 
     case 'XWISE_DOWNLOAD_IMAGE':
       return respondWith(downloadImage(message));
+
+    case 'XWISE_BLOCK_USER':
+      return respondWith(
+        (async () => {
+          const handle = String(message?.handle || '').replace(/^@/, '').trim();
+          if (!handle) return { success: false, error: 'NO_HANDLE' };
+          let ok = false;
+          if (globalThis.XWiseTwitterApi) {
+            ok = await globalThis.XWiseTwitterApi.blockUser('', handle);
+          }
+          return { success: ok };
+        })()
+      );
+
+    case 'XWISE_MUTE_USER':
+      return respondWith(
+        (async () => {
+          const handle = String(message?.handle || '').replace(/^@/, '').trim();
+          if (!handle) return { success: false, error: 'NO_HANDLE' };
+          let ok = false;
+          if (globalThis.XWiseTwitterApi) {
+            ok = await globalThis.XWiseTwitterApi.muteUser('', handle);
+          }
+          return { success: ok };
+        })()
+      );
 
     default:
       return false;

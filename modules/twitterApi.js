@@ -1,7 +1,7 @@
 'use strict';
 
 /**
- * XWise Blocker v3.5.0 — Native Twitter/X Client API
+ * XWise Blocker v3.5.5 — Native Twitter/X Client API
  * High-reliability REST/GraphQL client with automatic CSRF management,
  * multi-tier fallbacks, and rate-limit safety checks.
  */
@@ -610,7 +610,7 @@ class XWiseTwitterApiEngine {
     });
     const body = new URLSearchParams();
     if (targetUserId) body.append('user_id', targetUserId);
-    if (targetScreenName) body.append('screen_name', targetScreenName);
+    if (targetScreenName) body.append('screen_name', String(targetScreenName).replace(/^@/, ''));
 
     const res = await fetch('https://x.com/i/api/1.1/blocks/create.json', {
       method: 'POST',
@@ -630,7 +630,7 @@ class XWiseTwitterApiEngine {
     });
     const body = new URLSearchParams();
     if (targetUserId) body.append('user_id', targetUserId);
-    if (targetScreenName) body.append('screen_name', targetScreenName);
+    if (targetScreenName) body.append('screen_name', String(targetScreenName).replace(/^@/, ''));
 
     const res = await fetch('https://x.com/i/api/1.1/blocks/destroy.json', {
       method: 'POST',
@@ -639,6 +639,76 @@ class XWiseTwitterApiEngine {
       credentials: 'include',
     });
     return res.ok;
+  }
+
+  /**
+   * Mute a user
+   */
+  async muteUser(targetUserId, targetScreenName) {
+    const headers = await this._getHeaders({
+      'content-type': 'application/x-www-form-urlencoded',
+    });
+    const body = new URLSearchParams();
+    if (targetUserId) body.append('user_id', targetUserId);
+    if (targetScreenName) body.append('screen_name', String(targetScreenName).replace(/^@/, ''));
+
+    const res = await fetch('https://x.com/i/api/1.1/mutes/users/create.json', {
+      method: 'POST',
+      headers,
+      body: body.toString(),
+      credentials: 'include',
+    });
+    return res.ok;
+  }
+
+  /**
+   * Unmute a user
+   */
+  async unmuteUser(targetUserId, targetScreenName) {
+    const headers = await this._getHeaders({
+      'content-type': 'application/x-www-form-urlencoded',
+    });
+    const body = new URLSearchParams();
+    if (targetUserId) body.append('user_id', targetUserId);
+    if (targetScreenName) body.append('screen_name', String(targetScreenName).replace(/^@/, ''));
+
+    const res = await fetch('https://x.com/i/api/1.1/mutes/users/destroy.json', {
+      method: 'POST',
+      headers,
+      body: body.toString(),
+      credentials: 'include',
+    });
+    return res.ok;
+  }
+
+  /**
+   * Fetch total count of all blocked accounts on user's X profile
+   */
+  async fetchTotalBlockedCount() {
+    const headers = await this._getHeaders();
+    let total = 0;
+    let cursor = '-1';
+    let pages = 0;
+
+    do {
+      const url = `https://x.com/i/api/1.1/blocks/ids.json?stringify_ids=true&cursor=${cursor}`;
+      const res = await fetch(url, {
+        method: 'GET',
+        headers,
+        credentials: 'include',
+      });
+      if (!res.ok) {
+        if (res.status === 429) throw new Error('RATE_LIMITED');
+        throw new Error('BLOCKS_FETCH_FAILED');
+      }
+      const data = await res.json();
+      const ids = Array.isArray(data.ids) ? data.ids : [];
+      total += ids.length;
+      cursor = data.next_cursor_str || (data.next_cursor ? String(data.next_cursor) : '0');
+      pages++;
+    } while (cursor && cursor !== '0' && pages < 10);
+
+    return total;
   }
 }
 

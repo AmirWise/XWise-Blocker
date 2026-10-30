@@ -1,5 +1,5 @@
 /* =====================================================================
-   XWise Blocker v3.5.0 — Native Injected Styles
+   XWise Blocker v3.5.5 — Native Injected Styles
    Seamlessly integrates with X (Twitter) matching native Twitter design 100%.
    ===================================================================== */
 
@@ -95,8 +95,11 @@
    ===================================================================== */
 
 /* CSS-First Ad Blocker: eliminates layout shift before JS runs */
-:root:not(.xe-adblock-off) [data-testid="cellInnerDiv"]:has([data-testid="placementTracking"]):not(:has([data-testid="videoPlayer"], video)),
+:root:not(.xe-adblock-off) [data-testid="cellInnerDiv"]:has(article > [data-testid="placementTracking"]),
+:root:not(.xe-adblock-off) [data-testid="cellInnerDiv"]:has(> div > [data-testid="placementTracking"]),
 :root:not(.xe-adblock-off) [data-testid="cellInnerDiv"]:has(a[href*="/quick_promote_web/"]),
+:root:not(.xe-adblock-off) [data-testid="cellInnerDiv"]:has(a[href*="ads.x.com"]),
+:root:not(.xe-adblock-off) [data-testid="cellInnerDiv"]:has(a[href*="ads.twitter.com"]),
 [data-testid="cellInnerDiv"]:has(.xe-ad-hidden),
 .xe-ad-cell-hidden,
 .xe-ad-hidden {
@@ -266,11 +269,26 @@
    NATIVE-FEELING TWEET HIDING & REVEAL CONTROLS
    ===================================================================== */
 
-/* When tweet has an unrevealed bar, completely hide tweet content (immune to hover / React re-renders) */
+/* When tweet or user cell has an unrevealed bar, hide original content */
 article:has(> .xe-filtered-bar:not(.xe-hidden-bar)) > *:not(.xe-filtered-bar),
 article[data-xe-hidden="true"]:not([data-xe-revealed="true"]) > *:not(.xe-filtered-bar),
-article.xe-tweet-hidden:not(.xe-tweet-revealed) > *:not(.xe-filtered-bar) {
+article.xe-tweet-hidden:not(.xe-tweet-revealed) > *:not(.xe-filtered-bar),
+[data-testid="cellInnerDiv"]:has(> .xe-uc-filtered-bar) > *:not(.xe-uc-filtered-bar),
+[data-testid="cellInnerDiv"][data-xe-uc-hidden="true"]:not(.xe-usercell-revealed) > *:not(.xe-uc-filtered-bar),
+[data-testid="UserCell"][data-xe-uc-hidden="true"]:not(.xe-usercell-revealed) > *:not(.xe-uc-filtered-bar) {
   display: none !important;
+}
+
+[data-testid="cellInnerDiv"]:has(> .xe-uc-filtered-bar),
+[data-testid="cellInnerDiv"][data-xe-uc-hidden="true"]:not(.xe-usercell-revealed),
+[data-testid="UserCell"][data-xe-uc-hidden="true"]:not(.xe-usercell-revealed) {
+  min-height: 0 !important;
+  padding: 3px 0 !important;
+}
+
+.xe-uc-filtered-bar {
+  margin: 4px auto !important;
+  width: calc(100% - 24px) !important;
 }
 
 article:has(> .xe-filtered-bar:not(.xe-hidden-bar)),
@@ -586,18 +604,37 @@ article.xe-tweet-hidden:not(.xe-tweet-revealed) {
   position: fixed;
   bottom: 96px;
   z-index: 9998;
-  width: 50px;
-  height: 50px;
+  width: 44px;
+  height: 44px;
   border-radius: 9999px;
-  background: rgb(29, 155, 240);
-  border: 1px solid rgba(255, 255, 255, 0.25);
-  color: #ffffff;
+  background: rgba(0, 0, 0, 0.82);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  border: 1px solid rgba(255, 255, 255, 0.16);
+  color: #1d9bf0;
   display: flex;
   align-items: center;
   justify-content: center;
   cursor: pointer;
-  box-shadow: 0 8px 26px rgba(29, 155, 240, 0.5);
-  transition: transform 0.2s cubic-bezier(0.16, 1, 0.3, 1), box-shadow 0.2s ease, background-color 0.15s ease;
+  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.45), 0 0 1px 1px rgba(255, 255, 255, 0.08);
+  transition: transform 0.22s cubic-bezier(0.16, 1, 0.3, 1),
+              box-shadow 0.22s ease,
+              background-color 0.2s ease,
+              border-color 0.2s ease,
+              color 0.2s ease;
+}
+
+[data-xe-theme="light"] .xe-inpage-launcher {
+  background: rgba(255, 255, 255, 0.94);
+  border: 1px solid rgba(15, 20, 25, 0.15);
+  color: #1d9bf0;
+  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.12);
+}
+
+[data-xe-theme="dim"] .xe-inpage-launcher {
+  background: rgba(21, 32, 43, 0.9);
+  border: 1px solid rgba(255, 255, 255, 0.18);
+  color: #1d9bf0;
 }
 
 /* LTR Twitter: Launcher sits on the right */
@@ -616,25 +653,48 @@ article.xe-tweet-hidden:not(.xe-tweet-revealed) {
 }
 
 .xe-inpage-launcher:hover {
-  transform: scale(1.08);
-  background: rgb(26, 140, 216);
-  box-shadow: 0 10px 30px rgba(29, 155, 240, 0.65);
+  transform: translateY(-2px) scale(1.06);
+  background: rgba(29, 155, 240, 0.15);
+  border-color: rgba(29, 155, 240, 0.6);
+  box-shadow: 0 8px 24px rgba(29, 155, 240, 0.35);
+  color: #1d9bf0;
 }
 
 .xe-inpage-launcher:active {
-  transform: scale(0.96);
+  transform: scale(0.94);
 }
 
-.xe-inpage-launcher svg {
-  width: 25px;
-  height: 25px;
-  fill: currentColor;
+.xe-inpage-launcher.xe-active {
+  background: rgba(29, 155, 240, 0.2);
+  border-color: #1d9bf0;
+  color: #1d9bf0;
+  box-shadow: 0 0 0 3px rgba(29, 155, 240, 0.25), 0 8px 24px rgba(0, 0, 0, 0.45);
+}
+
+.xe-launcher-icon,
+.xe-launcher-close {
+  position: absolute;
+  transition: opacity 0.2s cubic-bezier(0.16, 1, 0.3, 1), transform 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.xe-launcher-close {
+  opacity: 0;
+  transform: scale(0.5) rotate(90deg);
+}
+
+.xe-inpage-launcher.xe-active .xe-launcher-icon {
+  opacity: 0;
+  transform: scale(0.5) rotate(-90deg);
+}
+
+.xe-inpage-launcher.xe-active .xe-launcher-close {
+  opacity: 1;
+  transform: scale(1) rotate(0deg);
 }
 
 /* =====================================================================
    IN-PAGE NATIVE IFRAME DRAWER
-   Seamlessly renders the exact 10/10 popup UI inside Twitter
-   with complete sandbox isolation, zero CSS leaks, and perfect RTL/LTR.
+   Smooth spring animation matching Twitter's native message dock
    ===================================================================== */
 
 .xe-inpage-drawer {
@@ -645,29 +705,51 @@ article.xe-tweet-hidden:not(.xe-tweet-revealed) {
   max-width: calc(100vw - 32px);
   height: 620px;
   max-height: calc(100vh - 110px);
-  border-radius: 16px;
-  background: #0c0d0f;
+  border-radius: 18px;
+  background: #000000;
   border: 1px solid rgb(47, 51, 54);
-  box-shadow: 0 16px 48px rgba(0, 0, 0, 0.85), 0 0 1px rgba(255, 255, 255, 0.2);
-  display: none;
+  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.88), 0 0 1px 1px rgba(255, 255, 255, 0.12);
   overflow: hidden;
-  animation: xeDrawerSlideUp 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+  opacity: 0;
+  visibility: hidden;
+  pointer-events: none;
+  transform: translateY(18px) scale(0.95);
+  transform-origin: bottom right;
+  transition: opacity 0.24s cubic-bezier(0.16, 1, 0.3, 1),
+              transform 0.24s cubic-bezier(0.16, 1, 0.3, 1),
+              visibility 0.24s;
+}
+
+[data-xe-theme="light"] .xe-inpage-drawer {
+  background: #ffffff;
+  border-color: #cfd9de;
+  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.25), 0 0 1px 1px rgba(0, 0, 0, 0.08);
+}
+
+[data-xe-theme="dim"] .xe-inpage-drawer {
+  background: #15202b;
+  border-color: #38444d;
 }
 
 /* Dynamic Placement */
 :root:not([dir="rtl"]) .xe-inpage-drawer {
   right: 20px;
   left: auto;
+  transform-origin: bottom right;
 }
 
 :root[dir="rtl"] .xe-inpage-drawer,
 [dir="rtl"] .xe-inpage-drawer {
   left: 20px;
   right: auto;
+  transform-origin: bottom left;
 }
 
 .xe-inpage-drawer.xe-open {
-  display: block;
+  opacity: 1;
+  visibility: visible;
+  pointer-events: auto;
+  transform: translateY(0) scale(1);
 }
 
 @keyframes xeDrawerSlideUp {
@@ -1407,7 +1489,7 @@ article.xe-tweet-hidden:not(.xe-tweet-revealed) {
 }
 
 .xe-clean-link-btn-wrapper:hover .xe-clean-link-btn-inner {
-  color: var(--xe-accent, #1d9bf0);
+  color: #00ba7c;
 }
 
 .xe-clean-link-btn-icon {
@@ -1421,13 +1503,57 @@ article.xe-tweet-hidden:not(.xe-tweet-revealed) {
 }
 
 .xe-clean-link-btn-wrapper:hover .xe-clean-link-btn-icon {
-  background-color: rgba(29, 155, 240, 0.12);
+  background-color: rgba(0, 186, 124, 0.12);
 }
 
 .xe-clean-link-btn-icon svg {
-  width: 17px;
-  height: 17px;
-  fill: currentColor;
+  width: 18.75px;
+  height: 18.75px;
+  display: block;
+  stroke: currentColor;
+  fill: none;
+}
+
+/* 1-Click Quote Tweets Finder Button */
+.xe-quote-search-btn-wrapper {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  user-select: none;
+  min-width: 34.75px;
+  align-self: stretch;
+}
+
+.xe-quote-search-btn-inner {
+  display: flex;
+  align-items: center;
+  transition: color 0.2s ease;
+  color: var(--xe-text-secondary, #71767b);
+}
+
+.xe-quote-search-btn-wrapper:hover .xe-quote-search-btn-inner {
+  color: #1d9bf0;
+}
+
+.xe-quote-search-btn-icon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 34.75px;
+  height: 34.75px;
+  border-radius: 9999px;
+  transition: background-color 0.2s ease;
+}
+
+.xe-quote-search-btn-wrapper:hover .xe-quote-search-btn-icon {
+  background-color: rgba(29, 155, 240, 0.12);
+}
+
+.xe-quote-search-btn-icon svg {
+  width: 17.5px;
+  height: 17.5px;
+  display: block;
 }
 
 /* 2. Original Quality Image Downloader Button */

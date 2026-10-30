@@ -1,6 +1,6 @@
-# XWise Blocker v3.5.1 🛡️✍️⚡
+# XWise Blocker v3.5.5 🛡️✍️⚡
 
-A powerful, ultra-fast, and native-feeling Chrome extension for X (Twitter). XWise Blocker purifies your timeline, protects your attention, and manages your social graph: **RastNevis Smart Persian Editor & Proofreader**, **Follow/Unfollow Tracker**, **Relationship Manager (Non-followers, Fans, Mutuals, Lost followers)**, **Anti-Limit Safety Queue**, **Two-Tier LRU & TTL Caching**, **Instant CSS-First Ad Blocker**, **Pro Video Suite with MP4 Downloader & Loop**, **No-Boys Mode (Timeline Gender Filter)**, and **10/10 Modern Bilingual UI (FA/EN)** with embedded Vazirmatn font.
+A powerful, ultra-fast, and native-feeling Chrome extension for X (Twitter). XWise Blocker purifies your timeline, protects your attention, and manages your social graph: **Followers & Following List Auto-Blocker & Filter**, **RastNevis Smart Persian Editor & Proofreader**, **Follow/Unfollow Tracker**, **Relationship Manager (Non-followers, Fans, Mutuals, Lost followers)**, **Anti-Limit Safety Queue**, **Two-Tier LRU & TTL Caching**, **Instant CSS-First Ad Blocker**, **Pro Video Suite with MP4 Downloader & Loop**, **No-Boys Mode (Timeline Gender Filter)**, and **10/10 Modern Bilingual UI (FA/EN)** with embedded Vazirmatn font.
 
 ---
 
@@ -31,7 +31,7 @@ A powerful, ultra-fast, and native-feeling Chrome extension for X (Twitter). XWi
   - 🔵 **Hide (Default)**: Collapses matched tweets into a clean bar with a "Show" button.
   - 🔴 **Auto-Block**: Automatically blocks matching accounts natively.
   - 🟠 **Auto-Mute**: Automatically mutes matching accounts natively.
-- **Targeted Inspection Scopes**: Choose any combination of **Display Name**, **User Bio**, and **Tweet Text**.
+- **Targeted Inspection Scopes**: Choose any combination of **Display Name**, **User Bio**, **Tweet Text**, and now **Followers & Following lists** — filters now work on user list pages too via direct API block/mute.
 - **Unicode & Emoji Normalization**: NFKC normalization, Arabic/Persian canonicalization (`ي`→`ی`, `ك`→`ک`), variation selector stripping. Matches flags, skin tones, ZWJ sequences, and complex compound emojis.
 - **Curated 1-Click Preset Packs**:
   - 🎒 **Cyber & State Trolls**: Flag/symbol spam and coordinated state troll keywords.
@@ -82,6 +82,58 @@ A powerful, ultra-fast, and native-feeling Chrome extension for X (Twitter). XWi
 - **Interactive Live Test Bench**: A built-in scratchpad inside the extension popup to paste or type any Persian text and receive instantaneous corrections with 1-click Auto-Fix and copy.
 - **Timeline Underline, Tooltips & Revision Panel**: Wavy underlines on problematic words, hover/click tooltips with explanations, summary tweet badges, and interactive revision panels with 1-click full-text copy.
 - **100% Offline & Private (Zero Data Collection)**: All natural language processing happens locally in the browser. Zero network requests, zero telemetry.
+
+## 🆕 What's new in 3.5.5
+
+### ⚡ Trio of Power Features: Auto-Expand, Quote Finder & Sensitive Unblur
+- **Auto-Expand Long Tweets (Show More)**:
+  - Smart observer detects truncated long-form tweets and auto-expands full text without requiring constant manual clicks on "Show more" / «نمایش بیشتر».
+  - Multi-lingual support (English, Persian, Arabic, Spanish, French, German, Turkish, etc.) with WeakSet memoization to prevent redundant clicks.
+- **1-Click Quote Tweets Finder (دکمه مشاهده کوت‌ها)**:
+  - Direct native-styled double-quotes button injected right into the tweet action bar (`[role="group"]`).
+  - Seamlessly navigates to the official quote tweets timeline (`/status/{id}/quotes`) in 1 click (supports Ctrl/Cmd/middle click to open in new tab).
+- **Auto-Reveal Sensitive Media (رفع خودکار تاری محتوای حساس)**:
+  - Automatically dismisses sensitivity warning overlays on photos and videos, displaying media instantly without clicking "View" / «نمایش».
+  - Precision scoping excludes the tweet author's text body to eliminate false triggers.
+
+### 🚀 Follower & Following List Auto-Blocker & Filter (Core Feature)
+- **`processUserCell()` Engine**: When viewing any profile's Followers or Following lists, your defined filters execute directly on each `UserCell`:
+  - **Hide**: Hides the user cell cleanly from the list.
+  - **Auto-Block**: Directly blocks the user via native Twitter API (no UI menu clicking required).
+  - **Auto-Mute**: Directly mutes the user via native Twitter API.
+  - **Blue Check Filter**: Full blue checkmark filtering support on followers and following lists.
+  - **Bio Caching**: Pre-caches user bios from list views to accelerate subsequent timeline tweet filtering.
+- **Bug Fixes & Hardening**:
+  - `scannedUserCells` WeakSet added — page navigation correctly resets cache state.
+  - `blockUser` / `unblockUser` handle sanitization — strips erroneous `@` prefixes in API payloads.
+  - Added missing `muteUser` / `unmuteUser` endpoints to `twitterApi.js`.
+  - Added new `userLists` filter scope across settings, `popup.js`, and `background.js`.
+  - Storage migrator bumped to v10, all extension files synchronized to `v3.5.5`.
+  - Added "Followers & Following" checkbox toggle to filter scopes in Popup UI (enabled by default).
+
+### 🛡️ Enhanced Clean Share Links & Security Suite
+- **Modern Linear Link Icon**: Replaced legacy icon with a razor-sharp, outline-styled chain link matching Twitter design, featuring green hover and animated success checkmark feedback.
+- **Full Tracking Stripping**: Automatically strips `?s=...&t=...`, `ref_src`, `ref_url`, `twclid`, marketing UTM tags, and converts `twitter.com` to `x.com`.
+- **Native Menu Sanitization**: Hooked into native X "Copy link to post" action to guarantee clean URLs even when copying from default dropdown menus.
+- **Bulletproof Tweet ID Discovery**: Multi-tier fallback resolves tweet IDs even in notification/detail views without `<time>` tags.
+
+### 📊 Total Account Block Statistics
+- **Total X Block Counter**: Added `fetchTotalBlockedCount` on native `blocks/ids.json` endpoint to retrieve exact total accounts blocked across your entire X account history.
+- **Dual Display & Manual Query**: Real-time counter on the Dashboard grid and dedicated query/refresh button in the Settings tab.
+
+### 🚫 Precision Ad Blocker Upgrades
+- **Persian & International Ad Indicators**: Added Persian «آگهی» and «تبلیغ» along with modern header badge detection.
+- **Timeline Video Ad Purging**: Fixed video ad exclusion bug so promoted video tweets are blocked while non-promoted timeline videos play flawlessly.
+- **CSS-First Zero-CLS Rules**: Enhanced zero-flicker CSS rules to collapse ads before layout rendering.
+
+### 🎨 Native-Matching Floating Launcher & Animated Drawer
+- **Twitter Message Dock Styling**: Redesigned floating launcher with dark glassmorphism (`rgba(0,0,0,0.82)` with 16px blur), soft borders, and Twitter cyan glow.
+- **Spring Anchor Animation**: Drawer now smoothly scales and slides from the corner anchor point (`transform: scale + translateY` with cubic-bezier spring).
+- **Morphing Shield Icon**: Launcher shield icon smoothly rotates and morphs into a close (✕) icon when active.
+
+### 💎 High-Contrast Modern Logo & Vector Icons
+- **Vector Identity**: New `icon.svg` featuring an aerodynamic cyber-shield with electric cyan and royal violet crossing X blades and a crisp white crest.
+- **Multi-Resolution Generation**: Updated `build_icons.py` exporting optimized 16x16, 48x48, and 128x128 PNGs with high-contrast silhouette visibility at small sizes.
 
 ## 🆕 What's new in 3.5.2
 
@@ -161,7 +213,7 @@ A powerful, ultra-fast, and native-feeling Chrome extension for X (Twitter). XWi
 
 <div dir="rtl">
 
-# راهنمای فارسی افزونه XWise Blocker نسخه 3.5.0 🛡️✍️⚡
+# راهنمای فارسی افزونه XWise Blocker نسخه 3.5.5 🛡️✍️⚡
 
 افزونه اختصاصی و فوق‌العاده سریع برای مرورگرهای کرومیوم (Chrome, Brave, Edge, Arc, Opera) جهت پاک‌سازی تایم‌لاین، مدیریت شبکه ارتباطات، ویراستاری هوشمند خط و زبان فارسی با راست‌نویس و ارتقای امنیت در شبکه اجتماعی X (توییتر).
 
@@ -239,6 +291,58 @@ A powerful, ultra-fast, and native-feeling Chrome extension for X (Twitter). XWi
 - **جعبه تست زنده ویراستار**: امکان تایپ یا پیست متن فارسی در تب راست‌نویس پاپ‌آپ و مشاهده آنی اشکالات به همراه کپی نسخه ویرایش‌شده با ۱ کلیک.
 - **نشانه‌گذاری تعاملی در تایم‌لاین توییتر**: زیرخط مواج رنگی روی واژه‌های نادرست، تول‌تیپ تعاملی علت خطا، نشان روی توییت و پنل ویرایش با امکان کپی ۱ کلیکی کل متن اصلاح‌شده توییت.
 - **۱۰۰٪ محلی و امن (Zero Data Collection)**: پردازش مستقیم در مرورگر کاربر بدون ارسال داده یا درخواست به هیچ سرور خارجی.
+
+## 🆕 تغییرات نسخه 3.5.5 (به‌روزرسانی جامع)
+
+### ⚡ سه‌گانه امکانات کاربردی جدید (توییت‌های بلند، کوت‌ها و رفع تاری)
+- **باز کردن خودکار توییت‌های بلند (Auto-Expand Show More)**:
+  - باز شدن خودکار و بی‌وقفه متن کامل توییت‌های طولانی پرمیوم در حین اسکرول بدون نیاز به کلیک مداوم روی «نمایش بیشتر / Show more».
+  - پشتیبانی از زبان‌های فارسی، انگلیسی، عربی و زبان‌های بین‌المللی با حافظه WeakSet بدون افت فریم و بدون رندر مجدد زائد.
+- **دکمه ۱ کلیکی مشاهده کوت‌ها (1-Click Quote Tweets Finder)**:
+  - اضافه شدن دکمه زیبا و وکتور نقل‌قول به نوار اکشن بومی توییتر (`[role="group"]`) کنار دکمه لینک تمیز.
+  - هدایت مستقیم و فوری به صفحه رسمی کوت‌های همان توییت (`/status/{id}/quotes`) با ۱ کلیک (پشتیبانی از Ctrl/Cmd/وسط‌کلیک جهت باز شدن در تب جدید).
+- **رفع خودکار تاری محتوای حساس (Auto-Reveal Sensitive Media)**:
+  - کلیک خودکار روی لایه‌های پوششی هشدار حساسیت و نمایش مستقیم تصاویر و ویدیوها بدون نیاز به زدن مکرر دکمه «نمایش / View».
+  - فیلتر هوشمند محدوده جهت تفکیک کامل متن توییت نویسنده و جلوگیری از هرگونه خطای فعال‌سازی ناخواسته.
+
+### 🆕 اتوبلاکر در فالوور و فالووینگ (ویژگی اصلی)
+- **موتور `processUserCell()`**: هنگام ورود به لیست فالوورها یا فالووینگ‌های هر کاربر، فیلترهای تعریف‌شده مستقیماً روی هر ردیف (`UserCell`) اعمال می‌شوند:
+  - **پنهان‌سازی (Hide)**: مخفی‌سازی نامحسوس اکانت از لیست.
+  - **بلاک خودکار (Auto-Block)**: مسدودسازی مستقیم و سریع از طریق API توییتر بدون نیاز به باز کردن منو.
+  - **بی‌صدا کردن خودکار (Auto-Mute)**: میوت کردن مستقیم کاربر از طریق API.
+  - **فیلتر تیک آبی**: اعمال فیلتر دارندگان تیک آبی روی لیست‌های فالوور و فالووینگ.
+  - **کش هوشمند بایو**: ذخیره خودکار متن بایوها در حافظه موقت جهت سرعت‌بخشی به فیلتر توییت‌ها در تایم‌لاین.
+- **🐛 باگ‌های فیکس شده و بهینه‌سازی‌ها**:
+  - اضافه شدن `scannedUserCells` به صورت WeakSet — جابه‌جایی بین صفحات کش را ریست می‌کند.
+  - رفع مشکل `blockUser` و `unblockUser` — حذف کاراکتر `@` اضافی از نام کاربری قبل از ارسال به API.
+  - پیاده‌سازی متدهای `muteUser` و `unmuteUser` در `twitterApi.js` (قبلاً موجود نبود).
+  - اضافه شدن محدوده جدید `userLists` در تنظیمات، `popup.js` و `background.js`.
+  - ارتقای نسخه کل فایل‌ها به `v3.5.5` و ارتقای Storage migrator به v10.
+  - اضافه شدن گزینه «فالوور و فالووینگ» به گزینه‌های محدوده فیلترها در پاپ‌آپ (پیش‌فرض: فعال).
+
+### 🛡️ تقویت و ارتقای کپی لینک تمیز (Clean Share Links)
+- **آیکون خطی مدرن و هماهنگ**: جایگزینی آیکون قبلی با نماد وکتور خطی مدرن زنجیر هماهنگ با طراحی توییتر، تغییر رنگ هاور به سبز امنیتی و نمایش انیمیشن تیک سبز پس از کپی موفق.
+- **پاک‌سازی همه‌جانبه پارامترهای رهگیری**: حذف کامل کدهای ردگیری توییتر (`?s=...&t=...`، `ref_src`، `ref_url`، `twclid`، تگ‌های بازاریابی UTM) و تبدیل خودکار لینک‌های `twitter.com` به `x.com`.
+- **پاک‌سازی منوی بومی X**: اتصال به رویداد کلیک دکمه اشتراک‌گذاری و گزینه Copy Link منوی اصلی توییتر برای پاک‌سازی خودکار کلیپ‌بورد.
+- **شناسایی بدون خطا در تمام صفحات**: الگوریتم چندمرحله‌ای برای استخراج ID توییت در صفحات اعلان و توییت‌های بدون تگ زمان.
+
+### 📊 استعلام آمار کل کاربران بلاک‌شده اکانت (Total X Blocked)
+- **شمارشگر کل بلاک‌های حساب**: اتصال به اندپوینت رسمی `blocks/ids.json` بدون خطر لیمیت جهت شمارش مجموع کل افرادی که در تاریخچه حسابتان بلاک کرده‌اید.
+- **نمایش دوگانه و دکمه استعلام**: نمایش آمار در گرید پیشخوان پاپ‌آپ و ایجاد کارت و دکمه مجزای «استعلام و به‌روزرسانی» در تب تنظیمات.
+
+### 🚫 ارتقا و رفع باگ مسدودساز تبلیغات (Ad Blocker)
+- **پشتیبانی از واژگان رسمی فارسی**: اضافه شدن کلمات رسمی «آگهی» و «تبلیغ» به نشانگرهای مسدودسازی.
+- **رفع مشکل تبلیغات ویدیویی**: رفع باگی که مانع حذف تبلیغات ویدیویی تایم‌لاین می‌شد، با حفظ عملکرد ویدیوهای معمولی.
+- **قوانین CSS بدون پرش (Zero CLS)**: تقویت قوانین حذف استاتیک قبل از رندر ری‌اکت.
+
+### 🎨 دکمه شناور گلس‌مورفیک و دراور انیمیشنی
+- **طراحی مطابق داک پیام‌های توییتر**: بازطراحی دکمه شناور با شیشه تیره مات (`rgba(0,0,0,0.82)` با بلور ۱۶px و بوردر ظریف).
+- **انیمیشن فنری باز و بسته شدن**: باز شدن دراور با ترنزیشن نرم کشسانی (`transform: scale + translateY` با منشأ لنگر گوشه).
+- **مورف آیکون**: چرخش و تبدیل روان آیکون سپر به ضربدر (✕) هنگام باز بودن دراور.
+
+### 💎 طراحی لوگوی مدرن و وکتور و تولید آیکون‌ها
+- **هویت بصری وکتور**: طراحی فایل `icon.svg` با شیلد آیرودینامیک و پره‌های متقاطع X دو رنگ (الکتریک سایان و بنفش سلطنتی) و نشان تیک سفید.
+- **تولید آیکون‌های ۱۶، ۴۸ و ۱۲۸**: اسکریپت `build_icons.py` بازنویسی و خروجی‌های PNG با فیلتر دقیق Lanczos جهت وضوح فوق‌العاده در ابعاد کوچک بازتولید شدند.
 
 ## 🆕 تغییرات نسخه 3.5.0 (ابر آپدیت بزرگ)
 
