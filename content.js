@@ -1,9 +1,9 @@
 'use strict';
 
 /**
- * XWise Blocker v3.5.5 — Content Script
+ * XWise Blocker v3.5.6 — Content Script
  * Seamless in-page native Twitter integration, flawless ad cleaner, and smart filter suite.
- * Follower/Following list filter, API-direct block/mute for UserCell, and UI improvements.
+ * Follower/Following/Retweet quick blocker, sensitive media unblur engine, and UI improvements.
  */
 
 const DEFAULT_SETTINGS = {
@@ -82,6 +82,7 @@ const DEFAULT_SETTINGS = {
   autoExpandTweets: true,
   quoteFinderEnabled: true,
   autoRevealSensitiveMedia: true,
+  quickBlockUserListEnabled: true,
 
   // Blue Checkmark Filter (Default off)
   blueCheckFilter: 'off',
@@ -1085,6 +1086,104 @@ function markUserCellButtonBlocked(cell) {
       break;
     }
   }
+}
+
+function findFollowButtonInCell(cell) {
+  const candidates = cell.querySelectorAll('button, [role="button"]');
+  for (let i = 0; i < candidates.length; i++) {
+    const b = candidates[i];
+    if (b.classList.contains('xe-quick-block-btn')) continue;
+
+    const testId = b.getAttribute('data-testid') || '';
+    if (testId.endsWith('-follow') || testId.endsWith('-unfollow') || testId === 'userFollow') {
+      return b;
+    }
+    if (b.querySelector('[data-testid$="-follow"], [data-testid$="-unfollow"]')) {
+      return b;
+    }
+
+    const aria = (b.getAttribute('aria-label') || '').toLowerCase();
+    if (aria.startsWith('follow @') || aria.startsWith('following @') || aria.includes('دنبال کردن') || aria.includes('دنبال‌شده') || aria.includes('دنبال شده')) {
+      return b;
+    }
+
+    const txt = b.textContent.trim().toLowerCase();
+    if (['follow', 'following', 'دنبال کردن', 'دنبال شده', 'دنبال‌شدن', 'دنبال‌شده'].includes(txt)) {
+      return b;
+    }
+  }
+  return null;
+}
+
+function addUserCellBlockButton(cell) {
+  if (!cell || !cell.isConnected) return;
+  if (settings.quickBlockUserListEnabled === false && settings.blockButtonEnabled === false) return;
+  if (cell.querySelector('.xe-quick-block-btn')) return;
+
+  const info = getUserCellDetails(cell);
+  if (!info || !info.handle) return;
+
+  if (cell.closest('[data-xe-uc-hidden="true"], .xe-usercell-hidden')) return;
+
+  const followBtn = findFollowButtonInCell(cell);
+  if (!followBtn || !followBtn.parentElement) return;
+
+  const handle = info.handle;
+  const cleanHandle = handle.replace(/^@/, '');
+  const handleKey = cleanHandle.toLowerCase();
+
+  const isBlocked = blockedHandles.has(handleKey);
+  const isFa = settings.language === 'fa';
+
+  const blockBtn = document.createElement('button');
+  blockBtn.type = 'button';
+  blockBtn.className = 'xe-quick-block-btn' + (isBlocked ? ' xe-blocked' : '');
+  blockBtn.setAttribute('data-handle', cleanHandle);
+  blockBtn.setAttribute('aria-label', (isFa ? 'بلاک @' : 'Block @') + cleanHandle);
+  blockBtn.title = isFa ? `مسدودسازی سریع @${cleanHandle}` : `Quick block @${cleanHandle}`;
+
+  blockBtn.innerHTML = `
+    <svg viewBox="0 0 24 24" aria-hidden="true">
+      <path d="M12 3.75c-4.55 0-8.25 3.69-8.25 8.25 0 4.55 3.7 8.25 8.25 8.25 4.56 0 8.25-3.7 8.25-8.25 0-4.56-3.69-8.25-8.25-8.25zM2.25 12c0-5.38 4.37-9.75 9.75-9.75s9.75 4.37 9.75 9.75-4.37 9.75-9.75 9.75S2.25 17.38 2.25 12zm4.73-5.02a.75.75 0 011.06 0l9.98 9.98a.75.75 0 01-1.06 1.06l-9.98-9.98a.75.75 0 010-1.06z"/>
+    </svg>
+    <span class="xe-quick-block-text">${isBlocked ? (isFa ? 'مسدود' : 'Blocked') : (isFa ? 'بلاک' : 'Block')}</span>
+  `;
+
+  const stopEvt = (e) => {
+    e.stopPropagation();
+  };
+  blockBtn.addEventListener('mousedown', stopEvt);
+  blockBtn.addEventListener('pointerdown', stopEvt);
+  blockBtn.addEventListener('touchstart', stopEvt, { passive: true });
+
+  blockBtn.addEventListener('click', async (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+
+    if (blockBtn.classList.contains('xe-blocked') || blockBtn.classList.contains('xe-loading')) return;
+
+    blockBtn.classList.add('xe-loading');
+    const span = blockBtn.querySelector('.xe-quick-block-text');
+    if (span) span.textContent = '...';
+
+    const ok = await performApiBlockForCell(cleanHandle, 'manual', isFa ? 'بلاک سریع' : 'Quick Block');
+    blockBtn.classList.remove('xe-loading');
+
+    if (ok) {
+      blockBtn.classList.add('xe-blocked');
+      if (span) span.textContent = isFa ? 'مسدود شد' : 'Blocked';
+      markUserCellButtonBlocked(cell);
+    } else {
+      if (span) span.textContent = isFa ? 'خطا' : 'Failed';
+      setTimeout(() => {
+        if (!blockBtn.classList.contains('xe-blocked') && span) {
+          span.textContent = isFa ? 'بلاک' : 'Block';
+        }
+      }, 1500);
+    }
+  });
+
+  followBtn.parentElement.insertBefore(blockBtn, followBtn);
 }
 
 function applyHideUserCell(cell, { rule = '', handle = '', action = 'hide' } = {}) {
@@ -3935,23 +4034,44 @@ function expandLongTweets(root = document) {
 // Auto-Reveal Sensitive Media Warnings
 // ----------------------------------------------------------------------------
 const revealedSensitiveNodes = new WeakSet();
-const SENSITIVE_BTN_REGEX = /^(view|show|نمایش|مشاهده|إظهار|ver|voir|ansehen)$/i;
-const SENSITIVE_KEYWORD_REGEX = /(sensitive|محتوای حساس|محتوى حساس|sensible|sensibile|empfindlich|чувствительн)/i;
+const SENSITIVE_BTN_REGEX = /^(view|show|show media|view media|view content|show content|نمایش|مشاهده|مشاهده رسانه|نمایش محتوا|إظهار|ver|voir|ansehen)$/i;
+const SENSITIVE_KEYWORD_REGEX = /(sensitive|warning|nudity|adult content|graphic violence|violence|محتوای حساس|محتوى حساس|هشدار محتوا|برهنگی|محتوای بزرگسالان|خشونت|sensible|sensibile|empfindlich|чувствительн|تحذير|avertissement|advertencia|contenido delicado)/i;
+
+function injectMainWorldScrubber() {
+  if (document.documentElement.hasAttribute('data-xe-scrubber-injected')) return;
+  document.documentElement.setAttribute('data-xe-scrubber-injected', 'true');
+  try {
+    const s = document.createElement('script');
+    s.src = chrome.runtime.getURL('modules/sensitiveScrubber.js');
+    (document.head || document.documentElement).appendChild(s);
+    s.onload = () => s.remove();
+  } catch {}
+}
 
 function revealSensitiveMedia(root = document) {
-  if (settings.autoRevealSensitiveMedia === false) return;
-  const scope = root.querySelectorAll ? root : document;
-  const candidates = scope.querySelectorAll('[role="button"], button');
+  if (settings.autoRevealSensitiveMedia === false) {
+    document.documentElement.classList.remove('xe-unblur-sensitive');
+    return;
+  }
+  document.documentElement.classList.add('xe-unblur-sensitive');
+  injectMainWorldScrubber();
 
+  const scope = root.querySelectorAll ? root : document;
+
+  // 1. Click native "Show" / "View" buttons in timeline tweets
+  const candidates = scope.querySelectorAll('[role="button"], button');
   for (let i = 0; i < candidates.length; i++) {
     const btn = candidates[i];
     if (revealedSensitiveNodes.has(btn)) continue;
     if (btn.closest('.xe-hidden-tweet, .xe-ad-hidden, .xe-ad-cell-hidden, .xe-rehide-collapsed')) continue;
 
     const txt = btn.textContent.trim();
-    if (!SENSITIVE_BTN_REGEX.test(txt)) continue;
+    const aria = btn.getAttribute('aria-label') || '';
+    const isSensitiveBtn = SENSITIVE_BTN_REGEX.test(txt) || SENSITIVE_BTN_REGEX.test(aria) ||
+                           /^(view|show|نمایش|مشاهده)/i.test(txt);
+    if (!isSensitiveBtn) continue;
 
-    const mediaContainer = btn.closest('[data-testid="tweetPhoto"], [data-testid="videoPlayer"], [data-testid="videoComponent"], article, [data-testid="cellInnerDiv"]');
+    const mediaContainer = btn.closest('[data-testid="tweetPhoto"], [data-testid="videoPlayer"], [data-testid="videoComponent"], article, [data-testid="cellInnerDiv"], a[href*="/photo/"]');
     if (!mediaContainer) continue;
 
     const tweetTextEl = mediaContainer.querySelector('[data-testid="tweetText"]');
@@ -3960,11 +4080,47 @@ function revealSensitiveMedia(root = document) {
       testContent = testContent.replace(tweetTextEl.textContent, '');
     }
 
-    if (SENSITIVE_KEYWORD_REGEX.test(testContent)) {
+    if (SENSITIVE_KEYWORD_REGEX.test(testContent) || SENSITIVE_KEYWORD_REGEX.test(aria)) {
       revealedSensitiveNodes.add(btn);
       try {
         btn.click();
       } catch {}
+    }
+  }
+
+  // 2. Remove blur filters from images and media elements (Media tab & grids)
+  const blurredEls = scope.querySelectorAll ? scope.querySelectorAll('[style*="blur"], .r-yfv4eo') : [];
+  for (let i = 0; i < blurredEls.length; i++) {
+    const el = blurredEls[i];
+    if (el.closest('.xe-hidden-tweet, .xe-ad-hidden, .xe-ad-cell-hidden')) continue;
+    el.style.setProperty('filter', 'none', 'important');
+    el.style.setProperty('backdrop-filter', 'none', 'important');
+    el.style.setProperty('-webkit-backdrop-filter', 'none', 'important');
+  }
+
+  // 3. Remove / hide static warning overlays in media grids & tiles
+  const cells = scope.querySelectorAll
+    ? scope.querySelectorAll('[data-testid="tweetPhoto"], [data-testid="videoPlayer"], [data-testid="cellInnerDiv"], a[href*="/photo/"]')
+    : [];
+  for (let i = 0; i < cells.length; i++) {
+    const cell = cells[i];
+    const tweetText = cell.querySelector('[data-testid="tweetText"]');
+    let text = cell.textContent || '';
+    if (tweetText) text = text.replace(tweetText.textContent, '');
+
+    if (SENSITIVE_KEYWORD_REGEX.test(text)) {
+      const divs = cell.querySelectorAll('div');
+      for (let j = 0; j < divs.length; j++) {
+        const d = divs[j];
+        if (d.children.length === 0) continue;
+        const dText = d.textContent.trim();
+        if (SENSITIVE_KEYWORD_REGEX.test(dText) && dText.length < 150) {
+          if (d.querySelector('svg') || d.classList.contains('r-drfeu3') || d.style.backdropFilter) {
+            d.style.setProperty('display', 'none', 'important');
+            d.classList.add('xe-sensitive-overlay-hidden');
+          }
+        }
+      }
     }
   }
 }
@@ -4968,7 +5124,7 @@ const RESCAN_KEYS = new Set([
   'rastnevisZwnj', 'rastnevisHints', 'rastnevisPunctuation', 'rastnevisDigits',
   'rastnevisShowBadge', 'rastnevisUnderline', 'rastnevisComposerBtn', 'rastnevisIgnoredWords',
   'cleanShareLinks', 'imageDownloadEnabled', 'threadReaderEnabled', 'accountAgeBadge',
-  'autoExpandTweets', 'quoteFinderEnabled', 'autoRevealSensitiveMedia',
+  'autoExpandTweets', 'quoteFinderEnabled', 'autoRevealSensitiveMedia', 'quickBlockUserListEnabled',
 ]);
 const QUIET_KEYS = new Set(['lastVolume', 'defaultPlaybackRate']);
 
@@ -5002,6 +5158,18 @@ chrome.storage?.onChanged?.addListener((changes, area) => {
     } else {
       addBlockButtons(document);
     }
+  }
+
+  if ('quickBlockUserListEnabled' in changes) {
+    if (settings.quickBlockUserListEnabled === false) {
+      document.querySelectorAll('.xe-quick-block-btn').forEach((btn) => btn.remove());
+    } else {
+      document.querySelectorAll('[data-testid="UserCell"]').forEach(addUserCellBlockButton);
+    }
+  }
+
+  if ('autoRevealSensitiveMedia' in changes) {
+    revealSensitiveMedia(document);
   }
 
   applyTimelineCleaners();
@@ -5280,20 +5448,22 @@ function flushScan() {
       processTweetFilter(articles[i]);
     }
 
-    // Process user list cells (Followers, Following, Lists, etc.)
+    // Process user list cells (Followers, Following, Lists, Retweets, etc.)
     const userCells = root.matches?.('[data-testid="UserCell"]')
       ? [root]
       : root.querySelectorAll('[data-testid="UserCell"]');
     for (let i = 0; i < userCells.length; i++) {
       processUserCell(userCells[i]);
+      addUserCellBlockButton(userCells[i]);
     }
   }
 
-  // Guarantee scanning on user lists (Followers, Following, Members, etc.)
+  // Guarantee scanning on user lists (Followers, Following, Members, Retweets, etc.)
   if (isFollowerFollowingView() || isUserListView()) {
     const allCells = document.querySelectorAll('[data-testid="UserCell"]');
     for (let i = 0; i < allCells.length; i++) {
       processUserCell(allCells[i]);
+      addUserCellBlockButton(allCells[i]);
     }
   }
 
@@ -5400,6 +5570,7 @@ const themeObserver = new MutationObserver(() => {
   addVolumeSliders();
   addBlockButtons();
   ensureInPageLauncher();
+  revealSensitiveMedia(document);
 
   const existingTweets = document.querySelectorAll('article');
   for (let i = 0; i < existingTweets.length; i++) {
@@ -5409,6 +5580,7 @@ const themeObserver = new MutationObserver(() => {
   const existingUserCells = document.querySelectorAll('[data-testid="UserCell"]');
   for (let i = 0; i < existingUserCells.length; i++) {
     processUserCell(existingUserCells[i]);
+    addUserCellBlockButton(existingUserCells[i]);
   }
 
   if (location.search.includes('xwise_open_thread=1')) {

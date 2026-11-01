@@ -2021,4 +2021,96 @@ article.xe-tweet-hidden:not(.xe-tweet-revealed) {
   vertical-align: middle;
 }
 
+/* =====================================================================
+   AUTO-REVEAL SENSITIVE MEDIA (Timeline, Media tab, Grid)
+   ===================================================================== */
+
+html.xe-unblur-sensitive .r-yfv4eo,
+html.xe-unblur-sensitive [style*="filter: blur"],
+html.xe-unblur-sensitive [style*="backdrop-filter: blur"],
+html.xe-unblur-sensitive [style*="filter:blur"],
+html.xe-unblur-sensitive [style*="backdrop-filter:blur"],
+html.xe-unblur-sensitive [data-testid="tweetPhoto"] div[style*="blur"],
+html.xe-unblur-sensitive [data-testid="videoPlayer"] div[style*="blur"],
+html.xe-unblur-sensitive [data-testid="cellInnerDiv"] div[style*="blur"],
+html.xe-unblur-sensitive a[href*="/photo/"] div[style*="blur"] {
+  filter: none !important;
+  -webkit-filter: none !important;
+  backdrop-filter: none !important;
+  -webkit-backdrop-filter: none !important;
+}
+
+html.xe-unblur-sensitive .r-drfeu3,
+html.xe-unblur-sensitive .xe-sensitive-overlay-hidden {
+  display: none !important;
+  visibility: hidden !important;
+  opacity: 0 !important;
+  pointer-events: none !important;
+}
+
+/* =====================================================================
+   QUICK BLOCK BUTTON IN USER LISTS (Retweets, Followers, Following)
+   ===================================================================== */
+
+.xe-quick-block-btn {
+  display: inline-flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  gap: 5px !important;
+  min-height: 32px !important;
+  max-height: 32px !important;
+  padding: 0 12px !important;
+  border-radius: 9999px !important;
+  border: 1px solid rgba(244, 33, 46, 0.45) !important;
+  background: rgba(244, 33, 46, 0.08) !important;
+  color: rgb(244, 33, 46) !important;
+  font-family: var(--xe-font) !important;
+  font-size: 13px !important;
+  font-weight: 700 !important;
+  cursor: pointer !important;
+  user-select: none !important;
+  transition: all 0.18s ease !important;
+  margin-inline-end: 8px !important;
+  vertical-align: middle !important;
+  line-height: 1 !important;
+  outline: none !important;
+  box-sizing: border-box !important;
+  flex-shrink: 0 !important;
+}
+
+.xe-quick-block-btn:hover {
+  background: rgba(244, 33, 46, 0.22) !important;
+  border-color: rgb(244, 33, 46) !important;
+  color: #ffffff !important;
+  box-shadow: 0 0 10px rgba(244, 33, 46, 0.35) !important;
+}
+
+.xe-quick-block-btn:active {
+  background: rgb(244, 33, 46) !important;
+  color: #ffffff !important;
+  transform: scale(0.97) !important;
+}
+
+.xe-quick-block-btn svg {
+  width: 14px !important;
+  height: 14px !important;
+  fill: currentColor !important;
+  flex-shrink: 0 !important;
+}
+
+.xe-quick-block-btn.xe-blocked {
+  background: rgb(244, 33, 46) !important;
+  border-color: rgb(244, 33, 46) !important;
+  color: #ffffff !important;
+  opacity: 0.85 !important;
+  cursor: default !important;
+  box-shadow: none !important;
+}
+
+.xe-quick-block-btn.xe-loading {
+  opacity: 0.65 !important;
+  cursor: wait !important;
+}
+
+
 

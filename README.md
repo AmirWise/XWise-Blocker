@@ -1,6 +1,6 @@
-# XWise Blocker v3.5.5 🛡️✍️⚡
+# XWise Blocker v3.5.6 🛡️✍️⚡
 
-A powerful, ultra-fast, and native-feeling Chrome extension for X (Twitter). XWise Blocker purifies your timeline, protects your attention, and manages your social graph: **Followers & Following List Auto-Blocker & Filter**, **RastNevis Smart Persian Editor & Proofreader**, **Follow/Unfollow Tracker**, **Relationship Manager (Non-followers, Fans, Mutuals, Lost followers)**, **Anti-Limit Safety Queue**, **Two-Tier LRU & TTL Caching**, **Instant CSS-First Ad Blocker**, **Pro Video Suite with MP4 Downloader & Loop**, **No-Boys Mode (Timeline Gender Filter)**, and **10/10 Modern Bilingual UI (FA/EN)** with embedded Vazirmatn font.
+A powerful, ultra-fast, and native-feeling Chrome extension for X (Twitter). XWise Blocker purifies your timeline, protects your attention, and manages your social graph: **Followers & Following List Auto-Blocker & Filter**, **1-Click Quick Block in Retweets & User Lists**, **Bulletproof Sensitive Media Unblur Engine**, **RastNevis Smart Persian Editor & Proofreader**, **Follow/Unfollow Tracker**, **Relationship Manager (Non-followers, Fans, Mutuals, Lost followers)**, **Anti-Limit Safety Queue**, **Two-Tier LRU & TTL Caching**, **Instant CSS-First Ad Blocker**, **Pro Video Suite with MP4 Downloader & Loop**, **No-Boys Mode (Timeline Gender Filter)**, and **10/10 Modern Bilingual UI (FA/EN)** with embedded Vazirmatn font.
 
 ---
 
@@ -82,6 +82,25 @@ A powerful, ultra-fast, and native-feeling Chrome extension for X (Twitter). XWi
 - **Interactive Live Test Bench**: A built-in scratchpad inside the extension popup to paste or type any Persian text and receive instantaneous corrections with 1-click Auto-Fix and copy.
 - **Timeline Underline, Tooltips & Revision Panel**: Wavy underlines on problematic words, hover/click tooltips with explanations, summary tweet badges, and interactive revision panels with 1-click full-text copy.
 - **100% Offline & Private (Zero Data Collection)**: All natural language processing happens locally in the browser. Zero network requests, zero telemetry.
+
+## 🆕 What's new in 3.5.6
+
+### 🛡️ Bulletproof Sensitive Media Unblur Engine (رفع تاری محتوای حساس)
+- **Native MAIN-World API Scrubber (`modules/sensitiveScrubber.js`)**:
+  - Automatically intercepts Twitter GraphQL and timeline API responses at `document_start` before React parses them.
+  - Recursively scrubs `possibly_sensitive`, `sensitive_media_warning`, `ext_sensitive_media_warning`, and `mediaVisibilityResults`, forcing `display_sensitive_media: true`.
+  - Photos, videos, and autoplay render completely naturally and instantly across timelines, profile media, search media tabs, and grid cards.
+- **Deep Grid & Media Tab Unblur (رفع تاری در تب رسانه‌ها)**:
+  - Eliminates "Warning: Nudity", "Content warning: Adult Content", "Warning: Violence", and Persian warning banners («هشدار: برهنگی»، «محتوای حساس») in grid media tiles.
+  - Automatically clears CSS `filter: blur(...)` and `-webkit-backdrop-filter` in real-time.
+  - Unblur and overlay-removal CSS rules applied at root level with zero flicker.
+
+### ⚡ 1-Click Quick Block Button in User Lists (دکمه بلاک سریع در لیست ریتوییت‌ها، فالوورها و فالووینگ)
+- **Direct Action Button Next to Follow**:
+  - Injects a native-matching Quick Block pill button (`.xe-quick-block-btn`) directly next to the Follow button on every `UserCell`.
+  - Seamlessly available in **Retweets (Reposts)** of tweets, **Followers**, **Following**, Verified Followers, and Likes lists.
+  - 1-click native API block with loading state, instant toast notification, red "Blocked" («مسدود شد») visual feedback, and zero page navigation or modal popups.
+  - Configurable toggle in Popup Settings ("دکمه بلاک سریع در لیست کاربران").
 
 ## 🆕 What's new in 3.5.5
 
