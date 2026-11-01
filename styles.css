@@ -2052,6 +2052,18 @@ html.xe-unblur-sensitive .xe-sensitive-overlay-hidden {
    QUICK BLOCK BUTTON IN USER LISTS (Retweets, Followers, Following)
    ===================================================================== */
 
+.xe-usercell-action-row {
+  display: inline-flex !important;
+  flex-direction: row !important;
+  align-items: center !important;
+  justify-content: flex-end !important;
+  gap: 8px !important;
+  flex-shrink: 0 !important;
+  vertical-align: middle !important;
+  margin: 0 !important;
+  padding: 0 !important;
+}
+
 .xe-quick-block-btn {
   display: inline-flex !important;
   align-items: center !important;
@@ -2059,10 +2071,11 @@ html.xe-unblur-sensitive .xe-sensitive-overlay-hidden {
   gap: 5px !important;
   min-height: 32px !important;
   max-height: 32px !important;
+  height: 32px !important;
   padding: 0 12px !important;
   border-radius: 9999px !important;
   border: 1px solid rgba(244, 33, 46, 0.45) !important;
-  background: rgba(244, 33, 46, 0.08) !important;
+  background: rgba(244, 33, 46, 0.06) !important;
   color: rgb(244, 33, 46) !important;
   font-family: var(--xe-font) !important;
   font-size: 13px !important;
@@ -2070,25 +2083,25 @@ html.xe-unblur-sensitive .xe-sensitive-overlay-hidden {
   cursor: pointer !important;
   user-select: none !important;
   transition: all 0.18s ease !important;
-  margin-inline-end: 8px !important;
+  margin: 0 !important;
   vertical-align: middle !important;
   line-height: 1 !important;
   outline: none !important;
   box-sizing: border-box !important;
   flex-shrink: 0 !important;
+  white-space: nowrap !important;
 }
 
 .xe-quick-block-btn:hover {
-  background: rgba(244, 33, 46, 0.22) !important;
+  background: rgba(244, 33, 46, 0.18) !important;
   border-color: rgb(244, 33, 46) !important;
   color: #ffffff !important;
-  box-shadow: 0 0 10px rgba(244, 33, 46, 0.35) !important;
 }
 
 .xe-quick-block-btn:active {
   background: rgb(244, 33, 46) !important;
   color: #ffffff !important;
-  transform: scale(0.97) !important;
+  transform: scale(0.96) !important;
 }
 
 .xe-quick-block-btn svg {
@@ -2102,9 +2115,8 @@ html.xe-unblur-sensitive .xe-sensitive-overlay-hidden {
   background: rgb(244, 33, 46) !important;
   border-color: rgb(244, 33, 46) !important;
   color: #ffffff !important;
-  opacity: 0.85 !important;
+  opacity: 0.92 !important;
   cursor: default !important;
-  box-shadow: none !important;
 }
 
 .xe-quick-block-btn.xe-loading {

@@ -1088,27 +1088,42 @@ function markUserCellButtonBlocked(cell) {
   }
 }
 
+function isCellAlreadyBlocked(cell) {
+  const allBtns = cell.querySelectorAll('button, [role="button"]');
+  for (let i = 0; i < allBtns.length; i++) {
+    const t = allBtns[i].textContent.trim().toLowerCase();
+    const aria = (allBtns[i].getAttribute('aria-label') || '').toLowerCase();
+    if (t === 'blocked' || t === 'مسدود' || t === 'مسدود شد' || aria.startsWith('blocked') || aria.startsWith('مسدود')) {
+      return true;
+    }
+  }
+  return false;
+}
+
 function findFollowButtonInCell(cell) {
   const candidates = cell.querySelectorAll('button, [role="button"]');
   for (let i = 0; i < candidates.length; i++) {
     const b = candidates[i];
     if (b.classList.contains('xe-quick-block-btn')) continue;
 
+    const txt = b.textContent.trim().toLowerCase();
+    const aria = (b.getAttribute('aria-label') || '').toLowerCase();
+
+    // Skip if already blocked
+    if (txt === 'blocked' || txt === 'مسدود' || txt === 'مسدود شد' || aria.startsWith('blocked') || aria.startsWith('مسدود')) {
+      continue;
+    }
+
+    if (['follow', 'following', 'دنبال کردن', 'دنبال شده', 'دنبال‌شدن', 'دنبال‌شده'].includes(txt)) {
+      return b;
+    }
+
+    if (aria.startsWith('follow @') || aria.startsWith('following @') || aria.includes('دنبال کردن') || aria.includes('دنبال‌شده')) {
+      return b;
+    }
+
     const testId = b.getAttribute('data-testid') || '';
     if (testId.endsWith('-follow') || testId.endsWith('-unfollow') || testId === 'userFollow') {
-      return b;
-    }
-    if (b.querySelector('[data-testid$="-follow"], [data-testid$="-unfollow"]')) {
-      return b;
-    }
-
-    const aria = (b.getAttribute('aria-label') || '').toLowerCase();
-    if (aria.startsWith('follow @') || aria.startsWith('following @') || aria.includes('دنبال کردن') || aria.includes('دنبال‌شده') || aria.includes('دنبال شده')) {
-      return b;
-    }
-
-    const txt = b.textContent.trim().toLowerCase();
-    if (['follow', 'following', 'دنبال کردن', 'دنبال شده', 'دنبال‌شدن', 'دنبال‌شده'].includes(txt)) {
       return b;
     }
   }
@@ -1125,19 +1140,20 @@ function addUserCellBlockButton(cell) {
 
   if (cell.closest('[data-xe-uc-hidden="true"], .xe-usercell-hidden')) return;
 
+  const cleanHandle = info.handle.replace(/^@/, '');
+  const handleKey = cleanHandle.toLowerCase();
+
+  // If already blocked in state or cell already displays Blocked/مسدود, NEVER inject a redundant button
+  if (blockedHandles.has(handleKey) || isCellAlreadyBlocked(cell)) return;
+
   const followBtn = findFollowButtonInCell(cell);
   if (!followBtn || !followBtn.parentElement) return;
 
-  const handle = info.handle;
-  const cleanHandle = handle.replace(/^@/, '');
-  const handleKey = cleanHandle.toLowerCase();
-
-  const isBlocked = blockedHandles.has(handleKey);
   const isFa = settings.language === 'fa';
 
   const blockBtn = document.createElement('button');
   blockBtn.type = 'button';
-  blockBtn.className = 'xe-quick-block-btn' + (isBlocked ? ' xe-blocked' : '');
+  blockBtn.className = 'xe-quick-block-btn';
   blockBtn.setAttribute('data-handle', cleanHandle);
   blockBtn.setAttribute('aria-label', (isFa ? 'بلاک @' : 'Block @') + cleanHandle);
   blockBtn.title = isFa ? `مسدودسازی سریع @${cleanHandle}` : `Quick block @${cleanHandle}`;
@@ -1146,7 +1162,7 @@ function addUserCellBlockButton(cell) {
     <svg viewBox="0 0 24 24" aria-hidden="true">
       <path d="M12 3.75c-4.55 0-8.25 3.69-8.25 8.25 0 4.55 3.7 8.25 8.25 8.25 4.56 0 8.25-3.7 8.25-8.25 0-4.56-3.69-8.25-8.25-8.25zM2.25 12c0-5.38 4.37-9.75 9.75-9.75s9.75 4.37 9.75 9.75-4.37 9.75-9.75 9.75S2.25 17.38 2.25 12zm4.73-5.02a.75.75 0 011.06 0l9.98 9.98a.75.75 0 01-1.06 1.06l-9.98-9.98a.75.75 0 010-1.06z"/>
     </svg>
-    <span class="xe-quick-block-text">${isBlocked ? (isFa ? 'مسدود' : 'Blocked') : (isFa ? 'بلاک' : 'Block')}</span>
+    <span class="xe-quick-block-text">${isFa ? 'بلاک' : 'Block'}</span>
   `;
 
   const stopEvt = (e) => {
@@ -1172,7 +1188,7 @@ function addUserCellBlockButton(cell) {
     if (ok) {
       blockBtn.classList.add('xe-blocked');
       if (span) span.textContent = isFa ? 'مسدود شد' : 'Blocked';
-      markUserCellButtonBlocked(cell);
+      followBtn.style.setProperty('display', 'none', 'important');
     } else {
       if (span) span.textContent = isFa ? 'خطا' : 'Failed';
       setTimeout(() => {
@@ -1183,7 +1199,15 @@ function addUserCellBlockButton(cell) {
     }
   });
 
-  followBtn.parentElement.insertBefore(blockBtn, followBtn);
+  // Ensure horizontal row container
+  let actionRow = followBtn.closest('.xe-usercell-action-row');
+  if (!actionRow) {
+    actionRow = document.createElement('div');
+    actionRow.className = 'xe-usercell-action-row';
+    followBtn.parentNode.insertBefore(actionRow, followBtn);
+    actionRow.appendChild(followBtn);
+  }
+  actionRow.insertBefore(blockBtn, followBtn);
 }
 
 function applyHideUserCell(cell, { rule = '', handle = '', action = 'hide' } = {}) {
