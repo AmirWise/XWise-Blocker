@@ -91,6 +91,7 @@ const DEFAULT_SETTINGS = {
   rastnevisShowBadge: true,
   rastnevisUnderline: true,
   rastnevisComposerBtn: true,
+  rastnevisAutoReplace: false,
   rastnevisIgnoredWords: [],
 
   // Productivity & Media Suite (New in v3.5.2 & v3.5.5)
@@ -500,11 +501,12 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
         (async () => {
           const handle = String(message?.handle || '').replace(/^@/, '').trim();
           if (!handle) return { success: false, error: 'NO_HANDLE' };
-          let ok = false;
+          let res = { success: false };
           if (globalThis.XWiseTwitterApi) {
-            ok = await globalThis.XWiseTwitterApi.blockUser('', handle);
+            const apiRes = await globalThis.XWiseTwitterApi.blockUser('', handle);
+            res = (typeof apiRes === 'boolean') ? { success: apiRes } : (apiRes || { success: false });
           }
-          return { success: ok };
+          return res;
         })()
       );
 

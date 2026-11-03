@@ -1,6 +1,6 @@
-# XWise Blocker v3.5.6 🛡️✍️⚡
+# XWise Blocker v3.5.7 🛡️✍️⚡
 
-A powerful, ultra-fast, and native-feeling Chrome extension for X (Twitter). XWise Blocker purifies your timeline, protects your attention, and manages your social graph: **Followers & Following List Auto-Blocker & Filter**, **1-Click Quick Block in Retweets & User Lists**, **Bulletproof Sensitive Media Unblur Engine**, **RastNevis Smart Persian Editor & Proofreader**, **Follow/Unfollow Tracker**, **Relationship Manager (Non-followers, Fans, Mutuals, Lost followers)**, **Anti-Limit Safety Queue**, **Two-Tier LRU & TTL Caching**, **Instant CSS-First Ad Blocker**, **Pro Video Suite with MP4 Downloader & Loop**, **No-Boys Mode (Timeline Gender Filter)**, and **10/10 Modern Bilingual UI (FA/EN)** with embedded Vazirmatn font.
+A powerful, ultra-fast, and native-feeling Chrome extension for X (Twitter). XWise Blocker purifies your timeline, protects your attention, and manages your social graph: **Retweets Mass Blocker with Anti-Bot Safety Guard**, **Accurate Non-Duplicating Block Statistics**, **Followers & Following List Auto-Blocker & Filter**, **1-Click Quick Block in Retweets & User Lists**, **Bulletproof Sensitive Media Unblur Engine**, **RastNevis Smart Persian Editor & Proofreader**, **Follow/Unfollow Tracker**, **Relationship Manager (Non-followers, Fans, Mutuals, Lost followers)**, **Anti-Limit Safety Queue**, **Two-Tier LRU & TTL Caching**, **Instant CSS-First Ad Blocker**, **Pro Video Suite with MP4 Downloader & Loop**, **No-Boys Mode (Timeline Gender Filter)**, and **10/10 Modern Bilingual UI (FA/EN)** with embedded Vazirmatn font.
 
 ---
 
@@ -82,6 +82,26 @@ A powerful, ultra-fast, and native-feeling Chrome extension for X (Twitter). XWi
 - **Interactive Live Test Bench**: A built-in scratchpad inside the extension popup to paste or type any Persian text and receive instantaneous corrections with 1-click Auto-Fix and copy.
 - **Timeline Underline, Tooltips & Revision Panel**: Wavy underlines on problematic words, hover/click tooltips with explanations, summary tweet badges, and interactive revision panels with 1-click full-text copy.
 - **100% Offline & Private (Zero Data Collection)**: All natural language processing happens locally in the browser. Zero network requests, zero telemetry.
+
+## 🆕 What's new in 3.5.7
+
+### 🔁 Retweets Mass Blocker with Anti-Bot Safety Guard (بلاک همگانی ریتوییت‌ها با شیلد ضدربات)
+- **Top-Level Sticky Action Bar in Retweets View**:
+  - Automatically renders a sleek, native-matching action bar at the top of the Retweeters list (supports both in-page `/status/:id/retweets` view and Twitter's native modal popup dialogs).
+  - Prominent «بلاک کردن همه» (Block All) button with dynamic real-time progress counter and immediate «توقف» (Stop) control.
+- **Humanized Anti-Bot Simulation & Rate-Limit Safeguard**:
+  - Anti-detection variable jitter delay (800ms - 1400ms) between block requests to prevent account suspensions or automated bot flags.
+  - Periodic safety cool-down: automatically introduces a 3-5 second pause every 15 blocks to emulate natural human scrolling and interaction.
+  - Automated smooth scrolling fetches subsequent batches until the entire retweeters list is exhausted or stopped by the user.
+  - Complete protection for own handle, whitelisted users, and already-blocked accounts.
+
+### 🎯 Zero Duplicate Counting & Accurate Block Tracking (اصلاح آمار و ثبت لیست بلاک رسمی)
+- **Persistent Blocked Handles Cache**:
+  - Remembers all blocked handles in local storage across browser tabs and sessions.
+  - Auto-blocker and filter engine immediately detect already-blocked accounts and bypass them without triggering failed API requests.
+- **Pristine Official Activity Log & Accurate Statistics**:
+  - Accounts already blocked on X (detected via unblock buttons, previous blocks, or cached state) are never re-logged to `xwise.activityLog`.
+  - Block counts (`blockCount`, `filterBlockCount`) only increment upon genuine, newly-successful API block operations, completely preventing inflated statistics.
 
 ## 🆕 What's new in 3.5.6
 
@@ -310,6 +330,26 @@ A powerful, ultra-fast, and native-feeling Chrome extension for X (Twitter). XWi
 - **جعبه تست زنده ویراستار**: امکان تایپ یا پیست متن فارسی در تب راست‌نویس پاپ‌آپ و مشاهده آنی اشکالات به همراه کپی نسخه ویرایش‌شده با ۱ کلیک.
 - **نشانه‌گذاری تعاملی در تایم‌لاین توییتر**: زیرخط مواج رنگی روی واژه‌های نادرست، تول‌تیپ تعاملی علت خطا، نشان روی توییت و پنل ویرایش با امکان کپی ۱ کلیکی کل متن اصلاح‌شده توییت.
 - **۱۰۰٪ محلی و امن (Zero Data Collection)**: پردازش مستقیم در مرورگر کاربر بدون ارسال داده یا درخواست به هیچ سرور خارجی.
+
+## 🆕 تغییرات نسخه 3.5.7 (بلاک همگانی ریتوییت‌ها و شیلد ضدربات)
+
+### 🔁 بلاک همگانی ریتوییت‌کنندگان با شبیه‌ساز رفتار انسانی (Retweets Mass Blocker)
+- **نوار ابزار چسبان در بالای لیست بازنشرها**:
+  - تشخیص خودکار ورود به بخش ریتوییت‌های هر توییت (هم در صفحه اختصاصی `/status/:id/retweets` و هم در پاپ‌آپ‌ها/مودال‌های بومی توییتر).
+  - قرارگیری دکمه برجسته «بلاک کردن همه» به همراه شمارنده لحظه‌ای پیشرفت و دکمه توقف اضطراری.
+- **موتور هوشمند ضدربات و پیشگیری از حساسیت اکانت**:
+  - ایجاد تاخیرهای نامنظم تصادفی (Jittered Delays بین ۸۰۰ تا ۱۴۰۰ میلی‌ثانیه) بین هر درخواست بلاک برای شبیه‌سازی عملکرد کاربر واقعی.
+  - استراحت ایمنی خودکار: مکث ۳ الی ۵ ثانیه‌ای پس از هر ۱۵ بلاک جهت خنک‌سازی سشن و حفظ سلامت حساب کاربری.
+  - اسکرول خودکار هوشمند به پایین جهت بارگذاری و بلاک تمام صفحات بعدی ریتوییت‌ها تا پایان کامل لیست یا توقف توسط کاربر.
+  - مصونیت کامل اکانت شخصی، افراد وایت‌لیست و کاربران قبلاً مسدود شده.
+
+### 🎯 اصلاح آمار و جلوگیری قطعی از ثبت تکراری کاربران از قبل بلاک‌شده
+- **کش ماندگار آیدی‌های مسدودشده (`xwise.blockedHandles`)**:
+  - ذخیره‌سازی لیست کاربران مسدودشده در حافظه محلی مرورگر جهت شناسایی فوری در سشن‌ها و تب‌های مختلف.
+  - اتوبلاکر و موتور فیلتر با شناسایی کاربران از قبل مسدودشده، دیگر تلاش بیهوده برای ارسال درخواست بلاک به توییتر نمی‌کنند.
+- **پاک‌سازی گزارش فعالیت‌ها (Activity Log) و آمار رسمی**:
+  - کاربرانی که قبلاً بلاک شده‌اند دیگر مجدداً در لاگ رسمی بلاک‌ها نوشته نمی‌شوند و خطای کاذب نیز نمایش داده نمی‌شود.
+  - شمارنده‌های بلاک تنها با موفقیت واقعی بلاک جدید افزایش می‌یابند تا آمار افزونه کاملاً دقیق و واقعی باقی بماند.
 
 ## 🆕 تغییرات نسخه 3.5.5 (به‌روزرسانی جامع)
 

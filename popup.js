@@ -598,7 +598,7 @@ const BOOLEAN_SETTINGS = [
   'filterCaseSensitive', 'filterWholeWord', 'filterDefaultAvatars', 'filterEngagementBait',
   'hideBoysMode', 'adBlockerEnabled', 'blockButtonEnabled', 'quickMenuEnabled', 'shortcutEnabled',
   'shortcutCtrl', 'shortcutAlt', 'shortcutShift', 'confirmDelayOnShortcut', 'showMatchBadges',
-  'showBlockToasts', 'rastnevisEnabled', 'rastnevisHeksare', 'rastnevisArabic', 'rastnevisSpelling',
+  'showBlockToasts', 'rastnevisEnabled', 'rastnevisAutoReplace', 'rastnevisHeksare', 'rastnevisArabic', 'rastnevisSpelling',
   'rastnevisZwnj', 'rastnevisHints', 'rastnevisShowBadge', 'rastnevisUnderline',
   'rastnevisPunctuation', 'rastnevisDigits', 'rastnevisComposerBtn',
 ];
@@ -683,6 +683,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     rastnevisPunctuation: true,
     rastnevisDigits: true,
     rastnevisComposerBtn: true,
+    rastnevisAutoReplace: false,
     rastnevisIgnoredWords: [],
     ...loaded,
   };
@@ -896,6 +897,7 @@ function syncControlsFromSettings() {
   setChecked('rnRulePunctuation', s.rastnevisPunctuation !== false);
   setChecked('rnRuleDigits', s.rastnevisDigits !== false);
   setChecked('rnOptComposerBtn', s.rastnevisComposerBtn !== false);
+  setChecked('rnOptAutoReplace', s.rastnevisAutoReplace === true);
   setChecked('rnOptUnderline', s.rastnevisUnderline !== false);
   setChecked('rnOptShowBadge', s.rastnevisShowBadge !== false);
   renderRastnevisDict();
@@ -2017,6 +2019,7 @@ function setupRastnevisTab() {
   bindToggle('rnRulePunctuation', 'rastnevisPunctuation');
   bindToggle('rnRuleDigits', 'rastnevisDigits');
   bindToggle('rnOptComposerBtn', 'rastnevisComposerBtn');
+  bindToggle('rnOptAutoReplace', 'rastnevisAutoReplace');
   bindToggle('rnOptUnderline', 'rastnevisUnderline');
   bindToggle('rnOptShowBadge', 'rastnevisShowBadge');
 

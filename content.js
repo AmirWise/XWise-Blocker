@@ -1,9 +1,9 @@
 'use strict';
 
 /**
- * XWise Blocker v3.5.6 — Content Script
+ * XWise Blocker v3.5.7 — Content Script
  * Seamless in-page native Twitter integration, flawless ad cleaner, and smart filter suite.
- * Follower/Following/Retweet quick blocker, sensitive media unblur engine, and UI improvements.
+ * Retweets Mass Blocker with anti-bot safeguards, accurate block tracking, sensitive unblur & quick block.
  */
 
 const DEFAULT_SETTINGS = {
@@ -59,6 +59,7 @@ const DEFAULT_SETTINGS = {
 
   // RastNevis Persian Editor (v3.5.1)
   rastnevisEnabled: true,
+  rastnevisAutoReplace: false,
   rastnevisHeksare: true,
   rastnevisArabic: true,
   rastnevisSpelling: true,
@@ -129,6 +130,44 @@ let boysWhitelistSet = new Set();
 const userBioCache = new Map();
 const compiledRegexCache = new Map();
 const genderDetectionCache = new Map();
+
+// Persistent storage sync for blocked handles
+let blockedHandlesSaveTimer = null;
+function saveBlockedHandles() {
+  if (!chrome?.storage?.local) return;
+  clearTimeout(blockedHandlesSaveTimer);
+  blockedHandlesSaveTimer = setTimeout(() => {
+    chrome.storage.local.set({
+      'xwise.blockedHandles': Array.from(blockedHandles).slice(-3000),
+    }).catch(() => {});
+  }, 1200);
+}
+
+function rememberBlockedHandle(handle) {
+  if (!handle) return;
+  const clean = String(handle).replace(/^@/, '').toLowerCase().trim();
+  if (!clean || blockedHandles.has(clean)) return;
+  blockedHandles.add(clean);
+  saveBlockedHandles();
+}
+
+// Preload blocked handles from local storage and existing activity logs
+if (typeof chrome !== 'undefined' && chrome.storage?.local) {
+  chrome.storage.local.get(['xwise.blockedHandles', 'xwise.activityLog']).then((res) => {
+    const list = res?.['xwise.blockedHandles'];
+    if (Array.isArray(list)) {
+      for (const h of list) blockedHandles.add(String(h).toLowerCase());
+    }
+    const acts = res?.['xwise.activityLog'];
+    if (Array.isArray(acts)) {
+      for (const a of acts) {
+        if (a && a.action === 'block' && a.handle) {
+          blockedHandles.add(String(a.handle).toLowerCase());
+        }
+      }
+    }
+  }).catch(() => {});
+}
 
 // In-Page Elements
 let inPageLauncher = null;
@@ -245,7 +284,9 @@ function showToast(message, { duration = 2400, action, onAction, isWarning = fal
   const container = ensureToastContainer();
 
   if (currentToast && container.contains(currentToast)) {
-    currentToast._cancelTimer?.();
+    if (typeof currentToast._cancelTimer === 'function') {
+      currentToast._cancelTimer();
+    }
     replaceToastContent(currentToast, message, { isWarning, action, onAction, duration });
     return currentToast;
   }
@@ -339,14 +380,17 @@ function replaceToastContent(toast, message, { isWarning, action, onAction, dura
   toast.offsetHeight;
   requestAnimationFrame(() => toast.classList.add('xe-toast-in'));
 
-  if (toast._cancelTimer) toast._cancelTimer();
-  toast._cancelTimer = setTimeout(() => {
+  if (typeof toast._cancelTimer === 'function') {
+    toast._cancelTimer();
+  }
+  const newTimer = setTimeout(() => {
     if (currentToast === toast) currentToast = null;
     toast.classList.remove('xe-toast-in');
     toast.classList.add('xe-toast-out');
     toast.addEventListener('transitionend', () => toast.remove(), { once: true });
     setTimeout(() => toast.remove(), 280);
   }, duration);
+  toast._cancelTimer = () => clearTimeout(newTimer);
 }
 
 // ============================================================================
@@ -499,6 +543,16 @@ async function performBlockInternal(tweetNode, { requireConfirmDelay = false, so
     1800
   );
   if (!menuItem) {
+    // Check if menu has Unblock option — meaning user is ALREADY blocked
+    const allItems = Array.from(document.querySelectorAll('[role="menuitem"]'));
+    const isUnblock = allItems.some((n) => {
+      const txt = (n.textContent || '').trim().toLowerCase();
+      const aria = (n.getAttribute('aria-label') || '').toLowerCase();
+      return txt.startsWith('unblock') || txt.startsWith('رفع مسدودیت') || aria.startsWith('unblock') || aria.startsWith('رفع مسدودیت');
+    });
+    if (isUnblock) {
+      rememberBlockedHandle(handleKey);
+    }
     document.body.click();
     inProgressHandles.delete(handleKey);
     return false;
@@ -529,7 +583,7 @@ async function performBlockInternal(tweetNode, { requireConfirmDelay = false, so
 
   confirmBtn.click();
 
-  blockedHandles.add(handleKey);
+  rememberBlockedHandle(handleKey);
   inProgressHandles.delete(handleKey);
 
   const metricKey = source === 'filter' ? 'filterBlockCount' : 'blockCount';
@@ -1089,14 +1143,38 @@ function markUserCellButtonBlocked(cell) {
 }
 
 function isCellAlreadyBlocked(cell) {
+  if (!cell) return false;
+  if (cell.querySelector('.xe-quick-block-btn.xe-blocked')) return true;
+
+  // 1. Check all buttons and clickable elements
   const allBtns = cell.querySelectorAll('button, [role="button"]');
   for (let i = 0; i < allBtns.length; i++) {
-    const t = allBtns[i].textContent.trim().toLowerCase();
-    const aria = (allBtns[i].getAttribute('aria-label') || '').toLowerCase();
-    if (t === 'blocked' || t === 'مسدود' || t === 'مسدود شد' || aria.startsWith('blocked') || aria.startsWith('مسدود')) {
+    const b = allBtns[i];
+    const t = (b.textContent || '').trim().toLowerCase();
+    const aria = (b.getAttribute('aria-label') || '').toLowerCase();
+    const testId = (b.getAttribute('data-testid') || '').toLowerCase();
+
+    if (
+      t === 'blocked' || t === 'unblock' || t === 'مسدود' || t === 'مسدود شد' ||
+      t === 'رفع مسدودیت' || t.includes('unblock') || t.includes('رفع مسدودیت') ||
+      t === 'تم الحظر' || t === 'إلغاء الحظر' ||
+      aria.includes('unblock') || aria.includes('رفع مسدودیت') ||
+      aria.includes('blocked') || aria.includes('مسدود') ||
+      testId.includes('unblock') || testId === 'userunblock'
+    ) {
       return true;
     }
   }
+
+  // 2. Check text anywhere inside cell
+  const textNodes = cell.querySelectorAll('span, div');
+  for (let i = 0; i < textNodes.length; i++) {
+    const txt = (textNodes[i].textContent || '').trim();
+    if (txt === 'Blocked' || txt === 'مسدود' || txt === 'Unblock' || txt === 'رفع مسدودیت' || txt === 'مسدود شد') {
+      return true;
+    }
+  }
+
   return false;
 }
 
@@ -1108,9 +1186,15 @@ function findFollowButtonInCell(cell) {
 
     const txt = b.textContent.trim().toLowerCase();
     const aria = (b.getAttribute('aria-label') || '').toLowerCase();
+    const testId = (b.getAttribute('data-testid') || '').toLowerCase();
 
     // Skip if already blocked
-    if (txt === 'blocked' || txt === 'مسدود' || txt === 'مسدود شد' || aria.startsWith('blocked') || aria.startsWith('مسدود')) {
+    if (
+      txt === 'blocked' || txt === 'مسدود' || txt === 'مسدود شد' || txt === 'تم الحظر' ||
+      aria.startsWith('blocked') || aria.startsWith('مسدود') ||
+      aria.startsWith('unblock') || aria.startsWith('رفع مسدودیت') ||
+      testId.endsWith('-unblock') || testId === 'userunblock'
+    ) {
       continue;
     }
 
@@ -1122,7 +1206,6 @@ function findFollowButtonInCell(cell) {
       return b;
     }
 
-    const testId = b.getAttribute('data-testid') || '';
     if (testId.endsWith('-follow') || testId.endsWith('-unfollow') || testId === 'userFollow') {
       return b;
     }
@@ -1144,7 +1227,10 @@ function addUserCellBlockButton(cell) {
   const handleKey = cleanHandle.toLowerCase();
 
   // If already blocked in state or cell already displays Blocked/مسدود, NEVER inject a redundant button
-  if (blockedHandles.has(handleKey) || isCellAlreadyBlocked(cell)) return;
+  if (blockedHandles.has(handleKey) || isCellAlreadyBlocked(cell)) {
+    rememberBlockedHandle(handleKey);
+    return;
+  }
 
   const followBtn = findFollowButtonInCell(cell);
   if (!followBtn || !followBtn.parentElement) return;
@@ -1182,7 +1268,8 @@ function addUserCellBlockButton(cell) {
     const span = blockBtn.querySelector('.xe-quick-block-text');
     if (span) span.textContent = '...';
 
-    const ok = await performApiBlockForCell(cleanHandle, 'manual', isFa ? 'بلاک سریع' : 'Quick Block');
+    const res = await performApiBlockForCell(cleanHandle, 'manual', isFa ? 'بلاک سریع' : 'Quick Block');
+    const ok = !!(res && (res === true || res.success || res.alreadyBlocked));
     blockBtn.classList.remove('xe-loading');
 
     if (ok) {
@@ -1210,7 +1297,355 @@ function addUserCellBlockButton(cell) {
   actionRow.insertBefore(blockBtn, followBtn);
 }
 
-function applyHideUserCell(cell, { rule = '', handle = '', action = 'hide' } = {}) {
+// ============================================================================
+// Retweets Mass Blocker with Anti-Bot Safety Guard (v3.5.7)
+// ============================================================================
+
+let isRetweetBlockRunning = false;
+let shouldStopRetweetBlock = false;
+
+function getRetweetsScrollElement(container) {
+  if (!container) return window;
+
+  // 1. Walk up from any UserCell or cellInnerDiv inside container
+  const cell = container.querySelector?.('[data-testid="UserCell"], [data-testid="cellInnerDiv"]');
+  if (cell) {
+    let curr = cell.parentElement;
+    while (curr && curr !== container && curr !== document.body && curr !== document.documentElement) {
+      const style = window.getComputedStyle(curr);
+      const oy = style.overflowY || '';
+      if (oy === 'auto' || oy === 'scroll') return curr;
+      if (curr.scrollHeight > curr.clientHeight && curr.clientHeight > 150) return curr;
+      curr = curr.parentElement;
+    }
+  }
+
+  // 2. Check container's descendants with scrollable height
+  const candidateList = container.querySelectorAll?.('div, section, main') || [];
+  for (let i = 0; i < candidateList.length; i++) {
+    const el = candidateList[i];
+    if (el.scrollHeight > el.clientHeight && el.clientHeight > 180) {
+      const style = window.getComputedStyle(el);
+      const oy = style.overflowY || '';
+      if (oy === 'auto' || oy === 'scroll') return el;
+    }
+  }
+
+  // 3. Fallback to container itself if it scrolls
+  if (container.scrollHeight > container.clientHeight && container.clientHeight > 150) {
+    const style = window.getComputedStyle(container);
+    const oy = style.overflowY || '';
+    if (oy === 'auto' || oy === 'scroll') return container;
+  }
+
+  return window;
+}
+
+function findRetweetsTarget() {
+  // 1. Check Modal dialog (Twitter desktop often shows retweets in a modal dialog)
+  const modal = document.querySelector('[role="dialog"], [aria-modal="true"]');
+  if (modal) {
+    const heading = modal.querySelector('h2[role="heading"], [role="heading"]');
+    const hText = (heading?.textContent || '').trim().toLowerCase();
+    const isRetweetModal =
+      /\/status\/\d+\/(retweets|reposts)/i.test(window.location.pathname) ||
+      hText.includes('repost') ||
+      hText.includes('retweet') ||
+      hText.includes('بازنشر') ||
+      hText.includes('بازتوییت') ||
+      hText.includes('إعادة التغريد');
+
+    if (isRetweetModal) {
+      return { container: modal, isModal: true };
+    }
+  }
+
+  // 2. Standalone page view (/status/:id/retweets or /status/:id/reposts)
+  if (/\/status\/\d+\/(retweets|reposts)/i.test(window.location.pathname)) {
+    const primary = document.querySelector('[data-testid="primaryColumn"]') || document.querySelector('main');
+    if (primary) {
+      return { container: primary, isModal: false };
+    }
+  }
+
+  return null;
+}
+
+async function runBlockAllRetweeters(bar, targetContainer) {
+  if (isRetweetBlockRunning) return;
+
+  const isFa = settings.language === 'fa';
+  const blockBtn = bar.querySelector('.xe-retweets-block-all-btn');
+  const stopBtn = bar.querySelector('.xe-retweets-stop-btn');
+  const btnText = bar.querySelector('.xe-retweets-btn-text');
+  const subText = bar.querySelector('.xe-retweets-sub');
+
+  const confirmMsg = isFa
+    ? 'آیا از مسدودسازی تمام ریتوییت‌کنندگان این توییت اطمینان دارید؟\n(همراه با سیستم ایمنی ضدربات و توقف خودکار)'
+    : 'Are you sure you want to block all retweeters of this tweet?\n(Includes anti-bot safety delays)';
+
+  if (!window.confirm(confirmMsg)) return;
+
+  isRetweetBlockRunning = true;
+  shouldStopRetweetBlock = false;
+
+  blockBtn.disabled = true;
+  blockBtn.classList.add('xe-running');
+  if (stopBtn) stopBtn.style.display = 'inline-flex';
+
+  let totalBlocked = 0;
+  let consecutiveEmptyPasses = 0;
+  let actionsSinceLastPause = 0;
+  const processedHandles = new Set();
+
+  const myHandle = (typeof XWiseTwitterApi !== 'undefined' && XWiseTwitterApi.currentAccount?.handle)
+    ? String(XWiseTwitterApi.currentAccount.handle).toLowerCase().replace(/^@/, '')
+    : '';
+
+  const updateProgress = (text, sub = '') => {
+    if (btnText) btnText.textContent = text;
+    if (sub && subText) subText.textContent = sub;
+  };
+
+  try {
+    while (!shouldStopRetweetBlock && targetContainer.isConnected) {
+      const scrollEl = getRetweetsScrollElement(targetContainer);
+
+      // Find all UserCells currently loaded in DOM
+      const cells = Array.from(targetContainer.querySelectorAll('[data-testid="UserCell"]'));
+      let newHandlesDiscovered = 0;
+
+      for (const cell of cells) {
+        if (shouldStopRetweetBlock || !targetContainer.isConnected) break;
+
+        const info = getUserCellDetails(cell);
+        if (!info || !info.handle) continue;
+
+        const clean = info.handle.replace(/^@/, '').trim();
+        const handleKey = clean.toLowerCase();
+
+        if (processedHandles.has(handleKey)) continue;
+        processedHandles.add(handleKey);
+        newHandlesDiscovered++;
+
+        // Never block self
+        if (myHandle && handleKey === myHandle) continue;
+
+        // Skip whitelist
+        if (isHandleWhitelisted(clean)) continue;
+
+        // Instant 0ms skip for already-blocked users (no API call, no delay, maximum speed!)
+        if (blockedHandles.has(handleKey) || isCellAlreadyBlocked(cell)) {
+          rememberBlockedHandle(handleKey);
+          markUserCellButtonBlocked(cell);
+          continue;
+        }
+
+        // Anti-bot safeguard: pause 3-5s every 15 blocks to emulate human behavior
+        if (actionsSinceLastPause >= 15) {
+          actionsSinceLastPause = 0;
+          const pauseMs = 3500 + Math.floor(Math.random() * 1500);
+          updateProgress(
+            isFa ? `استراحت ضدربات (${totalBlocked})...` : `Anti-bot pause (${totalBlocked})...`,
+            isFa ? 'وقفه موقت ایمنی برای محافظت از سلامت اکانت' : 'Temporary pause to protect account health'
+          );
+          await new Promise((r) => setTimeout(r, pauseMs));
+          if (shouldStopRetweetBlock) break;
+        }
+
+        updateProgress(
+          isFa ? `بلاک @${clean}... (${totalBlocked})` : `Blocking @${clean}... (${totalBlocked})`,
+          isFa ? 'در حال مسدودسازی با تاخیر شبیه‌ساز انسانی' : 'Processing with human-like intervals'
+        );
+
+        const res = await performApiBlockForCell(clean, 'manual-retweet-batch', 'Retweets Mass Block');
+
+        if (res && res.rateLimited) {
+          // Twitter rate limit hit — pause 15s then retry this user once
+          updateProgress(
+            isFa ? `محدودیت نرخ توییتر! صبر ۱۵ ثانیه (${totalBlocked})...` : `Rate limit! Pausing 15s (${totalBlocked})...`,
+            isFa ? 'چند لحظه صبر کنید تا پنجره ریت‌لیمیت توییتر آزاد شود' : 'Waiting for Twitter rate limit window to clear'
+          );
+          await new Promise((r) => setTimeout(r, 15000));
+          if (shouldStopRetweetBlock) break;
+
+          const retryRes = await performApiBlockForCell(clean, 'manual-retweet-batch', 'Retweets Mass Block');
+          if (retryRes && retryRes.success && !retryRes.alreadyBlocked) {
+            totalBlocked++;
+            actionsSinceLastPause++;
+            markUserCellButtonBlocked(cell);
+            updateProgress(
+              isFa ? `بلاک شد: ${totalBlocked}` : `Blocked: ${totalBlocked}`,
+              isFa ? `آخرین حساب: @${clean}` : `Last blocked: @${clean}`
+            );
+          } else if (retryRes && retryRes.alreadyBlocked) {
+            rememberBlockedHandle(handleKey);
+            markUserCellButtonBlocked(cell);
+            continue; // Skip immediately
+          }
+        } else if (res && res.success && !res.alreadyBlocked) {
+          totalBlocked++;
+          actionsSinceLastPause++;
+          markUserCellButtonBlocked(cell);
+          updateProgress(
+            isFa ? `بلاک شد: ${totalBlocked}` : `Blocked: ${totalBlocked}`,
+            isFa ? `آخرین حساب: @${clean}` : `Last blocked: @${clean}`
+          );
+        } else if (res && res.alreadyBlocked) {
+          rememberBlockedHandle(handleKey);
+          markUserCellButtonBlocked(cell);
+          continue; // Instant 0ms skip without waiting for jitter!
+        }
+
+        // Variable human-like delay for NEW blocks only: 650ms - 1100ms
+        const jitter = 650 + Math.floor(Math.random() * 450);
+        await new Promise((r) => setTimeout(r, jitter));
+      }
+
+      if (shouldStopRetweetBlock || !targetContainer.isConnected) break;
+
+      // Scroll down to fetch next batch
+      if (scrollEl === window) {
+        window.scrollBy({ top: 800, behavior: 'instant' });
+        window.dispatchEvent(new Event('scroll', { bubbles: true }));
+      } else {
+        scrollEl.scrollTop += 800;
+        scrollEl.dispatchEvent(new Event('scroll', { bubbles: true }));
+        scrollEl.dispatchEvent(new Event('wheel', { bubbles: true }));
+      }
+
+      // Wait for Twitter GraphQL network request and virtual list DOM update
+      await new Promise((r) => setTimeout(r, 1200 + Math.floor(Math.random() * 300)));
+
+      const isAtBottom = (scrollEl === window)
+        ? (window.innerHeight + (window.scrollY || window.pageYOffset) >= document.documentElement.scrollHeight - 60)
+        : (scrollEl.scrollTop + scrollEl.clientHeight >= scrollEl.scrollHeight - 60);
+
+      if (newHandlesDiscovered === 0) {
+        consecutiveEmptyPasses++;
+        if (consecutiveEmptyPasses >= 4 && isAtBottom) {
+          // Reached true end of retweeters list
+          break;
+        }
+      } else {
+        consecutiveEmptyPasses = 0;
+      }
+    }
+  } catch (err) {
+    console.error('[XWise] Retweet mass blocker error:', err);
+  } finally {
+    isRetweetBlockRunning = false;
+    blockBtn.disabled = false;
+    blockBtn.classList.remove('xe-running');
+    if (stopBtn) stopBtn.style.display = 'none';
+
+    if (shouldStopRetweetBlock) {
+      updateProgress(
+        isFa ? `متوقف شد (${totalBlocked} بلاک)` : `Stopped (${totalBlocked} blocked)`,
+        isFa ? 'عملیات توسط شما متوقف شد' : 'Process stopped by user'
+      );
+      try {
+        showToast(
+          isFa
+            ? `مسدودسازی متوقف شد (${totalBlocked} حساب مسدود شد)`
+            : `Block stopped (${totalBlocked} accounts blocked)`
+        );
+      } catch {}
+    } else {
+      updateProgress(
+        isFa ? `تمام شد (${totalBlocked} بلاک)` : `Done (${totalBlocked} blocked)`,
+        isFa ? 'تمام ریتوییت‌کنندگان موجود مسدود شدند' : 'All available retweeters blocked'
+      );
+      try {
+        showToast(
+          isFa
+            ? `تمام ریتوییت‌کنندگان با موفقیت مسدود شدند (${totalBlocked} کاربر)`
+            : `All retweeters successfully blocked (${totalBlocked} accounts)`
+        );
+      } catch {}
+    }
+
+    setTimeout(() => {
+      if (!isRetweetBlockRunning && btnText) {
+        btnText.textContent = isFa ? 'بلاک کردن همه' : 'Block All';
+        if (subText) {
+          subText.textContent = isFa
+            ? 'مسدودسازی خودکار تمام افرادی که بازنشر کرده‌اند'
+            : 'Auto-block all users who reposted this tweet';
+        }
+      }
+    }, 5000);
+  }
+}
+
+function ensureRetweetsBlockButton() {
+  const target = findRetweetsTarget();
+  if (!target || !target.container) return;
+
+  const { container, isModal } = target;
+  if (container.querySelector('.xe-retweets-action-bar')) return;
+
+  const isFa = settings.language === 'fa';
+  const bar = document.createElement('div');
+  bar.className = 'xe-retweets-action-bar' + (isModal ? ' xe-retweets-in-modal' : '');
+
+  bar.innerHTML = `
+    <div class="xe-retweets-info">
+      <svg viewBox="0 0 24 24" class="xe-retweets-icon" aria-hidden="true">
+        <path d="M4.5 3.75a3 3 0 00-3 3v.75h1.5v-.75a1.5 1.5 0 011.5-1.5h15a1.5 1.5 0 011.5 1.5v.75h1.5v-.75a3 3 0 00-3-3h-15zm-3 7.5v6a3 3 0 003 3h15a3 3 0 003-3v-6h-1.5v6a1.5 1.5 0 01-1.5 1.5h-15a1.5 1.5 0 01-1.5-1.5v-6H1.5z"/>
+        <path d="M12 2.25a9.75 9.75 0 100 19.5 9.75 9.75 0 000-19.5zm-7.75 9.75a7.75 7.75 0 0113.24-5.49L5.49 18.5A7.71 7.71 0 014.25 12zm7.75 7.75c-2.06 0-3.93-.8-5.32-2.12L18.68 5.63A7.74 7.74 0 0119.75 12c0 4.28-3.47 7.75-7.75 7.75z"/>
+      </svg>
+      <div class="xe-retweets-text-group">
+        <span class="xe-retweets-title">${isFa ? 'بلاک همگانی ریتوییت‌ها' : 'Block All Retweeters'}</span>
+        <span class="xe-retweets-sub">${isFa ? 'مسدودسازی خودکار تمام افرادی که بازنشر کرده‌اند' : 'Auto-block all users who reposted this tweet'}</span>
+      </div>
+    </div>
+    <div class="xe-retweets-btn-group">
+      <button type="button" class="xe-retweets-block-all-btn">
+        <svg viewBox="0 0 24 24" aria-hidden="true">
+          <path d="M12 3.75c-4.55 0-8.25 3.69-8.25 8.25 0 4.55 3.7 8.25 8.25 8.25 4.56 0 8.25-3.7 8.25-8.25 0-4.56-3.69-8.25-8.25-8.25zM2.25 12c0-5.38 4.37-9.75 9.75-9.75s9.75 4.37 9.75 9.75-4.37 9.75-9.75 9.75S2.25 17.38 2.25 12zm4.73-5.02a.75.75 0 011.06 0l9.98 9.98a.75.75 0 01-1.06 1.06l-9.98-9.98a.75.75 0 010-1.06z"/>
+        </svg>
+        <span class="xe-retweets-btn-text">${isFa ? 'بلاک کردن همه' : 'Block All'}</span>
+      </button>
+      <button type="button" class="xe-retweets-stop-btn" style="display: none;">
+        ${isFa ? 'توقف' : 'Stop'}
+      </button>
+    </div>
+  `;
+
+  const blockBtn = bar.querySelector('.xe-retweets-block-all-btn');
+  const stopBtn = bar.querySelector('.xe-retweets-stop-btn');
+
+  blockBtn.addEventListener('click', (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+    runBlockAllRetweeters(bar, container);
+  });
+
+  stopBtn.addEventListener('click', (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+    shouldStopRetweetBlock = true;
+  });
+
+  if (isModal) {
+    const modalHeader = container.querySelector('[role="heading"]')?.closest('div[style*="flex"], nav, div[style*="sticky"]');
+    if (modalHeader && modalHeader.parentNode) {
+      modalHeader.parentNode.insertBefore(bar, modalHeader.nextSibling);
+    } else {
+      container.prepend(bar);
+    }
+  } else {
+    const topBar = container.querySelector('[data-testid="TopNavBar"]') || container.querySelector('h2[role="heading"]')?.closest('div');
+    if (topBar && topBar.parentNode) {
+      topBar.parentNode.insertBefore(bar, topBar.nextSibling);
+    } else {
+      container.prepend(bar);
+    }
+  }
+}
+
+function applyHideUserCell(cell, { rule = '', handle = '', action = 'hide', wasAlreadyBlocked = false } = {}) {
   const container = cell.closest('[data-testid="cellInnerDiv"]') || cell;
   if (container.hasAttribute('data-xe-uc-hidden') || container.querySelector('.xe-uc-filtered-bar')) return;
 
@@ -1224,9 +1659,11 @@ function applyHideUserCell(cell, { rule = '', handle = '', action = 'hide' } = {
   const label = document.createElement('span');
   label.className = 'xe-filtered-label';
   const cleanRule = rule || 'Filter';
-  const actionText = action === 'auto-block'
+  const actionText = (action === 'auto-block' && !wasAlreadyBlocked)
     ? (settings.language === 'fa' ? 'مسدود شد' : 'Blocked')
-    : (settings.language === 'fa' ? 'پنهان شد' : 'Hidden');
+    : (wasAlreadyBlocked
+        ? (settings.language === 'fa' ? 'قبلاً مسدود شده' : 'Already Blocked')
+        : (settings.language === 'fa' ? 'پنهان شد' : 'Hidden'));
   label.textContent = `${settings.language === 'fa' ? 'اکانت' : 'Account'} ${actionText} (${cleanRule} - @${handle})`;
 
   const showBtn = document.createElement('button');
@@ -1248,31 +1685,41 @@ function applyHideUserCell(cell, { rule = '', handle = '', action = 'hide' } = {
 
   container.prepend(bar);
 
-  incrementBlockMetric(action === 'auto-block' ? 'filterBlockCount' : 'hideCount');
-  recordActivity({ handle, action, rule, scope: 'userlist' });
+  // If already blocked, never record in block metric or block activity log!
+  if (!wasAlreadyBlocked) {
+    if (action === 'hide') {
+      incrementBlockMetric('hideCount');
+      recordActivity({ handle, action: 'hide', rule, scope: 'userlist' });
+    }
+    // performApiBlockForCell handles blockCount / filterBlockCount on genuine success
+  } else {
+    incrementBlockMetric('hideCount');
+  }
 }
 
 async function performApiBlockForCell(handle, source = 'filter', rule = '') {
   const cleanHandle = String(handle || '').replace(/^@/, '').trim();
-  if (!cleanHandle) return false;
+  if (!cleanHandle) return { success: false };
   const handleKey = cleanHandle.toLowerCase();
 
-  if (isHandleWhitelisted(cleanHandle)) return false;
-  if (blockedHandles.has(handleKey) || inProgressHandles.has(handleKey)) return false;
+  if (isHandleWhitelisted(cleanHandle)) return { success: false, whitelisted: true };
+  if (blockedHandles.has(handleKey)) return { success: true, alreadyBlocked: true };
+  if (inProgressHandles.has(handleKey)) return { success: false, inProgress: true };
 
   inProgressHandles.add(handleKey);
 
-  let success = false;
+  let raw = null;
 
   // 1. Try content script direct API
   try {
     if (typeof XWiseTwitterApi !== 'undefined' && XWiseTwitterApi.blockUser) {
-      success = await XWiseTwitterApi.blockUser('', cleanHandle);
+      const apiRes = await XWiseTwitterApi.blockUser('', cleanHandle);
+      raw = (typeof apiRes === 'boolean') ? { success: apiRes } : (apiRes || { success: false });
     }
   } catch {}
 
   // 2. Fallback to background service worker
-  if (!success && typeof chrome !== 'undefined' && chrome.runtime?.sendMessage) {
+  if ((!raw || (!raw.success && !raw.alreadyBlocked && !raw.rateLimited)) && typeof chrome !== 'undefined' && chrome.runtime?.sendMessage) {
     try {
       const resp = await new Promise((resolve) => {
         chrome.runtime.sendMessage({ type: 'XWISE_BLOCK_USER', handle: cleanHandle }, (res) => {
@@ -1280,26 +1727,37 @@ async function performApiBlockForCell(handle, source = 'filter', rule = '') {
           resolve(res);
         });
       });
-      if (resp?.success) success = true;
+      if (resp) {
+        raw = (typeof resp === 'boolean') ? { success: resp } : resp;
+      }
     } catch {}
   }
 
   inProgressHandles.delete(handleKey);
 
-  if (success) {
-    blockedHandles.add(handleKey);
+  if (raw?.rateLimited) {
+    return { success: false, rateLimited: true };
+  }
+
+  if (raw?.alreadyBlocked) {
+    rememberBlockedHandle(handleKey);
+    return { success: true, alreadyBlocked: true };
+  }
+
+  if (raw?.success) {
+    rememberBlockedHandle(handleKey);
     incrementBlockMetric(source === 'filter' ? 'filterBlockCount' : 'blockCount');
     recordActivity({ handle: cleanHandle, action: 'block', rule, scope: source });
-    if (settings.showBlockToasts !== false) {
+    if (settings.showBlockToasts !== false && source !== 'manual-retweet-batch') {
       const msg = settings.language === 'fa'
         ? `حساب @${cleanHandle} طبق فیلتر (${rule || 'بلاک'}) مسدود شد`
         : `@${cleanHandle} blocked by filter (${rule || 'block'})`;
       showToast(msg);
     }
-    return true;
+    return { success: true };
   }
 
-  return false;
+  return { success: false, error: raw?.error };
 }
 
 async function performApiMuteForCell(handle, source = 'filter', rule = '') {
@@ -1354,6 +1812,7 @@ async function performApiMuteForCell(handle, source = 'filter', rule = '') {
 
 async function processUserCell(cell) {
   if (!cell || scannedUserCells.has(cell) || !isShieldOn()) return;
+  if (isRetweetBlockRunning) return;
   if (!settings.filterEngineEnabled) return;
 
   const info = getUserCellDetails(cell);
@@ -1383,9 +1842,16 @@ async function processUserCell(cell) {
         applyHideUserCell(cell, { rule: 'Blue Check', handle, action: 'hide' });
         return;
       } else if (act === 'block') {
+        const isAlready = isCellAlreadyBlocked(cell) || blockedHandles.has(handle.toLowerCase());
+        if (isAlready) {
+          rememberBlockedHandle(handle);
+          applyHideUserCell(cell, { rule: 'Blue Check', handle, action: 'hide', wasAlreadyBlocked: true });
+          return;
+        }
         markUserCellButtonBlocked(cell);
-        performApiBlockForCell(handle, 'blue-check', 'Blue Check');
-        applyHideUserCell(cell, { rule: 'Blue Check', handle, action: 'auto-block' });
+        const res = await performApiBlockForCell(handle, 'blue-check', 'Blue Check');
+        const ok = !!(res && (res === true || res.success));
+        applyHideUserCell(cell, { rule: 'Blue Check', handle, action: ok ? 'auto-block' : 'hide', wasAlreadyBlocked: !ok });
         return;
       } else if (act === 'mute') {
         performApiMuteForCell(handle, 'blue-check', 'Blue Check');
@@ -1435,9 +1901,17 @@ async function processUserCell(cell) {
     if (action === 'hide' || action === 'dry-run') {
       applyHideUserCell(cell, { rule: pat, handle, action: 'hide' });
     } else if (action === 'auto-block') {
+      const isAlready = isCellAlreadyBlocked(cell) || blockedHandles.has(handle.toLowerCase());
+      if (isAlready) {
+        rememberBlockedHandle(handle);
+        // User was previously blocked: hide cleanly, DO NOT re-block, DO NOT write to official block list or stats!
+        applyHideUserCell(cell, { rule: pat, handle, action: 'hide', wasAlreadyBlocked: true });
+        return;
+      }
       markUserCellButtonBlocked(cell);
-      performApiBlockForCell(handle, 'filter', pat);
-      applyHideUserCell(cell, { rule: pat, handle, action: 'auto-block' });
+      const res = await performApiBlockForCell(handle, 'filter', pat);
+      const ok = !!(res && (res === true || res.success));
+      applyHideUserCell(cell, { rule: pat, handle, action: ok ? 'auto-block' : 'hide', wasAlreadyBlocked: !ok });
     } else if (action === 'auto-mute') {
       performApiMuteForCell(handle, 'filter', pat);
       applyHideUserCell(cell, { rule: pat, handle, action: 'auto-mute' });
@@ -2715,8 +3189,20 @@ async function processTweetFilter(tweet) {
     const ok = await performMute(tweet, { source: 'filter', rule: match.matchedFilter.pattern });
     if (!ok) reportAutoActionFailure('mute', match.handle);
   } else if (action === 'auto-block') {
+    const handleKey = match.handle.toLowerCase();
+    if (blockedHandles.has(handleKey)) {
+      // Already blocked: hide tweet cleanly without duplicate block stats or activityLog entry
+      applyHideTweet(tweet, { rule: match.matchedFilter.pattern, scope: match.matchedScope, handle: match.handle });
+      return;
+    }
     const ok = await performBlock(tweet, { requireConfirmDelay: false, source: 'filter', rule: match.matchedFilter.pattern });
-    if (!ok) reportAutoActionFailure('block', match.handle);
+    if (!ok) {
+      if (blockedHandles.has(handleKey)) {
+        applyHideTweet(tweet, { rule: match.matchedFilter.pattern, scope: match.matchedScope, handle: match.handle });
+      } else {
+        reportAutoActionFailure('block', match.handle);
+      }
+    }
   }
 }
 
@@ -3074,7 +3560,12 @@ function clearRastnevisMarks(article) {
     parent.replaceChild(document.createTextNode(span.textContent), span);
     parent.normalize();
   });
-  article.querySelectorAll('.pfa-badge, .pfa-panel').forEach((el) => el.remove());
+  article.querySelectorAll('.pfa-badge, .pfa-badge-container, .pfa-panel, .pfa-tag-container, .pfa-tag-replaced, .pfa-diff-card').forEach((el) => el.remove());
+  if (article._pfaAutoData && article._pfaAutoData.originalText) {
+    const textEl = findTweetTextElement(article);
+    if (textEl) textEl.textContent = article._pfaAutoData.originalText;
+    delete article._pfaAutoData;
+  }
   if (article._pfaIssues) article._pfaIssues = null;
   article.removeAttribute('data-pfa-done');
 }
@@ -3134,32 +3625,29 @@ function wrapRastnevisNode(node, nodeStart, hits) {
 }
 
 function addRastnevisBadge(article, issues, soft) {
-  if (article.querySelector('.pfa-badge')) return;
+  if (article.querySelector('.pfa-badge') || article.querySelector('.pfa-badge-container')) return;
   const textEl = findTweetTextElement(article);
   if (!textEl) return;
 
-  const spellingCount = issues.filter((i) => i.type === 'misspelling' || i.type === 'arabic' || i.type === 'heksare').length;
-  const writingCount = issues.filter((i) => i.type === 'zwnj' || i.type === 'tanwin').length;
-  const styleCount = issues.filter((i) => i.type === 'repeat').length;
+  const count = issues.length;
+  const label = toFaDigits(count) + ' مورد';
 
-  const parts = [];
-  if (spellingCount) parts.push(toFaDigits(spellingCount) + ' غلط املایی');
-  if (writingCount) parts.push(toFaDigits(writingCount) + ' نکته‌ی نگارشی');
-  if (styleCount) parts.push(toFaDigits(styleCount) + ' تکرار حرف');
-  const label = parts.join(' · ') || (toFaDigits(issues.length) + ' اصلاحیه');
+  const container = document.createElement('div');
+  container.className = 'pfa-badge-container';
 
   const badge = document.createElement('button');
   badge.type = 'button';
   badge.className = 'pfa-badge' + (soft ? ' pfa-badge-soft' : '');
   badge.setAttribute('dir', 'rtl');
-  badge.innerHTML = ICON_WARN_SVG + '<span>' + label + '</span>';
+  badge.innerHTML = ICON_FEATHER_SVG + '<span>' + label + '</span>';
   badge.title = 'راست‌نویس — نمایش اصلاحات';
   badge.addEventListener('click', (e) => {
     e.preventDefault();
     e.stopPropagation();
     toggleRastnevisPanel(article);
   });
-  textEl.insertAdjacentElement('afterend', badge);
+  container.appendChild(badge);
+  textEl.insertAdjacentElement('afterend', container);
 }
 
 function toggleRastnevisPanel(article) {
@@ -3269,13 +3757,137 @@ function processRastnevisTweet(article) {
   if (!issues.length) return;
   article._pfaIssues = { text, issues };
 
-  if (settings.rastnevisUnderline !== false) {
-    decorateRastnevisText(textEl, text, issues);
-  }
-  if (settings.rastnevisShowBadge !== false) {
-    addRastnevisBadge(article, issues, !issues.some((i) => i.severity === 'error'));
+  if (settings.rastnevisAutoReplace === true) {
+    handleRastnevisAutoReplace(article, textEl, text, issues);
+  } else {
+    if (settings.rastnevisUnderline !== false) {
+      decorateRastnevisText(textEl, text, issues);
+    }
+    if (settings.rastnevisShowBadge !== false) {
+      addRastnevisBadge(article, issues, !issues.some((i) => i.severity === 'error'));
+    }
   }
   queueRastnevisStat();
+}
+
+function handleRastnevisAutoReplace(article, textEl, text, issues) {
+  if (!issues || !issues.length || !globalThis.RastNevisEngine) return false;
+  const fixed = globalThis.RastNevisEngine.applyCorrections(text, issues);
+  if (fixed === text) return false;
+
+  article._pfaAutoData = {
+    originalText: text,
+    fixedText: fixed,
+    issues: issues,
+    showingOriginal: false,
+  };
+
+  textEl.textContent = fixed;
+
+  if (!article.querySelector('.pfa-tag-replaced')) {
+    const container = document.createElement('div');
+    container.className = 'pfa-tag-container';
+
+    const tag = document.createElement('button');
+    tag.className = 'pfa-tag-replaced';
+    tag.type = 'button';
+    tag.setAttribute('dir', 'rtl');
+    tag.innerHTML = `${ICON_FEATHER_SVG}<span>راست‌نویس</span>`;
+    tag.title = 'اصلاح خودکار راست‌نویس — کلیک برای مقایسه با متن اصلی';
+
+    tag.addEventListener('click', (e) => {
+      e.preventDefault();
+      e.stopPropagation();
+      toggleRastnevisDiffCard(article, textEl);
+    });
+
+    container.appendChild(tag);
+    textEl.insertAdjacentElement('afterend', container);
+  }
+  return true;
+}
+
+function toggleRastnevisDiffCard(article, textEl) {
+  const existing = article.querySelector('.pfa-diff-card');
+  if (existing) {
+    existing.remove();
+    return;
+  }
+  const data = article._pfaAutoData;
+  if (!data) return;
+
+  const card = document.createElement('div');
+  card.className = 'pfa-diff-card';
+  card.innerHTML = `
+    <div class="pfa-diff-header">
+      <span class="pfa-diff-title">
+        ${ICON_FEATHER_SVG}
+        <span>اصلاح خودکار راست‌نویس (${toFaDigits(data.issues.length)} تغییر)</span>
+      </span>
+      <button class="pfa-diff-close" title="بستن">✕</button>
+    </div>
+    <div class="pfa-diff-sections">
+      <div class="pfa-diff-box original">
+        <div class="pfa-diff-label orig-lbl">
+          <span>متن اولیه توییت (با غلط‌های نگارشی/املایی):</span>
+        </div>
+        <div class="pfa-diff-text">${escHtml(data.originalText)}</div>
+      </div>
+      <div class="pfa-diff-box fixed">
+        <div class="pfa-diff-label fixed-lbl">
+          <span>متن اصلاح‌شده و تمیز:</span>
+        </div>
+        <div class="pfa-diff-text">${escHtml(data.fixedText)}</div>
+      </div>
+    </div>
+    <div class="pfa-diff-issues-list">
+      <div class="pfa-diff-issues-title">لیست موارد اصلاح‌شده:</div>
+      ${data.issues.map((i) => `
+        <div class="pfa-diff-issue-row">
+          <span class="pfa-w">${escHtml(i.wrong)}</span>
+          <span class="pfa-arrow">←</span>
+          <span class="pfa-c">${escHtml(i.correct)}</span>
+          <span class="pfa-r">${escHtml(i.reason)}</span>
+        </div>
+      `).join('')}
+    </div>
+    <div class="pfa-diff-actions">
+      <button class="pfa-btn-diff-toggle" id="pfaBtnToggleOrig">
+        ${data.showingOriginal ? 'نمایش متن اصلاح‌شده در توییت' : 'نمایش متن اولیه در توییت'}
+      </button>
+      <button class="pfa-btn pfa-btn-copy" id="pfaBtnCopyDiff">کپی متن اصلاح‌شده</button>
+    </div>
+  `;
+
+  card.addEventListener('click', (e) => e.stopPropagation());
+  card.querySelector('.pfa-diff-close').addEventListener('click', () => card.remove());
+
+  const toggleBtn = card.querySelector('#pfaBtnToggleOrig');
+  toggleBtn.addEventListener('click', () => {
+    data.showingOriginal = !data.showingOriginal;
+    if (data.showingOriginal) {
+      textEl.textContent = data.originalText;
+      toggleBtn.textContent = 'نمایش متن اصلاح‌شده در توییت';
+    } else {
+      textEl.textContent = data.fixedText;
+      toggleBtn.textContent = 'نمایش متن اولیه در توییت';
+    }
+  });
+
+  const copyBtn = card.querySelector('#pfaBtnCopyDiff');
+  copyBtn.addEventListener('click', async () => {
+    try {
+      await navigator.clipboard.writeText(data.fixedText);
+      const orig = copyBtn.textContent;
+      copyBtn.textContent = 'کپی شد!';
+      setTimeout(() => { copyBtn.textContent = orig; }, 1500);
+    } catch {
+      copyBtn.textContent = 'خطا در کپی';
+    }
+  });
+
+  const tag = article.querySelector('.pfa-tag-container') || textEl;
+  tag.insertAdjacentElement('afterend', card);
 }
 
 let activeRastnevisPopover = null;
@@ -5144,7 +5756,7 @@ const RESCAN_KEYS = new Set([
   'shieldEnabled', 'filterEngineEnabled', 'filterMode', 'filterScopes', 'filters',
   'filterCaseSensitive', 'filterWholeWord', 'filterDefaultAvatars', 'filterEngagementBait',
   'blueCheckFilter', 'blueCheckAction', 'whitelist', 'boysWhitelist', 'hideBoysMode', 'adBlockerEnabled',
-  'rastnevisEnabled', 'rastnevisHeksare', 'rastnevisArabic', 'rastnevisSpelling',
+  'rastnevisEnabled', 'rastnevisAutoReplace', 'rastnevisHeksare', 'rastnevisArabic', 'rastnevisSpelling',
   'rastnevisZwnj', 'rastnevisHints', 'rastnevisPunctuation', 'rastnevisDigits',
   'rastnevisShowBadge', 'rastnevisUnderline', 'rastnevisComposerBtn', 'rastnevisIgnoredWords',
   'cleanShareLinks', 'imageDownloadEnabled', 'threadReaderEnabled', 'accountAgeBadge',
@@ -5422,6 +6034,7 @@ function handleNavigation() {
     if (urlChanged) {
       scannedUserCells = new WeakSet();
       scheduleScan(document);
+      ensureRetweetsBlockButton();
     }
 
     // If leaving For You tab (switching to Following or navigating to a Profile):
@@ -5496,6 +6109,7 @@ function flushScan() {
   cleanZenSidebar();
 
   ensureInPageLauncher();
+  ensureRetweetsBlockButton();
   scanRastnevisComposers();
 }
 

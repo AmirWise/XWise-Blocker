@@ -48,10 +48,10 @@ class XWiseTwitterApiEngine {
   async getCsrfToken() {
     // 1. Try Document Cookie (when running in content script context on x.com)
     if (typeof document !== 'undefined' && document.cookie) {
-      const match = document.cookie.match(/(?:^|;\s*)ct0=([a-f0-9]+)/i);
+      const match = document.cookie.match(/(?:^|;\s*)ct0=([^;]+)/i);
       if (match && match[1]) {
-        this.cachedCsrfToken = match[1];
-        return match[1];
+        this.cachedCsrfToken = match[1].trim();
+        return this.cachedCsrfToken;
       }
     }
 
@@ -605,40 +605,60 @@ class XWiseTwitterApiEngine {
    * Block a user
    */
   async blockUser(targetUserId, targetScreenName) {
-    const headers = await this._getHeaders({
-      'content-type': 'application/x-www-form-urlencoded',
-    });
-    const body = new URLSearchParams();
-    if (targetUserId) body.append('user_id', targetUserId);
-    if (targetScreenName) body.append('screen_name', String(targetScreenName).replace(/^@/, ''));
+    try {
+      const headers = await this._getHeaders({
+        'content-type': 'application/x-www-form-urlencoded',
+      });
+      const body = new URLSearchParams();
+      if (targetUserId) body.append('user_id', targetUserId);
+      if (targetScreenName) body.append('screen_name', String(targetScreenName).replace(/^@/, '').trim());
 
-    const res = await fetch('https://x.com/i/api/1.1/blocks/create.json', {
-      method: 'POST',
-      headers,
-      body: body.toString(),
-      credentials: 'include',
-    });
-    return res.ok;
+      const origin = (typeof window !== 'undefined' && window.location?.origin) ? window.location.origin : 'https://x.com';
+      const res = await fetch(`${origin}/i/api/1.1/blocks/create.json`, {
+        method: 'POST',
+        headers,
+        body: body.toString(),
+        credentials: 'include',
+      });
+
+      if (res.ok) return { success: true };
+      if (res.status === 429) return { success: false, rateLimited: true };
+
+      const data = await res.json().catch(() => null);
+      const code = data?.errors?.[0]?.code;
+      const msg = (data?.errors?.[0]?.message || '').toLowerCase();
+      if (code === 160 || code === 162 || msg.includes('already blocked') || msg.includes('blocked')) {
+        return { success: true, alreadyBlocked: true };
+      }
+      return { success: false, error: msg || `HTTP_${res.status}` };
+    } catch (err) {
+      return { success: false, error: err.message };
+    }
   }
 
   /**
    * Unblock a user
    */
   async unblockUser(targetUserId, targetScreenName) {
-    const headers = await this._getHeaders({
-      'content-type': 'application/x-www-form-urlencoded',
-    });
-    const body = new URLSearchParams();
-    if (targetUserId) body.append('user_id', targetUserId);
-    if (targetScreenName) body.append('screen_name', String(targetScreenName).replace(/^@/, ''));
+    try {
+      const headers = await this._getHeaders({
+        'content-type': 'application/x-www-form-urlencoded',
+      });
+      const body = new URLSearchParams();
+      if (targetUserId) body.append('user_id', targetUserId);
+      if (targetScreenName) body.append('screen_name', String(targetScreenName).replace(/^@/, '').trim());
 
-    const res = await fetch('https://x.com/i/api/1.1/blocks/destroy.json', {
-      method: 'POST',
-      headers,
-      body: body.toString(),
-      credentials: 'include',
-    });
-    return res.ok;
+      const origin = (typeof window !== 'undefined' && window.location?.origin) ? window.location.origin : 'https://x.com';
+      const res = await fetch(`${origin}/i/api/1.1/blocks/destroy.json`, {
+        method: 'POST',
+        headers,
+        body: body.toString(),
+        credentials: 'include',
+      });
+      return res.ok;
+    } catch {
+      return false;
+    }
   }
 
   /**
